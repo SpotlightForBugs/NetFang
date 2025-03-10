@@ -15,23 +15,19 @@ CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 manager = PluginManager(CONFIG_PATH)
 network_manager = NetworkManager(manager)
 
+# Load configuration, initialize database, and load plugins BEFORE starting the server
+manager.load_config()
+init_db(manager.config.get("database_path", "netfang.db"))
+manager.load_plugins()
 
-def init_app():
-    manager.load_config()
-    init_db(manager.config.get("database_path", "netfang.db"))
-    manager.load_plugins()
-    # Let each plugin that implements register_routes add its endpoints
-    for plugin in manager.plugins.values():
-        if hasattr(plugin, "register_routes"):
-            plugin.register_routes(app)
-    network_manager.start_flow_loop()
+# Register plugin routes (for plugins that provide blueprints) immediately
+for plugin in manager.plugins.values():
+    if hasattr(plugin, "register_routes"):
+        plugin.register_routes(app)
 
-@app.before_request
-def before_any_request():
-    global initialized
-    if not initialized:
-        init_app()
-        initialized = True
+# Now start the network state-machine loop
+network_manager.start_flow_loop()
+
 
 @app.teardown_appcontext
 def teardown(exception):
@@ -105,4 +101,4 @@ def _set_plugin_enabled_in_config(plugin_name: str, enabled: bool) -> None:
 
 if __name__ == "__main__":
     # For production, consider using gunicorn or similar.
-    app.run(host="0.0.0.0", port=80, debug=False)
+    app.run(host="0.0.0.0", port=80, debug=True)

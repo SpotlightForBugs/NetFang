@@ -50,8 +50,21 @@ class PluginManager:
         optional_conf = self.config.get("optional_plugins", {})
         self._load_plugins_from_dir(optional_dir, optional_conf, db_path)
 
-        for plugin in self.plugins.values():
-            plugin.on_setup()
+        for plugin_name, plugin in self.plugins.items():
+            # Only set up plugins that will be enabled
+            d_conf = self.config.get("default_plugins", {})
+            o_conf = self.config.get("optional_plugins", {})
+            pl_lower = plugin_name.lower()
+
+            is_enabled = False
+            if pl_lower in d_conf:
+                is_enabled = d_conf[pl_lower].get("enabled", True)
+            elif pl_lower in o_conf:
+                is_enabled = o_conf[pl_lower].get("enabled", False)
+
+            if is_enabled:
+                plugin.on_setup()
+
 
         self._apply_enable_disable()
 
