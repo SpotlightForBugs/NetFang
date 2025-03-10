@@ -1,18 +1,43 @@
 <!-- netfang/templates/router_home.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
 <head>
-  <meta charset="UTF-8" />
-  <title>NetFang Router Admin</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='router.css') }}" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8"/>
+    <title>NetFang Secured Router</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='router.css') }}"/>
 </head>
 <body>
-  <header>
-    <h1>NetFang Router Admin</h1>
-  </header>
-  <section>
-    <h2>Status</h2>
-    <p>This interface resembles a simple router admin page.</p>
-  </section>
+<header>
+    <div class="header-content">
+        <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+        <h1>NetFang Secured Router</h1>
+    </div>
+</header>
+<main>
+    <section class="login-section">
+        <h2>{{ 'Anmeldung' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Login' }}</h2>
+        <p class="status">
+            {{ 'Bitte melden Sie sich an, um auf die Router-Einstellungen zuzugreifen.'
+           if request.accept_languages.best_match(['de', 'en']) == 'de' else
+           'Please log in to access the router settings.' }}
+        </p>
+        <form method="POST" action="/login">
+            <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
+            <input type="text" id="username" name="username" required/>
+
+            <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
+            <input type="password" id="password" name="password" required/>
+
+            <button type="submit">
+                {{ 'Anmelden' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Log In' }}
+            </button>
+        </form>
+    </section>
+</main>
+<footer>
+    <p>&copy; 2025
+        NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
+</footer>
 </body>
 </html>

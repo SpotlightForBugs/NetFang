@@ -1,13 +1,16 @@
 # netfang/main.py
 
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 import os
+
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
 from netfang.network_manager import NetworkManager, ConnectionState
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)  # Generate a random secret key
+app.config['SESSION_COOKIE_NAME'] = 'NetFang auth'
 
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -34,8 +37,28 @@ def teardown(exception):
     network_manager.stop_flow_loop()
 
 @app.route("/")
-def router_home():
+def frontpage():
+    if session.get('logged_in'):
+        return redirect(url_for('dashboard'))
     return render_template("router_home.html")
+
+@app.route("/login", methods=["POST"])
+def login():
+    if request.content_type == 'application/json':
+        data = request.get_json() or {}
+        username = data.get("username")
+        password = data.get("password")
+    else:
+        username = request.form.get("username")
+        password = request.form.get("password")
+
+    #TODO Implement proper authentication
+    if username == "admin" and password == "password":
+        session['logged_in'] = True
+        session['username'] = username
+        return jsonify({"status": "Logged in"}), 200
+    return render_template("login_failed.html"), 401
+
 
 @app.route("/plugins", methods=["GET"])
 def list_plugins():
@@ -95,11 +118,11 @@ def test_state(state_num: int):
     network_manager._update_state(new_state)
     # Optionally, trigger some event callbacks based on the state.
     if new_state == ConnectionState.CONNECTED_HOME:
-        network_manager.manager.on_home_network_connected()
+        network_manager.plugin_manager.on_home_network_connected()
     elif new_state == ConnectionState.CONNECTED_NEW:
-        network_manager.manager.on_new_network_connected("00:00:00:00:00:00", "TestNewNetwork")
+        network_manager.plugin_manager.on_new_network_connected("00:00:00:00:00:00", "TestNewNetwork")
     elif new_state == ConnectionState.CONNECTED_KNOWN:
-        network_manager.manager.on_known_network_connected("00:00:00:00:00:00", "TestKnownNetwork", False)
+        network_manager.plugin_manager.on_known_network_connected("00:00:00:00:00:00", "TestKnownNetwork", False)
     # You can extend this if/elif block to simulate actions for other states.
     return jsonify({
         "status": f"State forced to {new_state.value}",
@@ -128,4 +151,4 @@ def _set_plugin_enabled_in_config(plugin_name: str, enabled: bool) -> None:
 
 if __name__ == "__main__":
     # For production, consider using gunicorn or similar.
-    app.run(host="0.0.0.0", port=80, debug=True)
+    app.run(host="0.0.0.0", port=80, debug=False)

@@ -1,25 +1,113 @@
 /* netfang/static/router.css */
-
 body {
-  font-family: Arial, sans-serif;
-  background-color: #f2f2f2;
+  font-family: Tahoma, Verdana, Arial, sans-serif;
+  background-color: #f0f0f0;
   margin: 0;
   padding: 0;
+  color: #333;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 header {
-  background-color: #0b3e90;
+  width: 100%;
+  background-color: #004a99;
   color: #fff;
   padding: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.header-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.router-logo {
+  height: 40px;
+  margin-right: 1rem;
 }
 
 h1 {
   margin: 0;
+  font-size: 1.8rem;
 }
 
-section {
-  background-color: #fff;
-  margin: 1rem;
-  padding: 1rem;
+main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.login-section {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
+  border: 1px solid #ccc;
+  width: 100%;
+  max-width: 350px;
+}
+
+h2 {
+  margin-top: 0;
+  color: #004a99;
+  text-align: center;
+}
+
+form {
+  display: flex;
+  flex-direction: column;
+}
+
+label {
+  margin-top: 1rem;
+  margin-bottom: 0.25rem;
+  color: #555;
+}
+
+input[type="text"],
+input[type="password"] {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.25rem;
   border-radius: 4px;
+  border: 1px solid #aaa;
+  box-sizing: border-box;
+  background-color: #f9f9f9;
+}
+
+button {
+  background-color: #0074D9;
+  color: #fff;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-top: 1.5rem;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.status {
+  font-size: 0.9rem;
+  color: #666;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+footer {
+  background-color: #004a99;
+  color: #fff;
+  width: 100%;
+  padding: 0.5rem;
+  text-align: center;
+  box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.2);
 }

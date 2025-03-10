@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
+<head>
+  <meta charset="UTF-8" />
+  <title>NetFang Router Admin - {{ 'Fehler' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Error' }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='router.css') }}" />
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo" />
+      <h1>NetFang Router Admin</h1>
+    </div>
+  </header>
+  <main>
+    <section class="login-section">
+      <h2>{{ 'Anmeldung fehlgeschlagen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Login Failed' }}</h2>
+      <p class="status">
+        {{ 'Benutzername oder Passwort falsch. Bitte versuchen Sie es erneut.'
+           if request.accept_languages.best_match(['de', 'en']) == 'de' else
+           'Incorrect username or password. Please try again.' }}
+      </p>
+      <form method="POST" action="/login">
+        <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
+        <input type="text" id="username" name="username" required />
+
+        <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
+        <input type="password" id="password" name="password" required />
+
+        <button type="submit">
+          {{ 'Erneut versuchen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Try Again' }}
+        </button>
+      </form>
+    </section>
+  </main>
+  <footer>
+    <p>&copy; 2025 NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
+  </footer>
+</body>
+</html>
