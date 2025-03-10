@@ -1,0 +1,25 @@
+/* netfang/static/router.css */
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f2f2f2;
+  margin: 0;
+  padding: 0;
+}
+
+header {
+  background-color: #0b3e90;
+  color: #fff;
+  padding: 1rem;
+}
+
+h1 {
+  margin: 0;
+}
+
+section {
+  background-color: #fff;
+  margin: 1rem;
+  padding: 1rem;
+  border-radius: 4px;
+}
