@@ -24,11 +24,9 @@ class RustScanPlugin(BasePlugin):
 
     def run_rustscan(self, target: str = "127.0.0.1") -> None:
         """
-        Example function for running rustscan on a target IP.
+        Run rustscan on a target (placeholder).
         """
         db_path = self.config["database_path"]
-        print(f"[{self.name}] Running rustscan on {target}... (placeholder)")
+        print(f"[{self.name}] Running rustscan on {target}...")
         add_plugin_log(db_path, self.name, f"RustScan on {target}")
-
-        # Example:
-        # subprocess.run(["rustscan", "-a", target], capture_output=True, text=True)
+        # Example: subprocess.run(["rustscan", "-a", target])

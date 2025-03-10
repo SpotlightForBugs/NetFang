@@ -16,22 +16,19 @@ class IpsecVpnPlugin(BasePlugin):
 
     def on_enable(self) -> None:
         print(f"[{self.name}] Enabled.")
-        add_plugin_log(self.config["database_path"], self.name, "IPsec VPN plugin enabled")
+        add_plugin_log(self.config["database_path"], self.name, "IPsec VPN enabled")
 
     def on_disable(self) -> None:
         print(f"[{self.name}] Disabled.")
-        add_plugin_log(self.config["database_path"], self.name, "IPsec VPN plugin disabled")
+        add_plugin_log(self.config["database_path"], self.name, "IPsec VPN disabled")
 
     def connect_ipsec(self) -> None:
         """
-        Connect to IPsec server using provided credentials.
+        Connect to the IPsec VPN server (placeholder).
         """
         plugin_cfg = self.config.get("plugin_config", {})
         server = plugin_cfg.get("server", "")
         psk = plugin_cfg.get("psk", "")
-
-        print(f"[{self.name}] Attempting IPsec connection to {server}... (placeholder)")
+        print(f"[{self.name}] Connecting to IPsec server {server}...")
         add_plugin_log(self.config["database_path"], self.name, f"Connecting to {server}")
-
-        # Example usage if using strongSwan:
-        # subprocess.run(["ipsec", "up", "myConnection"])
+        # Example: subprocess.run(["ipsec", "up", "connection_name"])

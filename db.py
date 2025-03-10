@@ -1,15 +1,15 @@
 # netfang/db.py
 
 import sqlite3
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 def init_db(db_path: str) -> None:
     """
     Create initial schema if not present.
     Tables:
-      networks: store known networks (MAC, SSID), whether blacklisted or home
-      devices: store scanned hosts on a network
-      plugin_logs: record plugin events
+      - networks: known networks with MAC, SSID, blacklist and home flags.
+      - devices: scanned hosts and their services.
+      - plugin_logs: record plugin events.
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -53,7 +53,7 @@ def init_db(db_path: str) -> None:
 def add_or_update_network(db_path: str, mac_address: str, name: str,
                           is_blacklisted: bool = False, is_home: bool = False) -> None:
     """
-    Insert or update a network in the DB by unique mac_address.
+    Insert a new network or update an existing one by MAC address.
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -62,13 +62,11 @@ def add_or_update_network(db_path: str, mac_address: str, name: str,
     row = cursor.fetchone()
 
     if row is None:
-        # Insert new
         cursor.execute("""
             INSERT INTO networks (mac_address, name, is_blacklisted, is_home)
             VALUES (?, ?, ?, ?)
         """, (mac_address, name, is_blacklisted, is_home))
     else:
-        # Update existing
         cursor.execute("""
             UPDATE networks
             SET name = ?,
@@ -83,7 +81,7 @@ def add_or_update_network(db_path: str, mac_address: str, name: str,
 
 def get_network_by_mac(db_path: str, mac_address: str) -> Optional[Dict[str, Any]]:
     """
-    Returns a dict with the row data for the given MAC address, or None if not found.
+    Retrieve network details by MAC address.
     """
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -93,19 +91,18 @@ def get_network_by_mac(db_path: str, mac_address: str) -> Optional[Dict[str, Any
     row = cursor.fetchone()
     conn.close()
 
-    if row:
-        return dict(row)
-    return None
+    return dict(row) if row else None
 
 def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
     """
-    Inserts a row into plugin_logs for debugging or event tracing.
+    Log plugin events for diagnostics.
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO plugin_logs (plugin_name, event) VALUES (?, ?)
+        INSERT INTO plugin_logs (plugin_name, event)
+        VALUES (?, ?)
     """, (plugin_name, event))
 
     conn.commit()

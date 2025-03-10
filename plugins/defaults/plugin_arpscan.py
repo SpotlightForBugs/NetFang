@@ -24,15 +24,9 @@ class ArpScanPlugin(BasePlugin):
 
     def run_arpscan(self) -> None:
         """
-        Example function to run an arp-scan. In a real setup,
-        you'd parse the output and store discovered hosts in DB.
+        Run an arp-scan command (placeholder).
         """
         db_path = self.config["database_path"]
-        print(f"[{self.name}] Running arp-scan... (placeholder)")
+        print(f"[{self.name}] Running arp-scan...")
         add_plugin_log(db_path, self.name, "Executed run_arpscan")
-
-        # Example usage of arp-scan:
-        # result = subprocess.run(["arp-scan", "--localnet"], capture_output=True, text=True)
-        # parse result.stdout for IP/MAC
-
-        # You could then add devices to the 'devices' table in DB.
+        # Example: subprocess.run(["arp-scan", "--localnet"])

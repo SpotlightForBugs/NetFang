@@ -17,28 +17,25 @@ class PushoverPlugin(BasePlugin):
 
     def on_enable(self) -> None:
         print(f"[{self.name}] Enabled.")
-        add_plugin_log(self.config["database_path"], self.name, "Pushover plugin enabled")
+        add_plugin_log(self.config["database_path"], self.name, "Pushover enabled")
 
     def on_disable(self) -> None:
         print(f"[{self.name}] Disabled.")
-        add_plugin_log(self.config["database_path"], self.name, "Pushover plugin disabled")
+        add_plugin_log(self.config["database_path"], self.name, "Pushover disabled")
 
     def send_alert(self, message: str) -> None:
         """
-        Send an alert via Pushover using credentials from plugin_config.
+        Send an alert via Pushover using API credentials.
         """
         plugin_cfg = self.config.get("plugin_config", {})
         api_token = plugin_cfg.get("api_token", "")
         user_key = plugin_cfg.get("user_key", "")
-
         if not api_token or not user_key:
             print(f"[{self.name}] Missing Pushover credentials.")
             return
 
-        add_plugin_log(self.config["database_path"], self.name, f"Sending Pushover alert: {message}")
-
-        # Example:
-        # requests.post("https://api.pushover.net/1/messages.json", data={
+        add_plugin_log(self.config["database_path"], self.name, f"Sending alert: {message}")
+        # Example: requests.post("https://api.pushover.net/1/messages.json", data={
         #     "token": api_token,
         #     "user": user_key,
         #     "message": message

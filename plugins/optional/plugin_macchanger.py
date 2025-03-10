@@ -24,13 +24,10 @@ class MacChangerPlugin(BasePlugin):
 
     def change_mac(self) -> None:
         """
-        Call 'macchanger' to spoof interface's MAC address.
+        Change the MAC address using macchanger (placeholder).
         """
         plugin_cfg = self.config.get("plugin_config", {})
         interface = plugin_cfg.get("interface", "wlan0")
-
-        print(f"[{self.name}] Changing MAC on interface {interface}... (placeholder)")
+        print(f"[{self.name}] Changing MAC on interface {interface}...")
         add_plugin_log(self.config["database_path"], self.name, f"Changed MAC on {interface}")
-
-        # Example:
-        # subprocess.run(["macchanger", "-r", interface])
+        # Example: subprocess.run(["macchanger", "-r", interface])

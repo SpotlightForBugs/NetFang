@@ -2,6 +2,7 @@
 
 import subprocess
 from typing import Any, Dict
+from flask import Blueprint, request, jsonify
 from netfang.plugins.base_plugin import BasePlugin
 from netfang.db import add_plugin_log
 
@@ -24,11 +25,26 @@ class FiercePlugin(BasePlugin):
 
     def run_fierce(self, domain: str) -> None:
         """
-        Manual run triggered via the Web UI: e.g. /plugins/fierce/run
+        Run the fierce scan on a given domain (placeholder).
         """
         db_path = self.config["database_path"]
-        print(f"[{self.name}] Running fierce on domain={domain}... (placeholder)")
+        print(f"[{self.name}] Running fierce on domain: {domain}...")
         add_plugin_log(db_path, self.name, f"Fierce run on {domain}")
+        # Example: subprocess.run(["fierce", "--domain", domain])
 
-        # Example:
-        # subprocess.run(["fierce", "--domain", domain], capture_output=True, text=True)
+    def register_routes(self, app: Any) -> None:
+        """
+        Register the routes for the Fierce plugin.
+        """
+        bp = Blueprint("fierce", __name__, url_prefix="/fierce")
+
+        @bp.route("/run", methods=["POST"])
+        def run():
+            data = request.get_json() or {}
+            domain = data.get("domain", "")
+            if not domain:
+                return jsonify({"error": "No domain provided"}), 400
+            self.run_fierce(domain)
+            return jsonify({"status": f"Fierce scan on {domain} started"}), 200
+
+        app.register_blueprint(bp)
