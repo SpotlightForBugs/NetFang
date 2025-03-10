@@ -10,7 +10,7 @@ from netfang.network_manager import NetworkManager, ConnectionState
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24) # Required for session management
-app.config['SESSION_COOKIE_NAME'] = 'NetFang auth'
+app.config['SESSION_COOKIE_NAME'] = 'NETFANG_SECURE_SESSION'
 
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")

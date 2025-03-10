@@ -6,6 +6,7 @@ from typing import Optional
 from netfang.db import add_or_update_network, get_network_by_mac
 from netfang.plugin_manager import PluginManager
 
+
 class ConnectionState(Enum):
     WAITING_FOR_NETWORK = "WAITING_FOR_NETWORK"
     CONNECTING = "CONNECTING"
@@ -18,6 +19,7 @@ class ConnectionState(Enum):
     CONNECTED_BLACKLISTED = "CONNECTED_BLACKLISTED"
     ALERTING = "ALERTING"
     DISCONNECTED = "DISCONNECTED"
+
 
 class NetworkManager:
     def __init__(self, manager: PluginManager) -> None:
@@ -101,8 +103,7 @@ class NetworkManager:
 
             self.current_state = new_state
             print(f"[NetworkManager] New state set: {self.current_state.value} (id: {id(self.current_state)})")
-
-            # Dispatch plugin manager events for each state if you want each state to trigger a unique callback.
+            # TODO: FUNCTION PARAMETER AND FUNCTION CALLS
             if new_state == ConnectionState.WAITING_FOR_NETWORK:
                 self.plugin_manager.on_waiting_for_network()
             elif new_state == ConnectionState.CONNECTING:
@@ -122,6 +123,6 @@ class NetworkManager:
             elif new_state == ConnectionState.CONNECTED_BLACKLISTED:
                 self.plugin_manager.on_connected_blacklisted()
             elif new_state == ConnectionState.ALERTING:
-                self.plugin_manager.on_alerting()
+                self.plugin_manager.on_alerting("TODO MESSAGE PARAMETER")
             elif new_state == ConnectionState.DISCONNECTED:
                 self.plugin_manager.on_disconnected()

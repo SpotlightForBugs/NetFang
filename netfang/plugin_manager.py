@@ -168,3 +168,41 @@ class PluginManager:
     def on_known_network_connected(self, mac: str, name: str, is_blacklisted: bool) -> None:
         for p in self.plugins.values():
             p.on_known_network_connected(mac, name, is_blacklisted)
+
+    def on_disconnected(self):
+        for p in self.plugins.values():
+            p.on_disconnected()
+
+    def on_alerting(self, message: str):
+        for p in self.plugins.values():
+            p.on_alerting(message)
+
+    def on_reconnecting(self):
+        for p in self.plugins.values():
+            p.on_reconnecting()
+
+    def on_connected_home(self):
+        for p in self.plugins.values():
+            p.on_connected_home()
+
+    def on_connected_blacklisted(self):
+        for p in self.plugins.values():
+            p.on_connected_blacklisted()
+
+    def on_connected_known(self):
+        for p in self.plugins.values():
+            p.on_connected_known()
+
+    def on_waiting_for_network(self):
+        for p in self.plugins.values():
+            p.on_waiting_for_network()
+
+    def on_connecting(self):
+        for p in self.plugins.values():
+            p.on_connecting()
+
+
+
+
+
+
