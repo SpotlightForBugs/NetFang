@@ -15,12 +15,8 @@ CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 manager = PluginManager(CONFIG_PATH)
 network_manager = NetworkManager(manager)
 
-@app.before_first_request
-def startup():
-    """
-    Load config, initialize DB, load plugins, register plugin routes,
-    and start the background network state-machine loop.
-    """
+
+def init_app():
     manager.load_config()
     init_db(manager.config.get("database_path", "netfang.db"))
     manager.load_plugins()
@@ -29,6 +25,13 @@ def startup():
         if hasattr(plugin, "register_routes"):
             plugin.register_routes(app)
     network_manager.start_flow_loop()
+
+@app.before_request
+def before_any_request():
+    global initialized
+    if not initialized:
+        init_app()
+        initialized = True
 
 @app.teardown_appcontext
 def teardown(exception):
