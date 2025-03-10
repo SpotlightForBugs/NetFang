@@ -9,12 +9,16 @@ from netfang.db import add_or_update_network, get_network_by_mac
 from netfang.plugin_manager import PluginManager
 
 class ConnectionState(Enum):
-    IDLE = "IDLE"
+    WAITING_FOR_NETWORK = "WAITING_FOR_NETWORK"
     CONNECTING = "CONNECTING"
     CONNECTED_HOME = "CONNECTED_HOME"
     CONNECTED_NEW = "CONNECTED_NEW"
+    SCANNING_IN_PROGRESS = "SCANNING_IN_PROGRESS"
+    SCAN_COMPLETED = "SCAN_COMPLETED"
     CONNECTED_KNOWN = "CONNECTED_KNOWN"
+    RECONNECTING = "RECONNECTING"
     CONNECTED_BLACKLISTED = "CONNECTED_BLACKLISTED"
+    ALERTING = "ALERTING"
     DISCONNECTED = "DISCONNECTED"
 
 class NetworkManager:
@@ -25,7 +29,8 @@ class NetworkManager:
         flow_cfg = self.config.get("network_flows", {})
         self.blacklisted_macs = [m.upper() for m in flow_cfg.get("blacklisted_macs", [])]
         self.home_mac = flow_cfg.get("home_network_mac", "").upper()
-        self.current_state = ConnectionState.IDLE
+        self.current_state = ConnectionState.WAITING_FOR_NETWORK
+        self.state_lock = threading.Lock()  # Add a lock for state access
         self.running = False
         self.thread: Optional[threading.Thread] = None
 
@@ -42,15 +47,10 @@ class NetworkManager:
             self.thread.join()
 
     def _flow_loop(self) -> None:
-        """
-        A state-machine loop that periodically checks network status.
-        Replace this polling with real network detection as needed.
-        """
         while self.running:
-            # (Placeholder) In a real implementation, check if network is still connected.
-            # For example, if disconnected, update state and trigger events.
-            # Here, we simply print the current state every 5 seconds.
-            print(f"[NetworkManager] Current state: {self.current_state.value}")
+            with self.state_lock:
+                current = self.current_state
+                print(f"[NetworkManager] (Flow Loop) Current state: {current.value} (id: {id(current)})")
             time.sleep(5)
 
     def handle_network_connection(self, mac_address: str, ssid: str) -> None:
@@ -76,7 +76,9 @@ class NetworkManager:
                 return
             else:
                 self._update_state(ConnectionState.CONNECTED_NEW)
-                print("[NetworkManager] New network connected; running scans.")
+                print("[NetworkManager] New network connected; starting scan.")
+                self._update_state(ConnectionState.SCANNING_IN_PROGRESS)
+                # Here you can trigger your scanning process.
         else:
             # Known network
             add_or_update_network(self.db_path, mac_upper, ssid, is_blacklisted, is_home)
@@ -93,6 +95,9 @@ class NetworkManager:
                 self.manager.on_known_network_connected(mac_upper, ssid, is_blacklisted)
 
     def _update_state(self, new_state: ConnectionState) -> None:
-        if self.current_state != new_state:
-            print(f"[NetworkManager] State transition: {self.current_state.value} -> {new_state.value}")
-            self.current_state = new_state
+        with self.state_lock:
+            if self.current_state != new_state:
+                print(
+                    f"[NetworkManager] State transition: {self.current_state.value} -> {new_state.value} (id: {id(self.current_state)})")
+                self.current_state = new_state
+                print(f"[NetworkManager] New state set: {self.current_state.value} (id: {id(self.current_state)})")
