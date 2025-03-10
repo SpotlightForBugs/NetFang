@@ -24,10 +24,10 @@
         </p>
         <form method="POST" action="/login">
             <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
-            <input type="text" id="username" name="username" required/>
+            <input type="text" id="username" name="username" autocomplete="username" required/>
 
             <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
-            <input type="password" id="password" name="password" required/>
+            <input type="password" id="password" name="password" autocomplete="current-password" required/>
 
             <button type="submit">
                 {{ 'Anmelden' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Log In' }}

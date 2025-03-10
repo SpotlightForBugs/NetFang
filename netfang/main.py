@@ -9,7 +9,7 @@ from netfang.plugin_manager import PluginManager
 from netfang.network_manager import NetworkManager, ConnectionState
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Generate a random secret key
+app.secret_key = os.urandom(24) # Required for session management
 app.config['SESSION_COOKIE_NAME'] = 'NetFang auth'
 
 BASE_DIR = os.path.dirname(__file__)
@@ -42,8 +42,11 @@ def frontpage():
         return redirect(url_for('dashboard'))
     return render_template("router_home.html")
 
-@app.route("/login", methods=["POST"])
+
+@app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "GET":
+        return redirect(url_for("frontpage"))
     if request.content_type == 'application/json':
         data = request.get_json() or {}
         username = data.get("username")
@@ -56,8 +59,21 @@ def login():
     if username == "admin" and password == "password":
         session['logged_in'] = True
         session['username'] = username
-        return jsonify({"status": "Logged in"}), 200
+        return redirect(url_for("dashboard"))
+
     return render_template("login_failed.html"), 401
+
+@app.route("/dashboard")
+def dashboard():
+    if not session.get('logged_in'):
+        return redirect(url_for('frontpage'))
+    return render_template("hidden/index.html")
+
+@app.route("/state")
+def get_current_state():
+    if not session.get('logged_in'):
+        return jsonify({"error": "Unauthorized"}), 401
+    return jsonify({"state": network_manager.current_state.value})
 
 
 @app.route("/plugins", methods=["GET"])

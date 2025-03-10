@@ -1,0 +1,38 @@
+<!-- netfang/templates/router_home.html -->
+<!DOCTYPE html>
+<html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8"/>
+    <title>NetFang Secured Router</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='router.css') }}"/>
+</head>
+<body>
+<header>
+    <div class="header-content">
+        <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+        <h1>NetFang Secured Router</h1>
+    </div>
+</header>
+<main>
+    <div> Current state: <span id="state"></span></div>
+
+</main>
+<footer>
+    <p>&copy; 2025
+        NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
+</footer>
+</body>
+</html>
+<script>
+    function updateState() {
+        fetch("/state")
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById("state").innerText = data.state;
+            });
+    }
+
+    setInterval(updateState, 5000);
+    updateState();
+</script>
