@@ -7,7 +7,7 @@ from netfang.db import add_or_update_network, get_network_by_mac
 from netfang.plugin_manager import PluginManager
 
 
-class ConnectionState(Enum):
+class State(Enum):
     WAITING_FOR_NETWORK = "WAITING_FOR_NETWORK"
     CONNECTING = "CONNECTING"
     CONNECTED_HOME = "CONNECTED_HOME"
@@ -29,7 +29,7 @@ class NetworkManager:
         flow_cfg = self.config.get("network_flows", {})
         self.blacklisted_macs = [m.upper() for m in flow_cfg.get("blacklisted_macs", [])]
         self.home_mac = flow_cfg.get("home_network_mac", "").upper()
-        self.current_state = ConnectionState.WAITING_FOR_NETWORK
+        self.current_state = State.WAITING_FOR_NETWORK
         self.state_lock = threading.Lock()
         self.running = False
         self.thread: Optional[threading.Thread] = None
@@ -61,37 +61,19 @@ class NetworkManager:
         is_blacklisted = mac_upper in self.blacklisted_macs
         is_home = (mac_upper == self.home_mac)
         net_info = get_network_by_mac(self.db_path, mac_upper)
+        add_or_update_network(self.db_path, mac_upper, ssid, is_blacklisted, is_home)
 
-        if net_info is None:
-            # New network
-            add_or_update_network(self.db_path, mac_upper, ssid, is_blacklisted, is_home)
-            self._update_state(ConnectionState.CONNECTED_NEW, mac=mac_upper, ssid=ssid)
-            if is_blacklisted:
-                self._update_state(ConnectionState.CONNECTED_BLACKLISTED, mac=mac_upper, ssid=ssid)
-                print("[NetworkManager] Connected to blacklisted network. Aborting scans.")
-                return
-            elif is_home:
-                self._update_state(ConnectionState.CONNECTED_HOME, mac=mac_upper, ssid=ssid)
-                return
-            else:
-                self._update_state(ConnectionState.CONNECTED_NEW, mac=mac_upper, ssid=ssid)
-                print("[NetworkManager] New network connected; starting scan.")
-                self._update_state(ConnectionState.SCANNING_IN_PROGRESS, mac=mac_upper, ssid=ssid)
-                # Trigger your scanning process here if needed.
+        if is_blacklisted:
+            self._update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper, ssid=ssid)
+        if is_home:
+            self._update_state(State.CONNECTED_HOME, mac=mac_upper, ssid=ssid)
+
+        if not net_info:
+            self._update_state(State.CONNECTED_NEW, mac=mac_upper, ssid=ssid)
         else:
-            # Known network
-            add_or_update_network(self.db_path, mac_upper, ssid, is_blacklisted, is_home)
-            if is_blacklisted:
-                self._update_state(ConnectionState.CONNECTED_BLACKLISTED, mac=mac_upper, ssid=ssid)
-                print("[NetworkManager] Reconnected to blacklisted network. Aborting scans.")
-                return
-            elif is_home:
-                self._update_state(ConnectionState.CONNECTED_HOME, mac=mac_upper, ssid=ssid)
-                return
-            else:
-                self._update_state(ConnectionState.CONNECTED_KNOWN, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_KNOWN, mac=mac_upper, ssid=ssid)
 
-    def _update_state(self, new_state: ConnectionState, message: str = "", mac: str = "", ssid: str = "") -> None:
+    def _update_state(self, new_state: State, mac: str, ssid: str, message: str = "", ) -> None:
         with self.state_lock:
             if self.current_state == new_state:
                 return
@@ -102,37 +84,39 @@ class NetworkManager:
             self.current_state = new_state
             print(f"[NetworkManager] New state set: {self.current_state.value} (id: {id(self.current_state)})")
 
+            # TODO: Unexpected arguments (mac, ssid, message) in the following method calls:
+
             # Connection Lifecycle States
-            if new_state in [ConnectionState.WAITING_FOR_NETWORK, ConnectionState.CONNECTING,
-                             ConnectionState.RECONNECTING]:
-                if new_state == ConnectionState.WAITING_FOR_NETWORK:
-                    self.plugin_manager.on_waiting_for_network()
-                elif new_state == ConnectionState.CONNECTING:
-                    self.plugin_manager.on_connecting()
-                elif new_state == ConnectionState.RECONNECTING:
-                    self.plugin_manager.on_reconnecting()
+            if new_state in [State.WAITING_FOR_NETWORK, State.CONNECTING,
+                             State.RECONNECTING]:
+                if new_state == State.WAITING_FOR_NETWORK:
+                    self.plugin_manager.on_waiting_for_network(mac, ssid)
+                elif new_state == State.CONNECTING:
+                    self.plugin_manager.on_connecting(mac, ssid)
+                elif new_state == State.RECONNECTING:
+                    self.plugin_manager.on_reconnecting(mac, ssid)
 
-            elif new_state in [ConnectionState.CONNECTED_HOME, ConnectionState.CONNECTED_NEW,
-                               ConnectionState.CONNECTED_KNOWN, ConnectionState.CONNECTED_BLACKLISTED]:
-                if new_state == ConnectionState.CONNECTED_HOME:
-                    self.plugin_manager.on_connected_home()
-                elif new_state == ConnectionState.CONNECTED_NEW:
-                    self.plugin_manager.on_connected_new()
-                elif new_state == ConnectionState.CONNECTED_KNOWN:
-                    self.plugin_manager.on_connected_known()
-                elif new_state == ConnectionState.CONNECTED_BLACKLISTED:
-                    self.plugin_manager.on_connected_blacklisted()
+            elif new_state in [State.CONNECTED_HOME, State.CONNECTED_NEW,
+                               State.CONNECTED_KNOWN, State.CONNECTED_BLACKLISTED]:
+                if new_state == State.CONNECTED_HOME:
+                    self.plugin_manager.on_connected_home(mac, ssid)
+                elif new_state == State.CONNECTED_NEW:
+                    self.plugin_manager.on_connected_new(mac, ssid)
+                elif new_state == State.CONNECTED_KNOWN:
+                    self.plugin_manager.on_connected_known(mac, ssid)
+                elif new_state == State.CONNECTED_BLACKLISTED:
+                    self.plugin_manager.on_connected_blacklisted(mac, ssid)
 
-            elif new_state == ConnectionState.DISCONNECTED:
-                self.plugin_manager.on_disconnected()
+            elif new_state == State.DISCONNECTED:
+                self.plugin_manager.on_disconnected(mac, ssid)
 
             # Scanning Operations
-            elif new_state in [ConnectionState.SCANNING_IN_PROGRESS, ConnectionState.SCAN_COMPLETED]:
-                if new_state == ConnectionState.SCANNING_IN_PROGRESS:
-                    self.plugin_manager.on_scanning_in_progress()
-                elif new_state == ConnectionState.SCAN_COMPLETED:
-                    self.plugin_manager.on_scan_completed()
+            elif new_state in [State.SCANNING_IN_PROGRESS, State.SCAN_COMPLETED]:
+                if new_state == State.SCANNING_IN_PROGRESS:
+                    self.plugin_manager.on_scanning_in_progress(mac, ssid)
+                elif new_state == State.SCAN_COMPLETED:
+                    self.plugin_manager.on_scan_completed(mac, ssid)
 
             # Special Events
-            elif new_state == ConnectionState.ALERTING:
+            elif new_state == State.ALERTING:
                 self.plugin_manager.on_alerting(message=message)

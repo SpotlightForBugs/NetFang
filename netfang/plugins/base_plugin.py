@@ -79,3 +79,9 @@ class BasePlugin(ABC):
 
     def on_connected_new(self):
         pass
+
+    def perform_action(self, args: list) -> None:
+        """
+        Perform a specific action based on the provided arguments.
+        """
+        pass

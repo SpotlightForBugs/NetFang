@@ -1,9 +1,10 @@
 # netfang/plugins/optional/plugin_debug.py
 
-import subprocess
 from typing import Any, Dict
-from netfang.plugins.base_plugin import BasePlugin
+
 from netfang.db import add_plugin_log
+from netfang.plugins.base_plugin import BasePlugin
+
 
 class DebugPlugin(BasePlugin):
     name = "Debug"
@@ -32,4 +33,24 @@ class DebugPlugin(BasePlugin):
     def on_home_network_connected(self) -> None:
         print(f"[{self.name}] Debug received home network connection event")
 
+    def on_disconnected(self) -> None:
+        print(f"[{self.name}] Debug received disconnected event")
 
+    def on_alerting(self, message: str) -> None:
+        print(f"[{self.name}] Debug received alerting event: {message=}")
+
+    def on_reconnecting(self) -> None:
+        print(f"[{self.name}] Debug received reconnecting event")
+
+    def on_connected_home(self) -> None:
+        print(f"[{self.name}] Debug received connected home event")
+
+    def on_connecting(self):
+        print(f"[{self.name}] Debug received connecting event")
+
+    def on_scanning_in_progress(self):
+        print(f"[{self.name}] Debug received scanning in progress event")
+
+    def perform_action(self, args: list) -> None:
+        print(f"[{self.name}] Debug received perform_action event: {args=}")
+        print(f"[{self.name}] This means that the plugin {args[0]} is requested to perform an action.")

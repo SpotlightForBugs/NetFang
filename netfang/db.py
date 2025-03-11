@@ -33,6 +33,8 @@ def init_db(db_path: str) -> None:
             mac_address TEXT,
             hostname TEXT,
             services TEXT,
+            vendor TEXT,
+            deviceclass TEXT,
             network_id INTEGER,
             FOREIGN KEY(network_id) REFERENCES networks(id)
         )
@@ -104,6 +106,40 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
         INSERT INTO plugin_logs (plugin_name, event)
         VALUES (?, ?)
     """, (plugin_name, event))
+
+    conn.commit()
+    conn.close()
+
+
+def add_or_update_device(db_path: str, ip_address: str, mac_address: str,
+                         hostname: str | None, services: str | None, network_id: int, vendor: str | None,
+                         deviceclass: str | None) -> None:
+    """
+    Insert a new device or update an existing one by MAC address.
+    """
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM devices WHERE mac_address = ?", (mac_address,))
+    row = cursor.fetchone()
+
+    if row is None:
+        cursor.execute("""
+            INSERT INTO devices (ip_address, mac_address, hostname, services, network_id, vendor, deviceclass)
+            VALUES (?, ?, ?, ?, ?)
+        """, (ip_address, mac_address, hostname, services, network_id, vendor, deviceclass))
+    else:
+        cursor.execute("""
+            UPDATE devices
+            SET ip_address = ?,
+                hostname = ?,
+                services = ?,
+                network_id = ?,
+                vendor = ?,
+                deviceclass = ?
+            WHERE mac_address = ?
+        """, (ip_address, hostname, services, network_id, mac_address, vendor, deviceclass))
 
     conn.commit()
     conn.close()

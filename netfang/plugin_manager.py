@@ -213,3 +213,7 @@ class PluginManager:
     def on_connected_new(self):
         for p in self.plugins.values():
             p.on_connected_new()
+
+    def perform_action(self, args: list) -> None:
+        for p in self.plugins.values():
+            p.perform_action(args)
