@@ -7,6 +7,7 @@ from typing import Any, Dict, List, Optional
 
 from netfang.plugins.base_plugin import BasePlugin
 
+
 def _expand_env_in_config(obj: Any) -> Any:
     """
     Recursively expand config strings of the form "env:VAR_NAME" using os.environ.
@@ -201,8 +202,14 @@ class PluginManager:
         for p in self.plugins.values():
             p.on_connecting()
 
+    def on_scanning_in_progress(self):
+        for p in self.plugins.values():
+            p.on_scanning_in_progress()
 
+    def on_scan_completed(self):
+        for p in self.plugins.values():
+            p.on_scan_completed()
 
-
-
-
+    def on_connected_new(self):
+        for p in self.plugins.values():
+            p.on_connected_new()

@@ -3,6 +3,7 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
+
 class BasePlugin(ABC):
     """
     Abstract base class for all NetFang plugins.
@@ -49,8 +50,6 @@ class BasePlugin(ABC):
         """Triggered when the network connection is lost and the system is attempting to reconnect."""
         pass
 
-
-
     def register_routes(self, app: Any) -> None:
         """
         Optionally, a plugin can register its own Flask routes.
@@ -72,6 +71,11 @@ class BasePlugin(ABC):
     def on_connecting(self):
         pass
 
+    def on_scanning_in_progress(self):
+        pass
 
+    def on_scan_completed(self):
+        pass
 
-
+    def on_connected_new(self):
+        pass

@@ -1,12 +1,12 @@
 # netfang/main.py
 
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 import os
 
+from flask import Flask, request, jsonify, render_template, session, redirect, url_for
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
-from netfang.network_manager import NetworkManager, ConnectionState
+from netfang.state_machine import NetworkManager, ConnectionState
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24) # Required for session management
