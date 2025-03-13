@@ -1,43 +1,24 @@
 <!-- netfang/templates/router_home.html -->
-<!DOCTYPE html>
-<html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <meta charset="UTF-8"/>
-    <title>NetFang Secured Router</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/router.css') }}"/>
-</head>
-<body>
-<header>
-    <div class="header-content">
-        <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
-        <h1>NetFang Secured Router</h1>
-    </div>
-</header>
-<main>
-    <section class="login-section">
-        <h2>{{ 'Anmeldung' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Login' }}</h2>
-        <p class="status">
-            {{ 'Bitte melden Sie sich an, um auf die Router-Einstellungen zuzugreifen.'
-           if request.accept_languages.best_match(['de', 'en']) == 'de' else
-           'Please log in to access the router settings.' }}
-        </p>
-        <form method="POST" action="/login">
-            <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
-            <input type="text" id="username" name="username" autocomplete="username" required/>
+{% extends "base.html" %}
 
-            <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
-            <input type="password" id="password" name="password" autocomplete="current-password" required/>
+{% block title %}NetFang Secured Router{% endblock %}
 
-            <button type="submit">
-                {{ 'Anmelden' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Log In' }}
-            </button>
-        </form>
-    </section>
-</main>
-<footer>
-    <p>&copy; 2025
-        NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
-</footer>
-</body>
-</html>
+{% block content %}
+<section class="login-section">
+    <h2>{{ g.t.login }}</h2>
+    <p class="status">
+        {{ g.t.login_instructions }}
+    </p>
+    <form method="POST" action="/login">
+        <label for="username">{{ g.t.username }}</label>
+        <input type="text" id="username" name="username" autocomplete="username" required/>
+
+        <label for="password">{{ g.t.password }}</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required/>
+
+        <button type="submit">
+            {{ g.t.login_button }}
+        </button>
+    </form>
+</section>
+{% endblock %}

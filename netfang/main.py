@@ -2,7 +2,7 @@ import os
 import platform
 from platform import system
 
-from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string
+from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string, g
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
@@ -47,6 +47,42 @@ PluginManager.load_plugins()
 for plugin in PluginManager.plugins.values():
     if hasattr(plugin, "register_routes"):
         plugin.register_routes(app)
+# Translation dictionary
+TRANSLATIONS = {
+    'en': {
+        'login': 'Login',
+        'username': 'Username',
+        'password': 'Password',
+        'login_button': 'Log In',
+        'login_instructions': 'Please log in to access the router settings.',
+        'login_failed': 'Login Failed',
+        'incorrect_credentials': 'Incorrect username or password. Please try again.',
+        'incident_reported': 'This incident has been reported.',
+        'your_ip': 'Your IP Address:',
+        'try_again': 'Try Again',
+        'all_rights_reserved': 'All rights reserved.'
+    },
+    'de': {
+        'login': 'Anmeldung',
+        'username': 'Benutzername',
+        'password': 'Passwort',
+        'login_button': 'Anmelden',
+        'login_instructions': 'Bitte melden Sie sich an, um auf die Router-Einstellungen zuzugreifen.',
+        'login_failed': 'Anmeldung fehlgeschlagen',
+        'incorrect_credentials': 'Benutzername oder Passwort falsch. Bitte versuchen Sie es erneut.',
+        'incident_reported': 'Dieser Vorfall wurde protokolliert.',
+        'your_ip': 'Ihre IP-Adresse:',
+        'try_again': 'Erneut versuchen',
+        'all_rights_reserved': 'Alle Rechte vorbehalten.'
+    }
+}
+
+@app.before_request
+def before_request():
+    # Set language based on browser preferences
+    g.lang = request.accept_languages.best_match(['de', 'en']) or 'en'
+    # Make translations available to templates
+    g.t = TRANSLATIONS[g.lang]
 
 # Now start the network state-machine loop (async loop running in a background thread)
 NetworkManager.start()

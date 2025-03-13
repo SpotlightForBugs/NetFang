@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="{{ g.lang }}">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8"/>
+    <title>{% block title %}NetFang Secured Router{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='router.css') }}"/>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+<header>
+    <div class="header-content">
+        <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+        <h1>NetFang Secured Router</h1>
+    </div>
+</header>
+<main>
+    {% block content %}{% endblock %}
+</main>
+<footer>
+    <p>&copy; 2025 NetFang. {{ g.t.all_rights_reserved }}</p>
+</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,28 +1,35 @@
 <html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/hidden.css') }}"/>
-    <meta charset="UTF-8"/>
-    <title>NetFang Secured Router</title>
-</head>
-<body>
-<header>
-    <div class="header-content">
-        <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
-        <h1>NetFang Secured Router</h1>
-    </div>
-    <nav>
-        <ul>
-            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+{% extends "hidden/base_dashboard.html" %}
+
+{% block title %}NetFang Dashboard{% endblock %}
+
+{% block header_title %}NetFang Secured Router{% endblock %}
+
+{% block extra_css %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500&display=swap');
+
+body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Source Code Pro', monospace;
+    background-color: #121212;
+    color: #33FF33;
+```
+
+```diff
+@@ -92,6 +63,14 @@
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-panel">
             <li><a href="{{ url_for('test') }}">Test Page</a></li>
+</div>
+{% endblock %}
         </ul>
-    </nav>
-</header>
-<main>
-    <div> Current state: <span id="state"></span></div>
-</main>
-<footer>
-    <p>&copy; 2025
+{% block scripts %}
         NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}
     </p>
 </footer>
@@ -59,4 +66,4 @@
     updateState();
 </script>
 </body>
-</html>
+{% endblock %}

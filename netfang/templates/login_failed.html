@@ -1,74 +1,8 @@
-<!DOCTYPE html>
-<html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
-<head>
-  <meta charset="UTF-8" />
-  <title>NetFang Router Admin - {{ 'Fehler' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Error' }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='hidden/router.css') }}"/>
-  <script>
-    // Fetch the user's IP address and display it
-    async function fetchIP() {
-      try {
-        const response = await fetch('https://api.ipify.org?format=json');
-        const data = await response.json();
-        document.getElementById('user-ip').textContent = data.ip;
-        document.getElementById('ip-section').style.display = 'block';
-      } catch (error) {
-        console.error('Failed to fetch IP address:', error);
-      }
-    }
-    window.onload = fetchIP;
-  </script>
-</head>
-<body>
-  <header>
-    <div class="header-content">
-      <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo" />
-      <h1>NetFang Router Admin</h1>
-    </div>
-  </header>
-  <main>
-    <section class="login-section">
-      <div class="error-banner">
-        <h2>{{ 'Anmeldung fehlgeschlagen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Login Failed' }}</h2>
-        <p>
-          {{ 'Benutzername oder Passwort falsch. Bitte versuchen Sie es erneut.'
-             if request.accept_languages.best_match(['de', 'en']) == 'de' else
-             'Incorrect username or password. Please try again.' }}
-        </p>
-      </div>
-      <div class="incident-report">
-        <p>
-          {{ 'Dieser Vorfall wurde protokolliert.'
-             if request.accept_languages.best_match(['de', 'en']) == 'de' else
-             'This incident has been reported.' }}
-        </p>
-        <div id="ip-section" style="display: none;">
-          <p>
-            {{ 'Ihre IP-Adresse: ' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Your IP Address: ' }}
-            <strong id="user-ip"></strong>
-          </p>
-        </div>
-      </div>
-      <form method="POST" action="/login">
-        <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
-        <input type="text" id="username" name="username" autocomplete="username" required />
+{% extends "base.html" %}
 
-        <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required />
+{% block title %}NetFang Router Admin - {{ g.t.login_failed }}{% endblock %}
 
-        <button type="submit">
-          {{ 'Erneut versuchen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Try Again' }}
-        </button>
-      </form>
-    </section>
-  </main>
-  <footer>
-    <p>&copy; 2025 NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
-  </footer>
-</body>
-</html>
-
-
+{% block extra_css %}
 <style>
    .error-banner {
   background-color: #ffcccc;
@@ -88,6 +22,58 @@
 .error-banner p {
   margin: 0;
 }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="login-section">
+  <div class="error-banner">
+    <h2>{{ g.t.login_failed }}</h2>
+    <p>
+      {{ g.t.incorrect_credentials }}
+    </p>
+  </div>
+  <div class="incident-report">
+    <p>
+      {{ g.t.incident_reported }}
+    </p>
+    <div id="ip-section" style="display: none;">
+      <p>
+        {{ g.t.your_ip }}
+        <strong id="user-ip"></strong>
+      </p>
+    </div>
+  </div>
+  <form method="POST" action="/login">
+    <label for="username">{{ g.t.username }}</label>
+    <input type="text" id="username" name="username" autocomplete="username" required />
+
+    <label for="password">{{ g.t.password }}</label>
+    <input type="password" id="password" name="password" autocomplete="current-password" required />
+
+    <button type="submit">
+      {{ g.t.try_again }}
+    </button>
+  </form>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Fetch the user's IP address and display it
+  async function fetchIP() {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      document.getElementById('user-ip').textContent = data.ip;
+      document.getElementById('ip-section').style.display = 'block';
+    } catch (error) {
+      console.error('Failed to fetch IP address:', error);
+    }
+  }
+  window.onload = fetchIP;
+</script>
+{% endblock %}
 
 .incident-report {
   background-color: #fff6f6;

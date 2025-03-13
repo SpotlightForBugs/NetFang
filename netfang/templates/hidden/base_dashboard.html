@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="{{ g.lang }}">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8"/>
+    <title>{% block title %}NetFang Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hidden.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="header">
+        <h1>{% block header_title %}NetFang Dashboard{% endblock %}</h1>
+    </div>
+    
+    <div class="container">
+        {% block content %}{% endblock %}
+        
+        <div class="dashboard-panel">
+            <a href="{{ url_for('dashboard') }}" class="button">Back to Dashboard</a>
+        </div>
+    </div>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>
