@@ -180,15 +180,11 @@ class PluginManager:
 
     def on_reconnecting(self):
         for p in self.plugins.values():
-            p.on_reconnecting()
-
-    def on_connected_home(self):
-        for p in self.plugins.values():
             p.on_connected_home()
 
-    def on_connected_blacklisted(self):
+    def on_connected_blacklisted(self, mac_address="", ssid="", *args, **kwargs):
         for p in self.plugins.values():
-            p.on_connected_blacklisted()
+            p.on_connected_blacklisted(mac_address, ssid, *args, **kwargs)
 
     def on_connected_known(self):
         for p in self.plugins.values():
