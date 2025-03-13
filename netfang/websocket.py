@@ -33,8 +33,10 @@ def setup_websocket(app):
         
         try:
             # Send the last known state immediately
-            ws.send(json.dumps(last_known_state))
-            
+            try:
+                ws.send(json.dumps(last_known_state))
+            except Exception as e:
+                logger.error("Error sending initial WebSocket state: %s", str(e))
             # Process incoming messages
             while True:
                 data = ws.receive()
