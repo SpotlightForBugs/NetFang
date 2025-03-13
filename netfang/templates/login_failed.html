@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>NetFang Router Admin - {{ 'Fehler' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Error' }}</title>
-  <link rel="stylesheet" href="{{ url_for('static', filename='router.css') }}" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='hidden/router.css') }}"/>
   <script>
     // Fetch the user's IP address and display it
     async function fetchIP() {

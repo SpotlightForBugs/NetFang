@@ -1,96 +1,102 @@
-/* Hidden.css - Styling for protected dashboard pages */
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500&display=swap');
 
 body {
-    font-family: 'Arial', sans-serif;
-    background-color: #f4f4f4;
-    color: #333;
     margin: 0;
     padding: 0;
+    font-family: 'Source Code Pro', monospace;
+    background-color: #121212;
+    color: #33FF33;
+    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
 }
 
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+header {
+    background-color: #000;
+    padding: 15px;
+    border-bottom: 2px solid #33FF33;
+    box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
 }
 
-h1, h2, h3 {
-    color: #2c3e50;
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.header {
-    background-color: #3498db;
-    color: white;
-    padding: 15px 0;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+.router-logo {
+    height: 45px;
+    filter: brightness(0) invert(1);
+    margin-right: 15px;
 }
 
-.header h1 {
+h1 {
+    font-weight: 400;
+    letter-spacing: 2px;
     margin: 0;
-    padding: 0 20px;
-    color: white;
+    text-transform: uppercase;
 }
 
-.dashboard-panel {
-    background-color: white;
+main {
+    flex-grow: 1;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+footer {
+    text-align: center;
+    padding: 10px;
+    font-size: 0.8rem;
+    background-color: #000;
+    border-top: 1px solid #33FF33;
+    box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
+}
+
+#state {
+    font-size: 1.2rem;
+    font-weight: 500;
+    margin-left: 5px;
+    border-right: 2px solid #33FF33;
+    padding-right: 5px;
+    animation: blink 1s infinite;
+}
+
+@keyframes blink {
+    0%, 100% {
+        border-color: transparent;
+    }
+    50% {
+        border-color: #33FF33;
+    }
+}
+
+div {
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    background-color: rgba(0, 0, 0, 0.5);
+    border: 1px solid #33FF33;
+    box-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
     border-radius: 5px;
-    padding: 20px;
-    margin-bottom: 20px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.button {
-    display: inline-block;
-    padding: 10px 15px;
-    background-color: #3498db;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
+a {
+    color: #33FF33;
     text-decoration: none;
-    margin: 5px;
 }
 
-.button:hover {
-    background-color: #2980b9;
-}
-
-.button.alert {
-    background-color: #e74c3c;
-}
-
-.button.alert:hover {
-    background-color: #c0392b;
-}
-
-.button.success {
-    background-color: #2ecc71;
-}
-
-.button.success:hover {
-    background-color: #27ae60;
-}
-
-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 15px 0;
-}
-
-table, th, td {
-    border: 1px solid #ddd;
-}
-
-th, td {
-    padding: 12px 15px;
-    text-align: left;
-}
-
-th {
-    background-color: #f2f2f2;
-}
-
-tr:nth-child(even) {
-    background-color: #f9f9f9;
+button {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 1.2rem;
+    padding: 10px 20px;
+    margin-top: 10px;
+    background-color: #33FF33;
+    color: #000;
+    border: 1px solid #33FF33;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
 }

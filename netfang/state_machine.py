@@ -1,5 +1,4 @@
 import asyncio
-import threading
 from enum import Enum
 from typing import Optional, Callable, List, Dict, Any, Awaitable, Union
 
@@ -266,13 +265,13 @@ class NetworkManager:
         is_home = (mac_upper == self.home_mac)
         net_info = None  # e.g., get_network_by_mac(self.db_path, mac_upper)
         if is_blacklisted:
-            self.update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper, ssid=ssid)
         elif is_home:
-            self.update_state(State.CONNECTED_HOME, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_HOME, mac=mac_upper, ssid=ssid)
         elif not net_info:
-            self.update_state(State.CONNECTED_NEW, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_NEW, mac=mac_upper, ssid=ssid)
         else:
-            self.update_state(State.CONNECTED_KNOWN, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_KNOWN, mac=mac_upper, ssid=ssid)
 
 
 # ------------------------------------------------------------------------------
