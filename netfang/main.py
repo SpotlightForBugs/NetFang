@@ -169,22 +169,7 @@ def _set_plugin_enabled_in_config(plugin_name: str, enabled: bool) -> None:
 def test_page():
     """Render a test page with a button for each state."""
     states = list(State)
-    html = """
-    <html>
-      <head>
-        <title>Network Manager State Tests</title>
-      </head>
-      <body>
-        <h1>Test Network Manager States</h1>
-        {% for i, state in states %}
-          <form action="{{ url_for('test_state', state_num=i) }}" method="get" style="margin-bottom: 10px;">
-             <button type="submit">{{ state.value }} (Test {{ i }})</button>
-          </form>
-        {% endfor %}
-      </body>
-    </html>
-    """
-    return render_template_string(html, states=enumerate(states))
+    return render_template("hidden/test.html", states=enumerate(states))
 
 
 @app.route("/test/<int:state_num>", methods=["GET"])
