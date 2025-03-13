@@ -194,12 +194,7 @@ class NetworkManager:
                 await self.notify_plugins(current)
             await asyncio.sleep(5)
 
-        def start_flow(self) -> None:
-            if self.running:
-                return
-            self.running = True
-            self.thread = threading.Thread(target=self._run_async_loop, daemon=True)
-            self.thread.start()
+            await asyncio.sleep(5)  # Broadcast current state every 5 seconds
 
         def _run_async_loop(self) -> None:
             self._loop = asyncio.new_event_loop()
