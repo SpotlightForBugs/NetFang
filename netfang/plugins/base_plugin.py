@@ -59,7 +59,8 @@ class BasePlugin(ABC):
     def on_connected_home(self):
         pass
 
-    def on_connected_blacklisted(self):
+    def on_connected_blacklisted(self, mac_address="", ssid="", *args, **kwargs):
+        """Triggered when the network is connected to a blacklisted network."""
         pass
 
     def on_connected_known(self):
