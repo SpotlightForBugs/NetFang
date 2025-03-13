@@ -245,7 +245,7 @@ class NetworkManager:
 
     def _update_state(self, new_state: State, mac: str = "", ssid: str = "", message: str = "") -> None:
         async def update():
-            with self.state_lock:
+            async with self.state_lock:
                 old_state = self.current_state
                 if old_state == new_state:
                     return
