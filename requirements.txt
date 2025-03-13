@@ -1,4 +1,5 @@
-Flask
+Flask[async]
 requests
 scapy
 netifaces-plus
+sentry-sdk[flask]

@@ -1,12 +1,121 @@
+import asyncio
 import threading
-import time
 from enum import Enum
-from typing import Optional
+from typing import Optional, Callable, List, Dict, Any, Awaitable, Union
 
-from netfang.db import add_or_update_network, get_network_by_mac
-from netfang.plugin_manager import PluginManager
+import psutil  # used to check interface status
+
+# ------------------------------------------------------------------------------
+# AsyncTrigger and TriggerManager to allow async condition checking and actions
+# ------------------------------------------------------------------------------
+ConditionFunc = Callable[[], Union[bool, Awaitable[bool]]]
+ActionFunc = Callable[[], Union[None, Awaitable[None]]]
 
 
+class AsyncTrigger:
+    def __init__(self, name: str, condition: ConditionFunc, action: ActionFunc):
+        self.name = name
+        self.condition = condition
+        self.action = action
+
+    async def check_and_fire(self):
+        # Support both sync and async conditions
+        cond_result = self.condition()
+        if asyncio.iscoroutine(cond_result):
+            cond_result = await cond_result
+        if cond_result:
+            act_result = self.action()
+            if asyncio.iscoroutine(act_result):
+                await act_result
+
+
+class TriggerManager:
+    def __init__(self, triggers: List[AsyncTrigger]):
+        self.triggers = triggers
+
+    async def check_triggers(self):
+        for trigger in self.triggers:
+            await trigger.check_and_fire()
+
+
+# ------------------------------------------------------------------------------
+# Example sensor condition functions
+# ------------------------------------------------------------------------------
+async def condition_battery_low() -> bool:
+    """
+    Checks if battery level (simulated from an INA219 reading) is below 20%.
+    Replace get_battery_percentage() with a real sensor call.
+    """
+    battery_percentage = await asyncio.to_thread(get_battery_percentage)
+    return battery_percentage < 20
+
+
+def get_battery_percentage() -> float:
+    """
+    Dummy battery percentage calculation.
+    In practice, instantiate and use your INA219 instance.
+    For example:
+      p = (bus_voltage - 3) / 1.2 * 100
+    """
+    return 15.0  # Simulated low battery
+
+
+async def condition_interface_unplugged() -> bool:
+    """
+    Checks if any of the monitored interfaces (e.g. eth0, wlan0) are down.
+    """
+    monitored = NetworkManager.global_monitored_interfaces
+    stats = psutil.net_if_stats()
+    for iface in monitored:
+        # If interface isn’t found or isn’t up, report as unplugged.
+        if iface not in stats or not stats[iface].isup:
+            return True
+    return False
+
+
+async def condition_cpu_temp_high() -> bool:
+    """
+    Checks if the CPU temperature exceeds 70°C.
+    On Linux, read from /sys/class/thermal/thermal_zone0/temp.
+    """
+    try:
+        # Read synchronously in a thread
+        cpu_temp = await asyncio.to_thread(
+            lambda: float(open("/sys/class/thermal/thermal_zone0/temp").read().strip()) / 1000.0
+        )
+    except Exception:
+        cpu_temp = 50.0  # Default if error occurs
+    return cpu_temp > 70.0
+
+
+# ------------------------------------------------------------------------------
+# Example action functions for triggers
+# ------------------------------------------------------------------------------
+async def action_alert_battery_low():
+    print("[TriggerManager] ACTION: Battery is too low!")
+    # Update state to ALERTING with extra context
+    NetworkManager.instance.update_state(
+        State.ALERTING, alert_data={"type": "battery", "message": "Battery level is low!"}
+    )
+
+
+async def action_alert_interface_unplugged():
+    print("[TriggerManager] ACTION: A monitored interface is unplugged!")
+    NetworkManager.instance.update_state(
+        State.ALERTING, alert_data={"type": "interface", "message": "Interface unplugged!"}
+    )
+
+
+async def action_alert_cpu_temp():
+    print("[TriggerManager] ACTION: CPU temperature is too high!")
+    NetworkManager.instance.update_state(
+        State.ALERTING, alert_data={"type": "temperature", "message": "CPU temperature is high!"}
+    )
+
+
+# ------------------------------------------------------------------------------
+# Define network states
+# ------------------------------------------------------------------------------
 class State(Enum):
     WAITING_FOR_NETWORK = "WAITING_FOR_NETWORK"
     CONNECTING = "CONNECTING"
@@ -19,104 +128,193 @@ class State(Enum):
     CONNECTED_BLACKLISTED = "CONNECTED_BLACKLISTED"
     ALERTING = "ALERTING"
     DISCONNECTED = "DISCONNECTED"
+    # You can add extra states if needed
 
 
+# ------------------------------------------------------------------------------
+# The main NetworkManager that ties triggers, state changes, and plugins together.
+# ------------------------------------------------------------------------------
 class NetworkManager:
-    def __init__(self, manager: PluginManager) -> None:
-        self.plugin_manager = manager
-        self.config = manager.config
-        self.db_path = self.config.get("database_path", "netfang.db")
-        flow_cfg = self.config.get("network_flows", {})
+    # Global references to support triggers reading config
+    instance: "NetworkManager" = None
+    global_monitored_interfaces: List[str] = ["eth0"]
+
+    def __init__(self, plugin_manager, config: Dict[str, Any]) -> None:
+        self.plugin_manager = plugin_manager
+        self.config = config
+        self.db_path = config.get("database_path", "netfang.db")
+        flow_cfg = config.get("network_flows", {})
         self.blacklisted_macs = [m.upper() for m in flow_cfg.get("blacklisted_macs", [])]
         self.home_mac = flow_cfg.get("home_network_mac", "").upper()
-        self.current_state = State.WAITING_FOR_NETWORK
-        self.state_lock = threading.Lock()
-        self.running = False
-        self.thread: Optional[threading.Thread] = None
+        self.monitored_interfaces = flow_cfg.get("monitored_interfaces", ["eth0"])
+        NetworkManager.global_monitored_interfaces = self.monitored_interfaces
 
-    def start_flow_loop(self) -> None:
+        self.current_state = State.WAITING_FOR_NETWORK
+        self.state_lock = asyncio.Lock()
+        self.state_context: Dict[str, Any] = {}
+
+        # Initialize TriggerManager with our triggers.
+        self.trigger_manager = TriggerManager([
+            AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low),
+            AsyncTrigger("InterfaceUnplugged", condition_interface_unplugged, action_alert_interface_unplugged),
+            AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp),
+            # Add more triggers as needed
+        ])
+
+        # Async loop tasks
+        self.running = False
+        self.flow_task: Optional[asyncio.Task] = None
+        self.trigger_task: Optional[asyncio.Task] = None
+
+        # Set the global instance to allow triggers/actions to access this manager
+        NetworkManager.instance = self
+
+    async def start(self) -> None:
         if self.running:
             return
         self.running = True
-        self.thread = threading.Thread(target=self._flow_loop, daemon=True)
-        self.thread.start()
+        self.flow_task = asyncio.create_task(self.flow_loop())
+        self.trigger_task = asyncio.create_task(self.trigger_loop())
 
-    def stop_flow_loop(self) -> None:
+    async def stop(self) -> None:
         self.running = False
-        if self.thread:
-            self.thread.join()
+        if self.flow_task:
+            self.flow_task.cancel()
+        if self.trigger_task:
+            self.trigger_task.cancel()
 
-    def _flow_loop(self) -> None:
+    async def flow_loop(self) -> None:
+        """
+        Main loop to handle state updates and to notify plugins.
+        """
         while self.running:
-            with self.state_lock:
+            async with self.state_lock:
                 current = self.current_state
-                print(f"[NetworkManager] (Flow Loop) Current state: {current.value} (id: {id(current)})")
-            time.sleep(5)
+                print(f"[NetworkManager] (Flow Loop) Current state: {current.value}")
+                await self.notify_plugins(current)
+            await asyncio.sleep(5)
+
+        def start_flow(self) -> None:
+            if self.running:
+                return
+            self.running = True
+            self.thread = threading.Thread(target=self._run_async_loop, daemon=True)
+            self.thread.start()
+
+        def _run_async_loop(self) -> None:
+            self._loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self._loop)
+            self._loop.create_task(self._state_flow_loop())
+            self._loop.run_forever()
+
+    async def trigger_loop(self) -> None:
+        """
+        Loop to periodically check and fire triggers.
+        """
+        while self.running:
+            await self.trigger_manager.check_triggers()
+            await asyncio.sleep(2)  # Adjust polling frequency as needed
+
+    async def notify_plugins(self, state: State) -> None:
+        """
+        Dispatch the current state (with context) to all plugin callbacks.
+        """
+        # Plugins get extra context via keyword arguments.
+        if state == State.WAITING_FOR_NETWORK:
+            self.plugin_manager.on_waiting_for_network(**self.state_context)
+        elif state == State.CONNECTING:
+            self.plugin_manager.on_connecting(**self.state_context)
+        elif state == State.CONNECTED_HOME:
+            self.plugin_manager.on_connected_home(**self.state_context)
+        elif state == State.CONNECTED_NEW:
+            self.plugin_manager.on_connected_new(**self.state_context)
+        elif state == State.CONNECTED_KNOWN:
+            self.plugin_manager.on_connected_known(**self.state_context)
+        elif state == State.CONNECTED_BLACKLISTED:
+            self.plugin_manager.on_connected_blacklisted(**self.state_context)
+        elif state == State.DISCONNECTED:
+            self.plugin_manager.on_disconnected(**self.state_context)
+        elif state == State.ALERTING:
+            self.plugin_manager.on_alerting(**self.state_context)
+        elif state == State.RECONNECTING:
+            self.plugin_manager.on_reconnecting(**self.state_context)
+        elif state == State.SCANNING_IN_PROGRESS:
+            self.plugin_manager.on_scanning_in_progress(**self.state_context)
+        elif state == State.SCAN_COMPLETED:
+            self.plugin_manager.on_scan_completed(**self.state_context)
+
+    def _update_state(self, new_state: State, mac: str = "", ssid: str = "", message: str = "") -> None:
+        async def update():
+            with self.state_lock:
+                old_state = self.current_state
+                if old_state == new_state:
+                    return
+                print(f"[NetworkManager] State transition: {old_state.value} -> {new_state.value}")
+                self.current_state = new_state
+                print(f"[NetworkManager] New state set: {self.current_state.value}")
+            # (Insert additional plugin/trigger calls here if needed.)
+
+        # Use the background loop if available:
+        if hasattr(self, "_loop") and self._loop.is_running():
+            asyncio.run_coroutine_threadsafe(update(), self._loop)
+        else:
+            # Fallback: run the coroutine synchronously
+            asyncio.run(update())
 
     def handle_network_connection(self, mac_address: str, ssid: str) -> None:
         """
         Process a network connection event.
+        (Database operations are omitted here; integrate your add_or_update_network / get_network_by_mac as needed.)
         """
         mac_upper = mac_address.upper()
         is_blacklisted = mac_upper in self.blacklisted_macs
         is_home = (mac_upper == self.home_mac)
-        net_info = get_network_by_mac(self.db_path, mac_upper)
-        add_or_update_network(self.db_path, mac_upper, ssid, is_blacklisted, is_home)
-
+        net_info = None  # e.g., get_network_by_mac(self.db_path, mac_upper)
         if is_blacklisted:
-            self._update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper, ssid=ssid)
-        if is_home:
-            self._update_state(State.CONNECTED_HOME, mac=mac_upper, ssid=ssid)
-
-        if not net_info:
-            self._update_state(State.CONNECTED_NEW, mac=mac_upper, ssid=ssid)
+            self.update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper, ssid=ssid)
+        elif is_home:
+            self.update_state(State.CONNECTED_HOME, mac=mac_upper, ssid=ssid)
+        elif not net_info:
+            self.update_state(State.CONNECTED_NEW, mac=mac_upper, ssid=ssid)
         else:
-            self._update_state(State.CONNECTED_KNOWN, mac=mac_upper, ssid=ssid)
+            self.update_state(State.CONNECTED_KNOWN, mac=mac_upper, ssid=ssid)
 
-    def _update_state(self, new_state: State, mac: str, ssid: str, message: str = "", ) -> None:
-        with self.state_lock:
-            if self.current_state == new_state:
-                return
 
-            old_state = self.current_state
-            print(f"[NetworkManager] State transition: {old_state.value} -> {new_state.value} (id: {id(old_state)})")
+# ------------------------------------------------------------------------------
+# Example usage with a dummy plugin manager.
+# ------------------------------------------------------------------------------
+if __name__ == "__main__":
+    # Dummy PluginManager with basic callbacks for testing.
+    class DummyPluginManager:
+        def on_waiting_for_network(self, **kwargs):
+            print("[DummyPluginManager] on_waiting_for_network", kwargs)
 
-            self.current_state = new_state
-            print(f"[NetworkManager] New state set: {self.current_state.value} (id: {id(self.current_state)})")
+        def on_connecting(self, **kwargs):
+            print("[DummyPluginManager] on_connecting", kwargs)
 
-            # TODO: Unexpected arguments (mac, ssid, message) in the following method calls:
+        def on_connected_home(self, **kwargs):
+            print("[DummyPluginManager] on_connected_home", kwargs)
 
-            # Connection Lifecycle States
-            if new_state in [State.WAITING_FOR_NETWORK, State.CONNECTING,
-                             State.RECONNECTING]:
-                if new_state == State.WAITING_FOR_NETWORK:
-                    self.plugin_manager.on_waiting_for_network(mac, ssid)
-                elif new_state == State.CONNECTING:
-                    self.plugin_manager.on_connecting(mac, ssid)
-                elif new_state == State.RECONNECTING:
-                    self.plugin_manager.on_reconnecting(mac, ssid)
+        def on_connected_new(self, **kwargs):
+            print("[DummyPluginManager] on_connected_new", kwargs)
 
-            elif new_state in [State.CONNECTED_HOME, State.CONNECTED_NEW,
-                               State.CONNECTED_KNOWN, State.CONNECTED_BLACKLISTED]:
-                if new_state == State.CONNECTED_HOME:
-                    self.plugin_manager.on_connected_home(mac, ssid)
-                elif new_state == State.CONNECTED_NEW:
-                    self.plugin_manager.on_connected_new(mac, ssid)
-                elif new_state == State.CONNECTED_KNOWN:
-                    self.plugin_manager.on_connected_known(mac, ssid)
-                elif new_state == State.CONNECTED_BLACKLISTED:
-                    self.plugin_manager.on_connected_blacklisted(mac, ssid)
+        def on_connected_known(self, **kwargs):
+            print("[DummyPluginManager] on_connected_known", kwargs)
 
-            elif new_state == State.DISCONNECTED:
-                self.plugin_manager.on_disconnected(mac, ssid)
+        def on_connected_blacklisted(self, **kwargs):
+            print("[DummyPluginManager] on_connected_blacklisted", kwargs)
 
-            # Scanning Operations
-            elif new_state in [State.SCANNING_IN_PROGRESS, State.SCAN_COMPLETED]:
-                if new_state == State.SCANNING_IN_PROGRESS:
-                    self.plugin_manager.on_scanning_in_progress(mac, ssid)
-                elif new_state == State.SCAN_COMPLETED:
-                    self.plugin_manager.on_scan_completed(mac, ssid)
+        def on_disconnected(self, **kwargs):
+            print("[DummyPluginManager] on_disconnected", kwargs)
 
-            # Special Events
-            elif new_state == State.ALERTING:
-                self.plugin_manager.on_alerting(message=message)
+        def on_alerting(self, **kwargs):
+            print("[DummyPluginManager] on_alerting", kwargs)
+
+        def on_reconnecting(self, **kwargs):
+            print("[DummyPluginManager] on_reconnecting", kwargs)
+
+        def on_scanning_in_progress(self, **kwargs):
+            print("[DummyPluginManager] on_scanning_in_progress", kwargs)
+
+        def on_scan_completed(self, **kwargs):
+            print("[DummyPluginManager] on_scan_completed", kwargs)

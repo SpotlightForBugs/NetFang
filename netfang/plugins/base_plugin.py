@@ -83,5 +83,6 @@ class BasePlugin(ABC):
     def perform_action(self, args: list) -> None:
         """
         Perform a specific action based on the provided arguments.
+        args[0] is the self.name of the plugin that should perform the action.
         """
         pass

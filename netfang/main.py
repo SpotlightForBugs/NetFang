@@ -1,40 +1,57 @@
-# netfang/main.py
-
 import os
+import platform
+from platform import system
 
-from flask import Flask, request, jsonify, render_template, session, redirect, url_for
+from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
-from netfang.state_machine import NetworkManager, State
+from netfang.state_machine import NetworkManager, State  # Note: NetworkManager here is our refactored version
+
+try:
+    import sentry_sdk
+
+    sentry_sdk.init(
+        dsn="https://80c9a50a96245575dc2414b9de48e2b2@o1363527.ingest.us.sentry.io/4508971050860544",
+        # Add data like request headers and IP for users,
+        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
+        send_default_pii=False,
+        server_name=f"{system()} on {platform.node()}",
+    )
+except ImportError:
+    print("Error tracing is disabled by default. To enable, install the sentry-sdk package.")
+from flask import Flask
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24) # Required for session management
+app.secret_key = os.urandom(24)  # Required for session management
 app.config['SESSION_COOKIE_NAME'] = 'NETFANG_SECURE_SESSION'
 
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 
-manager = PluginManager(CONFIG_PATH)
-network_manager = NetworkManager(manager)
+# Instantiate PluginManager and NetworkManager
+PluginManager = PluginManager(CONFIG_PATH)
+PluginManager.load_config()
+NetworkManager = NetworkManager(PluginManager, PluginManager.config)
 
 # Load configuration, initialize database, and load plugins BEFORE starting the server
-manager.load_config()
-init_db(manager.config.get("database_path", "netfang.db"))
-manager.load_plugins()
+PluginManager.load_config()
+init_db(PluginManager.config.get("database_path", "netfang.db"))
+PluginManager.load_plugins()
 
 # Register plugin routes (for plugins that provide blueprints) immediately
-for plugin in manager.plugins.values():
+for plugin in PluginManager.plugins.values():
     if hasattr(plugin, "register_routes"):
         plugin.register_routes(app)
 
-# Now start the network state-machine loop
-network_manager.start_flow_loop()
+# Now start the network state-machine loop (async loop running in a background thread)
+NetworkManager.start()
 
 
 @app.teardown_appcontext
-def teardown(exception):
-    network_manager.stop_flow_loop()
+async def teardown(exception):
+    await NetworkManager.start()
+
 
 @app.route("/")
 def frontpage():
@@ -55,13 +72,13 @@ def login():
         username = request.form.get("username")
         password = request.form.get("password")
 
-    #TODO Implement proper authentication
+    # TODO: Implement proper authentication
     if username == "admin" and password == "password":
         session['logged_in'] = True
         session['username'] = username
         return redirect(url_for("dashboard"))
-
     return render_template("login_failed.html"), 401
+
 
 @app.route("/dashboard")
 def dashboard():
@@ -69,22 +86,24 @@ def dashboard():
         return redirect(url_for('frontpage'))
     return render_template("hidden/index.html")
 
+
 @app.route("/state")
 def get_current_state():
     if not session.get('logged_in'):
         return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"state": network_manager.current_state.value})
+    return jsonify({"state": NetworkManager.current_state.value})
 
 
 @app.route("/plugins", methods=["GET"])
 def list_plugins():
     response = []
-    for plugin_name, plugin_obj in manager.plugins.items():
+    for plugin_name, plugin_obj in PluginManager.plugins.items():
         response.append({
             "name": plugin_name,
             "enabled": _is_plugin_enabled(plugin_name),
         })
     return jsonify(response)
+
 
 @app.route("/plugins/enable", methods=["POST"])
 def enable_plugin():
@@ -92,9 +111,10 @@ def enable_plugin():
     plugin_name = data.get("plugin_name")
     if not plugin_name:
         return jsonify({"error": "No plugin_name provided"}), 400
-    manager.enable_plugin(plugin_name)
+    PluginManager.enable_plugin(plugin_name)
     _set_plugin_enabled_in_config(plugin_name, True)
     return jsonify({"status": f"{plugin_name} enabled"}), 200
+
 
 @app.route("/plugins/disable", methods=["POST"])
 def disable_plugin():
@@ -102,9 +122,10 @@ def disable_plugin():
     plugin_name = data.get("plugin_name")
     if not plugin_name:
         return jsonify({"error": "No plugin_name provided"}), 400
-    manager.disable_plugin(plugin_name)
+    PluginManager.disable_plugin(plugin_name)
     _set_plugin_enabled_in_config(plugin_name, False)
     return jsonify({"status": f"{plugin_name} disabled"}), 200
+
 
 @app.route("/network/connect", methods=["POST"])
 def simulate_network_connection():
@@ -115,39 +136,13 @@ def simulate_network_connection():
     data = request.get_json() or {}
     mac = data.get("mac_address", "00:11:22:33:44:55")
     ssid = data.get("ssid", "UnknownNetwork")
-    network_manager.handle_network_connection(mac, ssid)
+    NetworkManager.handle_network_connection(mac, ssid)
     return jsonify({"status": "Connection processed"}), 200
 
-@app.route("/test/<int:state_num>", methods=["GET"])
-def test_state(state_num: int):
-    """
-    Test route to force the NetworkManager into a specific state based on the numeric index
-    (in the order defined in ConnectionState). For example, /test/0 forces WAITING_FOR_NETWORK,
-    /test/1 forces CONNECTING, etc.
-    """
-    # Get the list of states in the order defined by the enum.
-    states = list(State)
-    if state_num < 0 or state_num >= len(states):
-        return jsonify({"error": f"Invalid state number. Valid numbers are 0 to {len(states)-1}"}), 400
-    new_state = states[state_num]
-    # Update the state (using the internal _update_state for testing).
-    network_manager._update_state(new_state)
-    # Optionally, trigger some event callbacks based on the state.
-    if new_state == State.CONNECTED_HOME:
-        network_manager.plugin_manager.on_home_network_connected()
-    elif new_state == State.CONNECTED_NEW:
-        network_manager.plugin_manager.on_new_network_connected("00:00:00:00:00:00", "TestNewNetwork")
-    elif new_state == State.CONNECTED_KNOWN:
-        network_manager.plugin_manager.on_known_network_connected("00:00:00:00:00:00", "TestKnownNetwork", False)
-    # You can extend this if/elif block to simulate actions for other states.
-    return jsonify({
-        "status": f"State forced to {new_state.value}",
-        "state_number": state_num
-    }), 200
 
 def _is_plugin_enabled(plugin_name: str) -> bool:
-    d_conf = manager.config.get("default_plugins", {})
-    o_conf = manager.config.get("optional_plugins", {})
+    d_conf = PluginManager.config.get("default_plugins", {})
+    o_conf = PluginManager.config.get("optional_plugins", {})
     pl_lower = plugin_name.lower()
     if pl_lower in d_conf:
         return d_conf[pl_lower].get("enabled", True)
@@ -155,15 +150,118 @@ def _is_plugin_enabled(plugin_name: str) -> bool:
         return o_conf[pl_lower].get("enabled", False)
     return False
 
+
 def _set_plugin_enabled_in_config(plugin_name: str, enabled: bool) -> None:
     pl_lower = plugin_name.lower()
-    d_conf = manager.config.get("default_plugins", {})
-    o_conf = manager.config.get("optional_plugins", {})
+    d_conf = PluginManager.config.get("default_plugins", {})
+    o_conf = PluginManager.config.get("optional_plugins", {})
     if pl_lower in d_conf:
         d_conf[pl_lower]["enabled"] = enabled
     elif pl_lower in o_conf:
         o_conf[pl_lower]["enabled"] = enabled
-    manager.save_config()
+    PluginManager.save_config()
+
+
+# ---------------------
+# Test Routes
+# ---------------------
+@app.route("/test", methods=["GET"])
+def test_page():
+    """Render a test page with a button for each state."""
+    states = list(State)
+    html = """
+    <html>
+      <head>
+        <title>Network Manager State Tests</title>
+      </head>
+      <body>
+        <h1>Test Network Manager States</h1>
+        {% for i, state in states %}
+          <form action="{{ url_for('test_state', state_num=i) }}" method="get" style="margin-bottom: 10px;">
+             <button type="submit">{{ state.value }} (Test {{ i }})</button>
+          </form>
+        {% endfor %}
+      </body>
+    </html>
+    """
+    return render_template_string(html, states=enumerate(states))
+
+
+@app.route("/test/<int:state_num>", methods=["GET"])
+def test_state(state_num: int):
+    """
+    Force the NetworkManager into a specific state and trigger corresponding plugin callbacks.
+    Each state test uses distinct values where needed.
+    """
+    states = list(State)
+    if state_num < 0 or state_num >= len(states):
+        return jsonify({"error": f"Invalid state number. Valid numbers are 0 to {len(states) - 1}"}), 400
+
+    new_state = states[state_num]
+    status_msg = ""
+    if new_state == State.WAITING_FOR_NETWORK:
+        NetworkManager._update_state(new_state)
+        status_msg = f"State forced to {new_state.value}"
+    elif new_state == State.CONNECTING:
+        NetworkManager._update_state(new_state)
+        status_msg = f"State forced to {new_state.value}"
+    elif new_state == State.CONNECTED_HOME:
+        home_mac = PluginManager.config.get("network_flows", {}).get("home_network_mac", "AA:BB:CC:11:22:33")
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_home_network_connected()
+        status_msg = f"Simulated connection to home network with MAC {home_mac}"
+    elif new_state == State.CONNECTED_NEW:
+        new_mac = "00:00:00:00:00:01"
+        new_ssid = "TestNewNetwork"
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_new_network_connected(new_mac, new_ssid)
+        status_msg = f"Simulated connection to new network with MAC {new_mac} and SSID {new_ssid}"
+    elif new_state == State.SCANNING_IN_PROGRESS:
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_scanning_in_progress()
+        status_msg = f"Simulated scanning in progress."
+    elif new_state == State.SCAN_COMPLETED:
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_scan_completed()
+        status_msg = f"Simulated scan completed."
+    elif new_state == State.CONNECTED_KNOWN:
+        known_mac = "00:00:00:00:00:02"
+        known_ssid = "TestKnownNetwork"
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_known_network_connected(known_mac, known_ssid, False)
+        status_msg = f"Simulated connection to known network with MAC {known_mac} and SSID {known_ssid}"
+    elif new_state == State.RECONNECTING:
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_reconnecting()
+        status_msg = f"Simulated reconnecting state."
+    elif new_state == State.CONNECTED_BLACKLISTED:
+        blacklisted_mac = "DE:AD:BE:EF:CA:FE"
+        ssid = "TestBlacklistedNetwork"
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_connected_blacklisted(blacklisted_mac, ssid)
+        status_msg = f"Simulated connection to blacklisted network with MAC {blacklisted_mac} and SSID {ssid}"
+    elif new_state == State.ALERTING:
+        alert_msg = "Test Alert: Something went wrong!"
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_alerting(message=alert_msg)
+        status_msg = f"Simulated alerting state with message: {alert_msg}"
+    elif new_state == State.DISCONNECTED:
+        NetworkManager._update_state(new_state)
+        NetworkManager.plugin_manager.on_disconnected()
+        status_msg = f"Simulated disconnected state."
+
+    html_result = """
+    <html>
+      <head><title>State Test Result</title></head>
+      <body>
+        <h1>Test Result</h1>
+        <p>{{ status_msg }}</p>
+        <a href="{{ url_for('test_page') }}">Back to Test Page</a>
+      </body>
+    </html>
+    """
+    return render_template_string(html_result, status_msg=status_msg)
+
 
 if __name__ == "__main__":
     # For production, consider using gunicorn or similar.
