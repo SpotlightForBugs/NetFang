@@ -6,7 +6,8 @@ from flask import request, jsonify, render_template, session, redirect, url_for,
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
-from netfang.state_machine import NetworkManager, State  # Note: NetworkManager here is our refactored version
+from netfang.state_machine import NetworkManager, State
+from netfang.websocket import setup_websocket
 
 try:
     import sentry_sdk
@@ -33,6 +34,9 @@ CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 PluginManager = PluginManager(CONFIG_PATH)
 PluginManager.load_config()
 NetworkManager = NetworkManager(PluginManager, PluginManager.config)
+
+# Set up WebSocket support
+setup_websocket(app)
 
 # Load configuration, initialize database, and load plugins BEFORE starting the server
 PluginManager.load_config()
@@ -89,6 +93,7 @@ def dashboard():
 
 @app.route("/state")
 def get_current_state():
+    """Legacy endpoint for backward compatibility - WebSockets are preferred"""
     if not session.get('logged_in'):
         return jsonify({"error": "Unauthorized"}), 401
     return jsonify({"state": NetworkManager.current_state.value})
