@@ -213,6 +213,10 @@ class NetworkManager:
         """
         Dispatch the current state (with context) to all plugin callbacks.
         """
+        # Broadcast state update via WebSocket
+        from netfang.websocket import broadcast_state_update
+        await broadcast_state_update(state)
+        
         # Plugins get extra context via keyword arguments.
         if state == State.WAITING_FOR_NETWORK:
             self.plugin_manager.on_waiting_for_network(**self.state_context)
@@ -230,6 +234,15 @@ class NetworkManager:
             self.plugin_manager.on_disconnected(**self.state_context)
         elif state == State.ALERTING:
             self.plugin_manager.on_alerting(**self.state_context)
+            
+            # If this is an alerting state, also broadcast the alert via WebSocket
+            if 'alert_data' in self.state_context:
+                from netfang.websocket import broadcast_alert
+                alert_data = self.state_context.get('alert_data', {})
+                alert_type = alert_data.get('type', 'unknown')
+                alert_message = alert_data.get('message', 'Unknown alert')
+                await broadcast_alert(alert_type, alert_message)
+                
         elif state == State.RECONNECTING:
             self.plugin_manager.on_reconnecting(**self.state_context)
         elif state == State.SCANNING_IN_PROGRESS:

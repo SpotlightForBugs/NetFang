@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8"/>
+    <title>{% block title %}NetFang Dashboard{% endblock %}</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500&display=swap');
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Source Code Pro', monospace;
+            background-color: #121212;
+            color: #33FF33;
+            text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: #000;
+            padding: 15px;
+            border-bottom: 2px solid #33FF33;
+            box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
+        }
+
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .router-logo {
+            height: 45px;
+            filter: brightness(0) invert(1);
+            margin-right: 15px;
+        }
+
+        h1 {
+            font-weight: 400;
+            letter-spacing: 2px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        nav {
+            background-color: #000;
+            border-bottom: 1px solid #33FF33;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            margin: 0;
+            padding: 0;
+            justify-content: center;
+        }
+
+        nav ul li {
+            margin: 0;
+            padding: 0;
+        }
+
+        nav ul li a {
+            display: block;
+            padding: 10px 20px;
+            color: #33FF33;
+            text-decoration: none;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+            letter-spacing: 1px;
+            border-bottom: 2px solid transparent;
+            transition: border-color 0.3s, background-color 0.3s;
+        }
+
+        nav ul li a:hover, nav ul li a.active {
+            border-bottom: 2px solid #33FF33;
+            background-color: rgba(51, 255, 51, 0.1);
+        }
+
+        main {
+            flex-grow: 1;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        footer {
+            text-align: center;
+            padding: 10px;
+            font-size: 0.8rem;
+            background-color: #000;
+            border-top: 1px solid #33FF33;
+            box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
+        }
+
+        .status-container {
+            font-size: 1.2rem;
+            padding: 10px 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid #33FF33;
+            box-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
+            border-radius: 5px;
+            margin-bottom: 20px;
+            min-width: 300px;
+            text-align: center;
+        }
+
+        #state {
+            font-weight: 500;
+            margin-left: 5px;
+            border-right: 2px solid #33FF33;
+            padding-right: 5px;
+            animation: blink 1s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { border-color: transparent; }
+            50% { border-color: #33FF33; }
+        }
+
+        .panel {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.5);
+            border: 1px solid #33FF33;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
+            width: 80%;
+            max-width: 800px;
+        }
+
+        .panel h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #33FF33;
+            padding-bottom: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        table, th, td {
+            border: 1px solid #33FF33;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background-color: rgba(51, 255, 51, 0.1);
+        }
+
+        tr:hover {
+            background-color: rgba(51, 255, 51, 0.05);
+        }
+
+        .button {
+            display: inline-block;
+            padding: 8px 16px;
+            margin: 5px;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: #33FF33;
+            border: 1px solid #33FF33;
+            border-radius: 3px;
+            cursor: pointer;
+            text-decoration: none;
+            font-family: 'Source Code Pro', monospace;
+            text-transform: uppercase;
+            font-size: 0.9rem;
+        }
+
+        .button:hover {
+            background-color: #33FF33;
+            color: #000;
+        }
+        
+        {% block additional_styles %}{% endblock %}
+    </style>
+    {% block head_extras %}{% endblock %}
+</head>
+<body>
+<header>
+    <div class="header-content">
+        <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+        <h1>NetFang Secured Router</h1>
+    </div>
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('dashboard') }}">Dashboard</a></li>
+            <li><a href="{{ url_for('test_page') }}">Test Page</a></li>
+        </ul>
+    </nav>
+</header>
+<main>
+    <div class="status-container">
+        Current state: <span id="state">Connecting...</span>
+    </div>
+    {% block content %}{% endblock %}
+</main>
+<footer>
+    <p>&copy; 2025
+        NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
+</footer>
+{% block scripts %}
+<script>
+    // Initialize WebSocket connection
+    const socketProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${socketProtocol}//${window.location.host}/ws`);
+    const stateElement = document.getElementById("state");
+    
+    // Function to type text character by character
+    function typeText(element, text) {
+        let index = 0;
+        element.innerText = '';  // Clear current text
+
+        const typeInterval = setInterval(() => {
+            if (index < text.length) {
+                element.innerText += text.charAt(index);
+                index++;
+            } else {
+                clearInterval(typeInterval);
+            }
+        }, 50);  // Typing speed (50ms per character)
+    }
+    
+    // WebSocket event handlers
+    socket.onopen = function(event) {
+        console.log("WebSocket connection established");
+    };
+    
+    socket.onmessage = function(event) {
+        try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'state_update') {
+                typeText(stateElement, data.state);
+            }
+        } catch (error) {
+            console.error("Error processing WebSocket message:", error);
+        }
+    };
+    
+    socket.onclose = function(event) {
+        if (event.wasClean) {
+            console.log(`WebSocket connection closed cleanly, code=${event.code}, reason=${event.reason}`);
+        } else {
+            console.error('WebSocket connection died');
+            // Try to reconnect after a delay
+            setTimeout(() => {
+                window.location.reload();
+            }, 5000);
+        }
+    };
+    
+    socket.onerror = function(error) {
+        console.error(`WebSocket error: ${error.message}`);
+    };
+    
+    // Request initial state when page loads
+    window.addEventListener('load', () => {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({action: 'get_state'}));
+        }
+    });
+</script>
+{% endblock %}
+</body>
+</html>
