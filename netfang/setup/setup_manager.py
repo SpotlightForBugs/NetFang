@@ -39,6 +39,9 @@ After=network.target
 
 [Path]
 PathExists=/sys/class/net/%I/carrier
+# Unit and Listen lines added to resolve mount unit issues
+Unit={SYSTEMD_SERVICE_NAME}-inserted.service
+Listen=/sys/class/net/%I/carrier
 ExecStart=/usr/bin/python3 {UDEV_RECEIVER_PATH} cable_inserted %I
 
 [Install]
@@ -53,6 +56,9 @@ After=network.target
 
 [Path]
 PathChanged=/sys/class/net/%I/operstate
+# Unit and Listen lines added to resolve mount unit issues
+Unit={SYSTEMD_SERVICE_NAME}-connected.service
+Listen=/sys/class/net/%I/operstate
 ExecStart=/usr/bin/python3 {UDEV_RECEIVER_PATH} connected %I
 
 [Install]
@@ -67,6 +73,9 @@ After=network.target
 
 [Path]
 PathChanged=/sys/class/net/%I/operstate
+# Unit and Listen lines added to resolve mount unit issues
+Unit={SYSTEMD_SERVICE_NAME}-disconnected.service
+Listen=/sys/class/net/%I/operstate
 ExecStart=/usr/bin/python3 {UDEV_RECEIVER_PATH} disconnected %I
 
 [Install]
@@ -231,7 +240,7 @@ def setup():
 
 
 def uninstall():
-    """Main uninstall function to remove NetFang system hooks."""
+    """Main uninstallation function to remove NetFang system hooks."""
     # Ensure that if we are on Linux, the script is running with elevated
     # privileges.
     if is_linux() and not is_elevated():
