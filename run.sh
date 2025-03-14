@@ -11,7 +11,6 @@ fi
 
 if [ "$1" == "-u" ]; then
     git pull
-    exit 0
 fi
 
 # Make ARP helper executable if it's not already
