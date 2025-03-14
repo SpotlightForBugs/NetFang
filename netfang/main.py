@@ -1,11 +1,14 @@
+import atexit
 import os
 import platform
+from functools import wraps
 from platform import system
 
-from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string
+from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string, abort
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
+from netfang.setup import setup_manager
 from netfang.state_machine import NetworkManager, State  # Note: NetworkManager here is our refactored version
 
 try:
@@ -51,6 +54,24 @@ NetworkManager.start()
 @app.teardown_appcontext
 async def teardown(exception):
     await NetworkManager.start()
+
+
+def OnExit() -> None:
+    setup_manager.uninstall()
+
+
+atexit.register(OnExit)
+
+
+def local_only(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Allow both IPv4 and IPv6 localhost addresses
+        if request.remote_addr not in ('127.0.0.1', '::1'):
+            abort(403)  # Forbidden
+        return f(*args, **kwargs)
+
+    return decorated_function
 
 
 @app.route("/")
@@ -237,17 +258,40 @@ def test_state(state_num: int):
 
     html_result = """
     <html>
-      <head><title>State Test Result</title></head>
+      <head><title>State Test Result</title>
+      <link rel="stylesheet" href="{{ url_for('static', filename='css/hidden.css') }}">
+      </head>
+      
       <body>
         <h1>Test Result</h1>
         <p>{{ status_msg }}</p>
         <a href="{{ url_for('test_page') }}">Back to Test Page</a>
+        <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
       </body>
     </html>
     """
     return render_template_string(html_result, status_msg=status_msg)
 
 
+@local_only
+@app.route("/api/network-event", methods=["POST"])
+def api():
+    """The Api endpoint is used to receive state updates"""
+
+    event_type = request.form.get("event_type")
+    interface_name = request.form.get("interface_name")
+    if event_type == "connected":
+        NetworkManager.handle_network_connection(interface_name)
+    elif event_type == "disconnected":
+        NetworkManager.handle_network_disconnection()
+    return jsonify({"status": "Event processed"}), 200
+
+
+
+
+
+
 if __name__ == "__main__":
     # For production, consider using gunicorn or similar.
+    setup_manager.setup()
     app.run(host="0.0.0.0", port=80, debug=False)

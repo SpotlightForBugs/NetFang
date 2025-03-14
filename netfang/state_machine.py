@@ -1,9 +1,13 @@
 import asyncio
-import threading
 from enum import Enum
 from typing import Optional, Callable, List, Dict, Any, Awaitable, Union
 
+import netifaces
 import psutil  # used to check interface status
+import scapy.layers.l2
+from scapy.layers.l2 import *
+
+from netfang.db import get_network_by_mac
 
 # ------------------------------------------------------------------------------
 # AsyncTrigger and TriggerManager to allow async condition checking and actions
@@ -256,60 +260,54 @@ class NetworkManager:
             # Fallback: run the coroutine synchronously
             asyncio.run(update())
 
-    def handle_network_connection(self, mac_address: str, ssid: str) -> None:
+    def handle_network_connection(self, interface_name: str):
         """
         Process a network connection event.
-        (Database operations are omitted here; integrate your add_or_update_network / get_network_by_mac as needed.)
         """
+
+        gateways = netifaces.gateways()
+        default_gateway = gateways.get('default', [])
+        if default_gateway and netifaces.AF_INET in default_gateway:
+            gateway_ip = default_gateway[netifaces.AF_INET][0]
+            print(f"Default gateway IP: {gateway_ip}")
+
+            broadcast = "ff:ff:ff:ff:ff:ff"
+            arp_request = scapy.layers.l2.ARP(pdst=gateway_ip)
+            broadcast = scapy.layers.l2.Ether(dst=broadcast)
+            arp_request_broadcast = broadcast / arp_request
+            answered_list = scapy.layers.l2.srp(arp_request_broadcast, timeout=1, verbose=False)[0]
+            for element in answered_list:
+                if element[1].psrc == gateway_ip:
+                    mac_address = element[1].hwsrc
+                else:
+                    self.plugin_manager.on_alerting("Could not find gateway mac address EXITING FOR NOW")
+                    return
+
+
+        else:
+            print("No default gateway found!")
+            NetworkManager.handle_network_disconnection()
+            return
+
+
+
+
+
+
+
         mac_upper = mac_address.upper()
         is_blacklisted = mac_upper in self.blacklisted_macs
         is_home = (mac_upper == self.home_mac)
-        net_info = None  # e.g., get_network_by_mac(self.db_path, mac_upper)
+        net_info = get_network_by_mac(self.db_path, mac_upper)
         if is_blacklisted:
-            self.update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
         elif is_home:
-            self.update_state(State.CONNECTED_HOME, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_HOME, mac=mac_upper)
         elif not net_info:
-            self.update_state(State.CONNECTED_NEW, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_NEW, mac=mac_upper)
         else:
-            self.update_state(State.CONNECTED_KNOWN, mac=mac_upper, ssid=ssid)
+            self._update_state(State.CONNECTED_KNOWN, mac=mac_upper)
 
-
-# ------------------------------------------------------------------------------
-# Example usage with a dummy plugin manager.
-# ------------------------------------------------------------------------------
-if __name__ == "__main__":
-    # Dummy PluginManager with basic callbacks for testing.
-    class DummyPluginManager:
-        def on_waiting_for_network(self, **kwargs):
-            print("[DummyPluginManager] on_waiting_for_network", kwargs)
-
-        def on_connecting(self, **kwargs):
-            print("[DummyPluginManager] on_connecting", kwargs)
-
-        def on_connected_home(self, **kwargs):
-            print("[DummyPluginManager] on_connected_home", kwargs)
-
-        def on_connected_new(self, **kwargs):
-            print("[DummyPluginManager] on_connected_new", kwargs)
-
-        def on_connected_known(self, **kwargs):
-            print("[DummyPluginManager] on_connected_known", kwargs)
-
-        def on_connected_blacklisted(self, **kwargs):
-            print("[DummyPluginManager] on_connected_blacklisted", kwargs)
-
-        def on_disconnected(self, **kwargs):
-            print("[DummyPluginManager] on_disconnected", kwargs)
-
-        def on_alerting(self, **kwargs):
-            print("[DummyPluginManager] on_alerting", kwargs)
-
-        def on_reconnecting(self, **kwargs):
-            print("[DummyPluginManager] on_reconnecting", kwargs)
-
-        def on_scanning_in_progress(self, **kwargs):
-            print("[DummyPluginManager] on_scanning_in_progress", kwargs)
-
-        def on_scan_completed(self, **kwargs):
-            print("[DummyPluginManager] on_scan_completed", kwargs)
+    @classmethod
+    def handle_network_disconnection(cls):
+        cls.instance._update_state(State.DISCONNECTED)

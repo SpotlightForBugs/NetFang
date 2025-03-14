@@ -1,7 +1,8 @@
-<!-- netfang/templates/router_home.html -->
+<!-- netfang/templates/hidden/index.html -->
 <!DOCTYPE html>
 <html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
 <head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hidden.css') }}">
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta charset="UTF-8"/>
     <title>NetFang Secured Router</title>
@@ -15,6 +16,8 @@
 </header>
 <main>
     <div> Current state: <span id="state"></span></div>
+
+    <a href="{{ url_for('test_page') }}" class="button">Perform Tests</a>
 
 </main>
 <footer>
@@ -61,84 +64,5 @@
 </script>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500&display=swap');
 
-body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Source Code Pro', monospace;
-    background-color: #121212;
-    color: #33FF33;
-    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-header {
-    background-color: #000;
-    padding: 15px;
-    border-bottom: 2px solid #33FF33;
-    box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
-}
-
-.header-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.router-logo {
-    height: 45px;
-    filter: brightness(0) invert(1);
-    margin-right: 15px;
-}
-
-h1 {
-    font-weight: 400;
-    letter-spacing: 2px;
-    margin: 0;
-    text-transform: uppercase;
-}
-
-main {
-    flex-grow: 1;
-    padding: 30px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-footer {
-    text-align: center;
-    padding: 10px;
-    font-size: 0.8rem;
-    background-color: #000;
-    border-top: 1px solid #33FF33;
-    box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
-}
-
-#state {
-    font-size: 1.2rem;
-    font-weight: 500;
-    margin-left: 5px;
-    border-right: 2px solid #33FF33;
-    padding-right: 5px;
-    animation: blink 1s infinite;
-}
-
-@keyframes blink {
-    0%, 100% { border-color: transparent; }
-    50% { border-color: #33FF33; }
-}
-
-div {
-    font-size: 1.2rem;
-    padding: 10px 20px;
-    background-color: rgba(0, 0, 0, 0.5);
-    border: 1px solid #33FF33;
-    box-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
-    border-radius: 5px;
-}
 </style>
