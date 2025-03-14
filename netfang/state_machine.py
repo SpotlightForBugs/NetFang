@@ -263,27 +263,41 @@ class NetworkManager:
         """
         Process a network connection event.
         """
+        import subprocess
+        import json
+        import os
 
         gateways = netifaces.gateways()
         default_gateway = gateways.get('default', [])
         if default_gateway and netifaces.AF_INET in default_gateway:
             gateway_ip = default_gateway[netifaces.AF_INET][0]
             print(f"Default gateway IP: {gateway_ip}")
-
-            broadcast = "ff:ff:ff:ff:ff:ff"
-            arp_request = scapy.layers.l2.ARP(pdst=gateway_ip)
-            broadcast = scapy.layers.l2.Ether(dst=broadcast)
-            arp_request_broadcast = broadcast / arp_request
-            answered_list = scapy.layers.l2.srp(arp_request_broadcast, timeout=1, verbose=False)[0]
-            for element in answered_list:
-                if element[1].psrc == gateway_ip:
-                    mac_address = element[1].hwsrc
-                    print(f"Gateway MAC address: {mac_address}")
+            
+            # Get the script's directory path for relative script reference
+            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            helper_script = os.path.join(script_dir, "netfang/setup/arp_helper.py")
+            
+            try:
+                result = subprocess.run(
+                    ["sudo", "python3", helper_script, gateway_ip],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                response = json.loads(result.stdout)
+                
+                if response["success"]:
+                    mac_address = response["mac_address"]
                 else:
-                    self.plugin_manager.on_alerting("Could not find gateway mac address EXITING FOR NOW")
+                    error_msg = response.get("error", "Unknown error in ARP discovery")
+                    self.plugin_manager.on_alerting(f"ARP helper error: {error_msg}")
                     return
-
-
+            except subprocess.SubprocessError as e:
+                self.plugin_manager.on_alerting(f"Failed to run ARP helper: {str(e)}")
+                return
+            except json.JSONDecodeError:
+                self.plugin_manager.on_alerting("Failed to parse ARP helper output")
+                return
         else:
             print("No default gateway found!")
             NetworkManager.handle_network_disconnection()
