@@ -4,7 +4,7 @@ import platform
 from functools import wraps
 from platform import system
 
-from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string, abort
+from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string, abort, Flask
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
@@ -23,7 +23,6 @@ try:
     )
 except ImportError:
     print("Error tracing is disabled by default. To enable, install the sentry-sdk package.")
-from flask import Flask
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)  # Required for session management
