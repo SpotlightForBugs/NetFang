@@ -27,7 +27,8 @@ def is_linux():
     """Return True if the operating system is Linux."""
     return os.name == "posix"
 
-def should_deploy():
+
+def is_raspberrypi_zero_2():
     """
     Check if deployment should proceed:
     - Only on Linux.
@@ -78,7 +79,7 @@ def setup():
         print("NetFang needs root privileges to deploy.")
         sys.exit(1)
 
-    if should_deploy():
+    if is_raspberrypi_zero_2():
         setup_systemd_service()
     else:
         print(
@@ -94,7 +95,7 @@ def uninstall():
         print("NetFang needs root privileges to uninstall.")
         sys.exit(1)
 
-    if should_deploy():
+    if is_raspberrypi_zero_2():
         uninstall_systemd_service()
     else:
         print(

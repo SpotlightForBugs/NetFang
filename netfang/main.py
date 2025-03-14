@@ -1,4 +1,3 @@
-import atexit
 import os
 import platform
 from functools import wraps
@@ -8,16 +7,13 @@ from flask import request, jsonify, render_template, session, redirect, url_for,
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
-from netfang.setup import setup_manager
-from netfang.state_machine import NetworkManager, State  # Note: NetworkManager here is our refactored version
+from netfang.state_machine import NetworkManager, State
 
 try:
     import sentry_sdk
 
     sentry_sdk.init(
         dsn="https://80c9a50a96245575dc2414b9de48e2b2@o1363527.ingest.us.sentry.io/4508971050860544",
-        # Add data like request headers and IP for users,
-        # see https://docs.sentry.io/platforms/python/data-management/data-collected/ for more info
         send_default_pii=False,
         server_name=f"{system()} on {platform.node()}",
     )
