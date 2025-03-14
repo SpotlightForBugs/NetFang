@@ -150,7 +150,7 @@ class NetworkManager:
         self.running = True
         self.flow_task = asyncio.create_task(self.flow_loop())
         self.trigger_task = asyncio.create_task(self.trigger_loop())
-        self.check_initial_state()
+        await self.check_initial_state()
 
     async def stop(self) -> None:
         self.running = False
