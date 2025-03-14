@@ -21,7 +21,8 @@ try:
         send_default_pii=False,
         server_name=f"{system()} on {platform.node()}",
     )
-except ImportError:
+except ImportError as e:
+    print(e)  # for debugging purposes only
     print("Error tracing is disabled by default. To enable, install the sentry-sdk package.")
 
 app = Flask(__name__)
