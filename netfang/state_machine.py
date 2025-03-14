@@ -124,7 +124,7 @@ class NetworkManager:
         flow_cfg = config.get("network_flows", {})
         self.blacklisted_macs = [m.upper() for m in flow_cfg.get("blacklisted_macs", [])]
         self.home_mac = flow_cfg.get("home_network_mac", "").upper()
-        self.monitored_interfaces = flow_cfg.get("monitored_interfaces", ["eth0"])
+        self.monitored_interfaces = flow_cfg.get("network_interfaces", ["eth0"])
         NetworkManager.global_monitored_interfaces = self.monitored_interfaces
 
         self.current_state = State.WAITING_FOR_NETWORK
@@ -340,30 +340,22 @@ class NetworkManager:
         self.update_state(State.CONNECTING)
 
     def check_initial_state(self):
-        if netfang.setup.setup_manager.is_raspberrypi_zero_2():
-            # use subprocess to run the network_status_helper.py script
-            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            helper_script = os.path.join(script_dir, "netfang/setup/network_status_helper.py")
-            try:
-                result = subprocess.run(["sudo", "python3", helper_script], capture_output=True, text=True, check=True)
-                response = json.loads(result.stdout)
+        connected = False
+        if not netfang.setup.setup_manager.is_raspberrypi_zero_2():
+            self.update_state(State.WAITING_FOR_NETWORK)
+        for interface in self.monitored_interfaces:
+            gateways = netifaces.gateways()
+            if_gateways = netifaces.ifaddresses(interface)
+            if netifaces.AF_INET in if_gateways:
+                # Interface has IPv4 connectivity
+                default_gateway = gateways.get('default', [])
+                if default_gateway and netifaces.AF_INET in default_gateway:
+                    gateway_ip = default_gateway[netifaces.AF_INET][0]
+                    gateway_interface = default_gateway[netifaces.AF_INET][1]
+                    if gateway_interface == interface:
+                        print(f"Default gateway IP on {interface}: {gateway_ip}")
+                        connected = True
+                        break
 
-                if response.get("success"):
-                    interface = response["interface"]
-                    if interface:
-                        self.handle_network_connection(interface)
-                    else:
-                        self.handle_waiting_for_network()
-                else:
-                    error_msg = response.get("error", "Unknown error in network status discovery")
-                    self.plugin_manager.on_alerting(f"Network status helper error: {error_msg}")
-            except subprocess.SubprocessError as e:
-
-                self.plugin_manager.on_alerting(f"Failed to run network status helper: {str(e)}")
-            except json.JSONDecodeError:
-                self.plugin_manager.on_alerting("Failed to parse network status helper output")
-            except Exception as e:
-                self.plugin_manager.on_alerting(f"Unknown error: {str(e)}")
-        else:
-            print("Network status discovery is only supported on Raspberry Pi Zero 2 W")
+        if not connected:
             self.update_state(State.WAITING_FOR_NETWORK)
