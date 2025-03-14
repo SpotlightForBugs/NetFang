@@ -1,17 +1,13 @@
 #!/bin/bash
 
-# Check for any local changes (tracked or untracked)
-if [ -n "$(git status --porcelain)" ]; then
-  echo "Local changes detected. Stashing changes before pulling."
-  git stash -u    # -u to include untracked files
-  git pull
-  echo "Reapplying stashed changes."
-  git stash pop
-else
-  echo "No local changes. Pulling latest changes."
-  git pull
+if [ "$1" == "-u" ]; then
+    git pull
 fi
-
+if [ "$1" == "-h" ]; then
+    echo "Usage: ./run.sh [-u]"
+    echo "  -u: Update the repository before running"
+    exit 0
+fi
 # Make ARP helper executable if it's not already
 chmod +x netfang/setup/arp_helper.py
 
