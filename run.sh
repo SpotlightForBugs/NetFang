@@ -8,6 +8,10 @@ if [ "$1" == "-h" ]; then
     echo "  -u: Update the repository before running"
     exit 0
 fi
+
+#turn off HDMI
+/usr/bin/tvservice -o # Turn off HDMI to save power
+
 # Make ARP helper executable if it's not already
 chmod +x netfang/setup/arp_helper.py
 
