@@ -56,12 +56,13 @@ async def teardown(exception):
     await NetworkManager.start()
 
 
+"""
 def OnExit() -> None:
     setup_manager.stop()
 
 
 atexit.register(OnExit)
-
+"""
 
 def local_only(f):
     @wraps(f)
@@ -299,5 +300,4 @@ def api():
 
 if __name__ == "__main__":
     # For production, consider using gunicorn or similar.
-    setup_manager.setup()
     app.run(host="0.0.0.0", port=80, debug=False)
