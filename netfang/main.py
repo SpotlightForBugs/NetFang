@@ -57,7 +57,7 @@ async def teardown(exception):
 
 
 def OnExit() -> None:
-    setup_manager.uninstall()
+    setup_manager.stop()
 
 
 atexit.register(OnExit)
@@ -188,6 +188,8 @@ def _set_plugin_enabled_in_config(plugin_name: str, enabled: bool) -> None:
 # ---------------------
 @app.route("/test", methods=["GET"])
 def test_page():
+    if not session.get('logged_in'):
+        return redirect(url_for('frontpage'))
     """Render a test page with a button for each state."""
     states = list(State)
     return render_template("hidden/test.html", states=enumerate(states))
