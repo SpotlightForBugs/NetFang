@@ -1,27 +1,42 @@
 #!/bin/bash
 
-if [ "$1" == "-h" ]; then
-    echo "Usage: ./run.sh [OPTION]"
-    echo "Options:"
-    echo "  -h    Display this help message"
-    echo "  -u    Update the Netfang repository"
-    echo "  --hidden    Run Netfang in the background"
-    exit 0
-fi
+    update_repo=false
+    run_hidden=false
 
-if [ "$1" == "-u" ]; then
-    git pull
-fi
+    while [[ $# -gt 0 ]]; do
+      case $1 in
+        -h)
+          echo "\Usage: ./run.sh [OPTIONS]"
+          echo "\  -h         Display help"
+          echo "\  -u         Update the repository"
+          echo "\  --hidden   Run in the background"
+          exit 0
+          ;;
+        -u)
+          update_repo=true
+          shift
+          ;;
+        --hidden)
+          run_hidden=true
+          shift
+          ;;
+        *)
+          shift
+          ;;
+      esac
+    done
 
-# Make ARP helper executable if it's not already
-chmod +x netfang/setup/arp_helper.py
+    if [ "$update_repo" = true ]; then
+      git pull
+    fi
 
-sudo python netfang/setup/setup_manager.py && \
+    chmod +x `netfang/setup/arp_helper.py`
+    sudo python `netfang/setup/setup_manager.py` &&
 
-if [ "$1" == "--hidden" ]; then
-    nohup sudo python -m netfang.main &
-else
-    sudo python -m netfang.main
-fi
+    if [ "$run_hidden" = true ]; then
+      nohup sudo python -m netfang.main &
+    else
+      sudo python -m netfang.main
+    fi
 
-sudo python netfang/setup/setup_manager.py stop
+    sudo python `netfang/setup/setup_manager.py` stop
