@@ -140,6 +140,7 @@ class NetworkManager:
 
         self.running = False
         self.flow_task: Optional[asyncio.Task] = None
+        self._loop = None
         self.trigger_task: Optional[asyncio.Task] = None
 
         # Set the global instance
@@ -148,6 +149,7 @@ class NetworkManager:
     async def start(self) -> None:
         if self.running:
             return
+        self._loop = asyncio.get_event_loop()
         self.running = True
         self.flow_task = asyncio.create_task(self.flow_loop())
         self.trigger_task = asyncio.create_task(self.trigger_loop())
@@ -260,6 +262,22 @@ class NetworkManager:
 
     async def handle_scan_completed(self) -> None:
         print("[NetworkManager] Handling SCAN_COMPLETED state.")
+    async def check_initial_state(self):
+        connected = False
+        if not netfang.setup.setup_manager.is_raspberrypi_zero_2():
+            async with self.state_lock:
+                self.current_state = State.WAITING_FOR_NETWORK
+                print(f"[NetworkManager] Initial state set: {self.current_state.value}")
+        for interface in self.monitored_interfaces:
+            gateways = netifaces.gateways()
+            if_gateways = netifaces.ifaddresses(interface)
+            if netifaces.AF_INET in if_gateways:
+                # Interface has IPv4 connectivity
+                connected = True
+                break
+        if connected:
+            self.update_state(State.CONNECTING)
+
         # Custom logic after scan completion
 
     # ---------------------------------------------------------------------------
@@ -273,10 +291,20 @@ class NetworkManager:
                 print(f"[NetworkManager] State transition: {self.current_state.value} -> {new_state.value}")
                 self.current_state = new_state
                 self.state_context.update(context)
-                print(f"[NetworkManager] New state set: {self.current_state.value}")
-
-        if hasattr(self, "_loop") and self._loop.is_running():
-            asyncio.run_coroutine_threadsafe(update(), self._loop)
+        try:
+            loop = asyncio.get_event_loop()
+            if hasattr(self, "_loop") and self._loop and self._loop.is_running():
+                asyncio.run_coroutine_threadsafe(update(), self._loop)
+            else:
+                if loop.is_running():
+                    future = asyncio.ensure_future(update(), loop=loop)
+                else:
+                    loop.run_until_complete(update())
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(update())
+            loop.close()
         else:
             asyncio.run(update())
 
