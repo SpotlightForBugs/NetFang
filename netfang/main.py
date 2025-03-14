@@ -49,6 +49,11 @@ NetworkManager.start()
 
 @app.teardown_appcontext
 async def teardown(exception):
+    await NetworkManager.start()
+
+
+"""
+def OnExit() -> None:
     setup_manager.stop()
 
 
