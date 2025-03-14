@@ -27,26 +27,16 @@
 </body>
 </html>
 <script>
-    let previousState = '';  // To store the previous state
-
-    // Function to type text character by character
-    function typeText(element, text) {
-        let index = 0;
-        element.innerText = '';  // Clear current text
-
-        const typeInterval = setInterval(() => {
-            if (index < text.length) {
-                element.innerText += text.charAt(index);
-                index++;
-            } else {
-                clearInterval(typeInterval);
-            }
-        }, 50);  // Typing speed (50ms per character)
-    }
-
     function updateState() {
         fetch("/state")
-            .then(response => response.json())
+            .then(response => {
+                if (response.status === 401) {
+                    console.log('Authentication expired, refreshing page...');
+                    window.location.reload();
+                    return Promise.reject('Authentication required');
+                }
+                return response.json();
+            })
             .then(data => {
                 const stateElement = document.getElementById("state");
 
@@ -59,10 +49,4 @@
             .catch(error => console.error('Failed to fetch state:', error));
     }
 
-    setInterval(updateState, 5000);
-    updateState();
 </script>
-
-<style>
-
-</style>
