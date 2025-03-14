@@ -13,9 +13,6 @@ SYSTEMD_PATH_CONNECTED_PATH = (
 SYSTEMD_PATH_DISCONNECTED_PATH = (
     f"/etc/systemd/system/{SYSTEMD_SERVICE_NAME}-disconnected.path"
 )
-SYSTEMD_PATH_INSERTED_UNIT = f"{SYSTEMD_SERVICE_NAME}-inserted.path"
-SYSTEMD_PATH_CONNECTED_UNIT = f"{SYSTEMD_SERVICE_NAME}-connected.path"
-SYSTEMD_PATH_DISCONNECTED_UNIT = f"{SYSTEMD_SERVICE_NAME}-disconnected.path"
 UDEV_RECEIVER_PATH = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "../api/udev_receiver.py")
 )
@@ -145,15 +142,18 @@ def setup_systemd_units():
     subprocess.run(
         ["systemctl", "enable", SYSTEMD_PATH_CONNECTED_PATH], check=True
     )
+    subprocess.run(
+        ["systemctl", "enable", SYSTEMD_PATH_DISCONNECTED_PATH], check=True
+    )
     subprocess.run(["systemctl", "start", SYSTEMD_SERVICE_NAME], check=True)
     subprocess.run(
-        ["systemctl", "start", SYSTEMD_PATH_INSERTED_UNIT], check=True
+        ["systemctl", "start", SYSTEMD_PATH_INSERTED_PATH], check=True
     )
     subprocess.run(
-        ["systemctl", "start", SYSTEMD_PATH_CONNECTED_UNIT], check=True
+        ["systemctl", "start", SYSTEMD_PATH_CONNECTED_PATH], check=True
     )
     subprocess.run(
-        ["systemctl", "start", SYSTEMD_PATH_DISCONNECTED_UNIT], check=True
+        ["systemctl", "start", SYSTEMD_PATH_DISCONNECTED_PATH], check=True
     )
 
     print("Systemd units successfully set up, enabled, and started.")
@@ -164,21 +164,21 @@ def uninstall_systemd_units():
     print("Uninstalling systemd units...")
 
     # Stop and disable the systemd units
-    subprocess.run(["systemctl", "stop", SYSTEMD_PATH_INSERTED_UNIT], check=True)
-    subprocess.run(["systemctl", "stop", SYSTEMD_PATH_CONNECTED_UNIT], check=True)
+    subprocess.run(["systemctl", "stop", SYSTEMD_PATH_INSERTED_PATH], check=True)
+    subprocess.run(["systemctl", "stop", SYSTEMD_PATH_CONNECTED_PATH], check=True)
     subprocess.run(
-        ["systemctl", "stop", SYSTEMD_PATH_DISCONNECTED_UNIT], check=True
+        ["systemctl", "stop", SYSTEMD_PATH_DISCONNECTED_PATH], check=True
     )
     subprocess.run(["systemctl", "stop", SYSTEMD_SERVICE_NAME], check=True)
 
     subprocess.run(
-        ["systemctl", "disable", SYSTEMD_PATH_INSERTED_UNIT], check=True
+        ["systemctl", "disable", SYSTEMD_PATH_INSERTED_PATH], check=True
     )
     subprocess.run(
-        ["systemctl", "disable", SYSTEMD_PATH_CONNECTED_UNIT], check=True
+        ["systemctl", "disable", SYSTEMD_PATH_CONNECTED_PATH], check=True
     )
     subprocess.run(
-        ["systemctl", "disable", SYSTEMD_PATH_DISCONNECTED_UNIT], check=True
+        ["systemctl", "disable", SYSTEMD_PATH_DISCONNECTED_PATH], check=True
     )
     subprocess.run(["systemctl", "disable", SYSTEMD_SERVICE_NAME], check=True)
 
@@ -210,10 +210,10 @@ def stop_systemd_units():
     print("Stopping systemd units...")
 
     # Stop the systemd units
-    subprocess.run(["systemctl", "stop", SYSTEMD_PATH_INSERTED_UNIT], check=True)
-    subprocess.run(["systemctl", "stop", SYSTEMD_PATH_CONNECTED_UNIT], check=True)
+    subprocess.run(["systemctl", "stop", SYSTEMD_PATH_INSERTED_PATH], check=True)
+    subprocess.run(["systemctl", "stop", SYSTEMD_PATH_CONNECTED_PATH], check=True)
     subprocess.run(
-        ["systemctl", "stop", SYSTEMD_PATH_DISCONNECTED_UNIT], check=True
+        ["systemctl", "stop", SYSTEMD_PATH_DISCONNECTED_PATH], check=True
     )
     subprocess.run(["systemctl", "stop", SYSTEMD_SERVICE_NAME], check=True)
 
