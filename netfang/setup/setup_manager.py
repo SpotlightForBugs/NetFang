@@ -101,3 +101,12 @@ def uninstall():
             "\033[91mNetFang does not support this device or operating system.\n"
             "No system hooks to clean up.\033[0m"
         )
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "uninstall":
+        uninstall()
+    elif len(sys.argv) > 1 and sys.argv[1] == "stop":
+        subprocess.run(["systemctl", "stop", "netfang-monitor.service"], check=True)
+    else:
+        setup()
