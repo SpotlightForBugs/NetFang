@@ -29,7 +29,7 @@
         "plugins.defaults.arpscan.run_arpscan"
       ],
       "plugin_config": {
-        "interface": "wlan0"
+        "interface": "eth0"
       }
     },
     "debug": {
@@ -55,6 +55,13 @@
 "home_network_mac": "AA:BB:CC:11:22:33",
 "blacklisted_macs": [
 "DE:AD:BE:EF:CA:FE"
-]
+],
+  "network_interfaces": {
+    "ethernet": [
+      "eth0",
+      "usb0"
+    ]
+  }
 }
 }
+

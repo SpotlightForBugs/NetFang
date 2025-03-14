@@ -4,7 +4,6 @@ from typing import Awaitable
 
 import netifaces
 import psutil  # used to check interface status
-import scapy.layers.l2
 from scapy.layers.l2 import *
 
 from netfang.db import get_network_by_mac
@@ -288,6 +287,7 @@ class NetworkManager:
                 
                 if response["success"]:
                     mac_address = response["mac_address"]
+                    print(f"MAC address of default gateway: {mac_address}")
                 else:
                     error_msg = response.get("error", "Unknown error in ARP discovery")
                     self.plugin_manager.on_alerting(f"ARP helper error: {error_msg}")
