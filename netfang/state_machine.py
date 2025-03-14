@@ -1,20 +1,26 @@
 import asyncio
+import json
+import os
+import subprocess
 from enum import Enum
 from typing import Awaitable
 
 import netifaces
-import psutil  # used to check interface status
+import psutil
 from scapy.layers.l2 import *
 
 from netfang.db import get_network_by_mac
 
-# ------------------------------------------------------------------------------
-# AsyncTrigger and TriggerManager to allow async condition checking and actions
-# ------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
+# Type Aliases for Conditions and Actions
+# -------------------------------------------------------------------------------
 ConditionFunc = Callable[[], Union[bool, Awaitable[bool]]]
 ActionFunc = Callable[[], Union[None, Awaitable[None]]]
 
 
+# -------------------------------------------------------------------------------
+# Async Trigger and Trigger Manager
+# -------------------------------------------------------------------------------
 class AsyncTrigger:
     def __init__(self, name: str, condition: ConditionFunc, action: ActionFunc):
         self.name = name
@@ -22,7 +28,6 @@ class AsyncTrigger:
         self.action = action
 
     async def check_and_fire(self):
-        # Support both sync and async conditions
         cond_result = self.condition()
         if asyncio.iscoroutine(cond_result):
             cond_result = await cond_result
@@ -30,7 +35,6 @@ class AsyncTrigger:
             act_result = self.action()
             if asyncio.iscoroutine(act_result):
                 await act_result
-
 
 class TriggerManager:
     def __init__(self, triggers: List[AsyncTrigger]):
@@ -41,73 +45,45 @@ class TriggerManager:
             await trigger.check_and_fire()
 
 
-# ------------------------------------------------------------------------------
-# Example sensor condition functions
-# ------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
+# Sensor Conditions and Action Functions
+# -------------------------------------------------------------------------------
 async def condition_battery_low() -> bool:
-    """
-    Checks if battery level (simulated from an INA219 reading) is below 20%.
-    Replace get_battery_percentage() with a real sensor call.
-    """
     battery_percentage = await asyncio.to_thread(get_battery_percentage)
     return battery_percentage < 20
 
-
 def get_battery_percentage() -> float:
-    """
-    Dummy battery percentage calculation.
-    In practice, instantiate and use your INA219 instance.
-    For example:
-      p = (bus_voltage - 3) / 1.2 * 100
-    """
+    # Replace with real sensor call/calculation (e.g., from INA219)
     return 15.0  # Simulated low battery
 
-
 async def condition_interface_unplugged() -> bool:
-    """
-    Checks if any of the monitored interfaces (e.g. eth0, wlan0) are down.
-    """
     monitored = NetworkManager.global_monitored_interfaces
     stats = psutil.net_if_stats()
     for iface in monitored:
-        # If interface isn’t found or isn’t up, report as unplugged.
         if iface not in stats or not stats[iface].isup:
             return True
     return False
 
-
 async def condition_cpu_temp_high() -> bool:
-    """
-    Checks if the CPU temperature exceeds 70°C.
-    On Linux, read from /sys/class/thermal/thermal_zone0/temp.
-    """
     try:
-        # Read synchronously in a thread
         cpu_temp = await asyncio.to_thread(
             lambda: float(open("/sys/class/thermal/thermal_zone0/temp").read().strip()) / 1000.0
         )
     except Exception:
-        cpu_temp = 50.0  # Default if error occurs
+        cpu_temp = 50.0
     return cpu_temp > 70.0
 
-
-# ------------------------------------------------------------------------------
-# Example action functions for triggers
-# ------------------------------------------------------------------------------
 async def action_alert_battery_low():
     print("[TriggerManager] ACTION: Battery is too low!")
-    # Update state to ALERTING with extra context
     NetworkManager.instance.update_state(
         State.ALERTING, alert_data={"type": "battery", "message": "Battery level is low!"}
     )
-
 
 async def action_alert_interface_unplugged():
     print("[TriggerManager] ACTION: A monitored interface is unplugged!")
     NetworkManager.instance.update_state(
         State.ALERTING, alert_data={"type": "interface", "message": "Interface unplugged!"}
     )
-
 
 async def action_alert_cpu_temp():
     print("[TriggerManager] ACTION: CPU temperature is too high!")
@@ -116,9 +92,9 @@ async def action_alert_cpu_temp():
     )
 
 
-# ------------------------------------------------------------------------------
-# Define network states
-# ------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
+# State Definitions
+# -------------------------------------------------------------------------------
 class State(Enum):
     WAITING_FOR_NETWORK = "WAITING_FOR_NETWORK"
     CONNECTING = "CONNECTING"
@@ -131,14 +107,12 @@ class State(Enum):
     CONNECTED_BLACKLISTED = "CONNECTED_BLACKLISTED"
     ALERTING = "ALERTING"
     DISCONNECTED = "DISCONNECTED"
-    # You can add extra states if needed
 
 
-# ------------------------------------------------------------------------------
-# The main NetworkManager that ties triggers, state changes, and plugins together.
-# ------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
+# Network Manager with Dedicated State Handlers
+# -------------------------------------------------------------------------------
 class NetworkManager:
-    # Global references to support triggers reading config
     instance: "NetworkManager" = None
     global_monitored_interfaces: List[str] = ["eth0"]
 
@@ -156,20 +130,18 @@ class NetworkManager:
         self.state_lock = asyncio.Lock()
         self.state_context: Dict[str, Any] = {}
 
-        # Initialize TriggerManager with our triggers.
+        # Initialize TriggerManager with triggers
         self.trigger_manager = TriggerManager([
             AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low),
             AsyncTrigger("InterfaceUnplugged", condition_interface_unplugged, action_alert_interface_unplugged),
             AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp),
-            # Add more triggers as needed
         ])
 
-        # Async loop tasks
         self.running = False
         self.flow_task: Optional[asyncio.Task] = None
         self.trigger_task: Optional[asyncio.Task] = None
 
-        # Set the global instance to allow triggers/actions to access this manager
+        # Set the global instance
         NetworkManager.instance = self
 
     async def start(self) -> None:
@@ -188,22 +160,14 @@ class NetworkManager:
 
     async def flow_loop(self) -> None:
         """
-        Main loop to handle state updates and to notify plugins.
+        Main loop to handle state updates and notify plugins.
         """
         while self.running:
             async with self.state_lock:
                 current = self.current_state
                 print(f"[NetworkManager] (Flow Loop) Current state: {current.value}")
-                await self.notify_plugins(current)
+                await self.handle_state_change(current)
             await asyncio.sleep(5)
-
-            await asyncio.sleep(5)  # Broadcast current state every 5 seconds
-
-        def _run_async_loop(self) -> None:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-            self._loop.create_task(self._state_flow_loop())
-            self._loop.run_forever()
 
     async def trigger_loop(self) -> None:
         """
@@ -211,71 +175,123 @@ class NetworkManager:
         """
         while self.running:
             await self.trigger_manager.check_triggers()
-            await asyncio.sleep(2)  # Adjust polling frequency as needed
+            await asyncio.sleep(2)
+
+    async def handle_state_change(self, state: State) -> None:
+        """
+        Dispatch to the dedicated state handler and then notify plugins.
+        """
+        # Call the dedicated handler if it exists
+        handler_name = f"handle_{state.value.lower()}"
+        handler = getattr(self, handler_name, None)
+        if callable(handler):
+            await handler()
+        # Notify plugins
+        await self.notify_plugins(state)
 
     async def notify_plugins(self, state: State) -> None:
         """
-        Dispatch the current state (with context) to all plugin callbacks.
+        Dispatch the current state (and context) to the plugin callbacks.
         """
-        # Plugins get extra context via keyword arguments.
-        if state == State.WAITING_FOR_NETWORK:
-            self.plugin_manager.on_waiting_for_network(**self.state_context)
-        elif state == State.CONNECTING:
-            self.plugin_manager.on_connecting(**self.state_context)
-        elif state == State.CONNECTED_HOME:
-            self.plugin_manager.on_connected_home(**self.state_context)
-        elif state == State.CONNECTED_NEW:
-            self.plugin_manager.on_connected_new(**self.state_context)
-        elif state == State.CONNECTED_KNOWN:
-            self.plugin_manager.on_connected_known(**self.state_context)
-        elif state == State.CONNECTED_BLACKLISTED:
-            self.plugin_manager.on_connected_blacklisted(**self.state_context)
-        elif state == State.DISCONNECTED:
-            self.plugin_manager.on_disconnected(**self.state_context)
-        elif state == State.ALERTING:
-            self.plugin_manager.on_alerting(**self.state_context)
-        elif state == State.RECONNECTING:
-            self.plugin_manager.on_reconnecting(**self.state_context)
-        elif state == State.SCANNING_IN_PROGRESS:
-            self.plugin_manager.on_scanning_in_progress(**self.state_context)
-        elif state == State.SCAN_COMPLETED:
-            self.plugin_manager.on_scan_completed(**self.state_context)
+        plugin_callbacks = {
+            State.WAITING_FOR_NETWORK: self.plugin_manager.on_waiting_for_network,
+            State.CONNECTING: self.plugin_manager.on_connecting,
+            State.CONNECTED_HOME: self.plugin_manager.on_connected_home,
+            State.CONNECTED_NEW: self.plugin_manager.on_connected_new,
+            State.CONNECTED_KNOWN: self.plugin_manager.on_connected_known,
+            State.CONNECTED_BLACKLISTED: self.plugin_manager.on_connected_blacklisted,
+            State.DISCONNECTED: self.plugin_manager.on_disconnected,
+            State.ALERTING: self.plugin_manager.on_alerting,
+            State.RECONNECTING: self.plugin_manager.on_reconnecting,
+            State.SCANNING_IN_PROGRESS: self.plugin_manager.on_scanning_in_progress,
+            State.SCAN_COMPLETED: self.plugin_manager.on_scan_completed,
+        }
+        callback = plugin_callbacks.get(state)
+        if callback:
+            if asyncio.iscoroutinefunction(callback):
+                await callback(**self.state_context)
+            else:
+                callback(**self.state_context)
 
-    def _update_state(self, new_state: State, mac: str = "", ssid: str = "", message: str = "") -> None:
+    # ---------------------------------------------------------------------------
+    # Dedicated State Handlers
+    # ---------------------------------------------------------------------------
+    async def handle_waiting_for_network(self) -> None:
+        print("[NetworkManager] Handling WAITING_FOR_NETWORK state.")
+        # Add any custom logic for waiting state
+
+    async def handle_connecting(self) -> None:
+        print("[NetworkManager] Handling CONNECTING state.")
+        # Add logic for connecting state
+
+    async def handle_connected_home(self) -> None:
+        print("[NetworkManager] Handling CONNECTED_HOME state.")
+        # Custom logic when connected to the home network
+
+    async def handle_connected_new(self) -> None:
+        print("[NetworkManager] Handling CONNECTED_NEW state.")
+        # Custom logic for connecting to a new network
+
+    async def handle_connected_known(self) -> None:
+        print("[NetworkManager] Handling CONNECTED_KNOWN state.")
+        # Custom logic for connecting to a known network
+
+    async def handle_connected_blacklisted(self) -> None:
+        print("[NetworkManager] Handling CONNECTED_BLACKLISTED state.")
+        # Custom logic for blacklisted network connection
+
+    async def handle_alerting(self) -> None:
+        print("[NetworkManager] Handling ALERTING state.")
+        # Custom alerting logic
+
+    async def handle_disconnected(self) -> None:
+        print("[NetworkManager] Handling DISCONNECTED state.")
+        # Custom disconnection logic
+
+    async def handle_reconnecting(self) -> None:
+        print("[NetworkManager] Handling RECONNECTING state.")
+        # Custom reconnecting logic
+
+    async def handle_scanning_in_progress(self) -> None:
+        print("[NetworkManager] Handling SCANNING_IN_PROGRESS state.")
+        # Custom scanning logic
+
+    async def handle_scan_completed(self) -> None:
+        print("[NetworkManager] Handling SCAN_COMPLETED state.")
+        # Custom logic after scan completion
+
+    # ---------------------------------------------------------------------------
+    # State Update and Network Event Handlers
+    # ---------------------------------------------------------------------------
+    def update_state(self, new_state: State, **context) -> None:
         async def update():
             async with self.state_lock:
-                old_state = self.current_state
-                if old_state == new_state:
+                if self.current_state == new_state:
                     return
-                print(f"[NetworkManager] State transition: {old_state.value} -> {new_state.value}")
+                print(f"[NetworkManager] State transition: {self.current_state.value} -> {new_state.value}")
                 self.current_state = new_state
+                self.state_context.update(context)
                 print(f"[NetworkManager] New state set: {self.current_state.value}")
 
-        # Use the background loop if available:
         if hasattr(self, "_loop") and self._loop.is_running():
             asyncio.run_coroutine_threadsafe(update(), self._loop)
         else:
-            # Fallback: run the coroutine synchronously
             asyncio.run(update())
 
-    def handle_network_connection(self, interface_name: str):
+    def handle_network_connection(self, interface_name: str) -> None:
         """
         Process a network connection event.
         """
-        import subprocess
-        import json
-        import os
-
         gateways = netifaces.gateways()
         default_gateway = gateways.get('default', [])
         if default_gateway and netifaces.AF_INET in default_gateway:
             gateway_ip = default_gateway[netifaces.AF_INET][0]
             print(f"Default gateway IP: {gateway_ip}")
-            
-            # Get the script's directory path for relative script reference
+
+            # Build the helper script path relative to this file’s directory
             script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             helper_script = os.path.join(script_dir, "netfang/setup/arp_helper.py")
-            
+
             try:
                 result = subprocess.run(
                     ["sudo", "python3", helper_script, gateway_ip],
@@ -284,8 +300,7 @@ class NetworkManager:
                     check=True
                 )
                 response = json.loads(result.stdout)
-                
-                if response["success"]:
+                if response.get("success"):
                     mac_address = response["mac_address"]
                     print(f"MAC address of default gateway: {mac_address}")
                 else:
@@ -300,32 +315,24 @@ class NetworkManager:
                 return
         else:
             print("No default gateway found!")
-            NetworkManager.handle_network_disconnection()
+            self.handle_network_disconnection()
             return
-
-
-
-
-
-
 
         mac_upper = mac_address.upper()
         is_blacklisted = mac_upper in self.blacklisted_macs
         is_home = (mac_upper == self.home_mac)
         net_info = get_network_by_mac(self.db_path, mac_upper)
         if is_blacklisted:
-            self._update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
+            self.update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
         elif is_home:
-            self._update_state(State.CONNECTED_HOME, mac=mac_upper)
+            self.update_state(State.CONNECTED_HOME, mac=mac_upper)
         elif not net_info:
-            self._update_state(State.CONNECTED_NEW, mac=mac_upper)
+            self.update_state(State.CONNECTED_NEW, mac=mac_upper)
         else:
-            self._update_state(State.CONNECTED_KNOWN, mac=mac_upper)
+            self.update_state(State.CONNECTED_KNOWN, mac=mac_upper)
 
-    @classmethod
-    def handle_network_disconnection(cls):
-        cls.instance._update_state(State.DISCONNECTED)
+    def handle_network_disconnection(self) -> None:
+        self.update_state(State.DISCONNECTED)
 
-    @classmethod
-    def handle_cable_inserted(cls, interface_name: str):
-        cls.instance._update_state(State.CONNECTING)
+    def handle_cable_inserted(self, interface_name: str) -> None:
+        self.update_state(State.CONNECTING)
