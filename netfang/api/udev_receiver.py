@@ -4,7 +4,7 @@ import requests
 
 
 def send_data(event_type, interface_name):
-    url = 'http://127.0.0.1:80/api/network_event'
+    url = 'http://127.0.0.1:80/api/network-event'
     data = {'event_type': event_type, 'interface_name': interface_name}
     response = requests.post(url, data=data, timeout=5)
     print(response.text)

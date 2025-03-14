@@ -1,6 +1,6 @@
 import asyncio
 from enum import Enum
-from typing import Optional, Callable, List, Dict, Any, Awaitable, Union
+from typing import Awaitable
 
 import netifaces
 import psutil  # used to check interface status
@@ -251,7 +251,6 @@ class NetworkManager:
                 print(f"[NetworkManager] State transition: {old_state.value} -> {new_state.value}")
                 self.current_state = new_state
                 print(f"[NetworkManager] New state set: {self.current_state.value}")
-            # (Insert additional plugin/trigger calls here if needed.)
 
         # Use the background loop if available:
         if hasattr(self, "_loop") and self._loop.is_running():
@@ -311,3 +310,7 @@ class NetworkManager:
     @classmethod
     def handle_network_disconnection(cls):
         cls.instance._update_state(State.DISCONNECTED)
+
+    @classmethod
+    def handle_cable_inserted(cls, interface_name: str):
+        cls.instance._update_state(State.CONNECTING)

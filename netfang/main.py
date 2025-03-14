@@ -284,6 +284,10 @@ def api():
         NetworkManager.handle_network_connection(interface_name)
     elif event_type == "disconnected":
         NetworkManager.handle_network_disconnection()
+    elif event_type == "cable_inserted":
+        NetworkManager.handle_cable_inserted(interface_name)
+    else:
+        return jsonify({"error": "Invalid event type"}), 400
     return jsonify({"status": "Event processed"}), 200
 
 
