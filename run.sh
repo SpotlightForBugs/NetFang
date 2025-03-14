@@ -1,4 +1,4 @@
 #!/bin/bash
-sudo python netfang/setup_manager.py && \
+sudo python netfang/setup/setup_manager.py && \
 python -m netfang.main && \
-sudo python netfang/setup_manager.py stop
+sudo python netfang/setup/setup_manager.py stop
