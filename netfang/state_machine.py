@@ -278,6 +278,7 @@ class NetworkManager:
             for element in answered_list:
                 if element[1].psrc == gateway_ip:
                     mac_address = element[1].hwsrc
+                    print(f"Gateway MAC address: {mac_address}")
                 else:
                     self.plugin_manager.on_alerting("Could not find gateway mac address EXITING FOR NOW")
                     return
