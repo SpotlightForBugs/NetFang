@@ -1,6 +1,6 @@
-Flask[async]
-requests
-scapy
+Flask[async]~=3.1.0
+requests~=2.32.3
+scapy~=2.6.1
 netifaces-plus
-sentry-sdk[flask]
-psutil
+sentry-sdk[flask]~=2.22.0
+psutil~=7.0.0

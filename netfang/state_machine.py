@@ -151,7 +151,7 @@ class NetworkManager:
         self.flow_task = asyncio.create_task(self.flow_loop())
         self.trigger_task = asyncio.create_task(self.trigger_loop())
         await self.check_initial_state()
-
+        self.check_initial_state()
     async def stop(self) -> None:
         self.running = False
         if self.flow_task:
@@ -337,3 +337,28 @@ class NetworkManager:
 
     def handle_cable_inserted(self, interface_name: str) -> None:
         self.update_state(State.CONNECTING)
+
+    def check_initial_state(self):
+        # use subprocess to run the network_status_helper.py script
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        helper_script = os.path.join(script_dir, "netfang/setup/network_status_helper.py")
+        try:
+            result = subprocess.run(["sudo", "python3", helper_script], capture_output=True, text=True, check=True)
+            response = json.loads(result.stdout)
+
+            if response.get("success"):
+                interface = response["interface"]
+                if interface:
+                    self.handle_network_connection(interface)
+                else:
+                    self.handle_waiting_for_network()
+            else:
+                error_msg = response.get("error", "Unknown error in network status discovery")
+                self.plugin_manager.on_alerting(f"Network status helper error: {error_msg}")
+        except subprocess.SubprocessError as e:
+
+            self.plugin_manager.on_alerting(f"Failed to run network status helper: {str(e)}")
+        except json.JSONDecodeError:
+            self.plugin_manager.on_alerting("Failed to parse network status helper output")
+        except Exception as e:
+            self.plugin_manager.on_alerting(f"Unknown error: {str(e)}")
