@@ -36,7 +36,7 @@ chmod +x netfang/setup/setup_manager.py
 sudo python netfang/setup/setup_manager.py &&
 
 if [ "$run_hidden" = true ]; then
-  sudo python -m netfang.main &
+  nohup python -m netfang.main &
 else
    python -m netfang.main
 fi
