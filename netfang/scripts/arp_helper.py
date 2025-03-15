@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-import sys
 import json
-import scapy.layers.l2
+import sys
+
 from scapy.layers.l2 import Ether, ARP, srp
+
 
 def discover_mac_address(gateway_ip):
     """

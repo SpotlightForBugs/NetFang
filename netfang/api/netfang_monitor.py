@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-import time
-import subprocess
 import os
+import subprocess
+import time
 
 # Assuming udev_receiver.py remains in the same directory as this script.
 MONITOR_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +28,7 @@ def monitor():
         if state is None:
             print(f"Interface '{INTERFACE}' not found.")
         else:
-            if last_state is None:
+            if last_state is None and state != "up":
                 # On first detection, consider it as a cable insertion event.
                 call_receiver("cable_inserted", INTERFACE)
                 last_state = state
