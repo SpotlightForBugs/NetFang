@@ -72,6 +72,69 @@ def uninstall_systemd_service():
     subprocess.run(["systemctl", "daemon-reload"], check=True)
     print("Systemd service successfully uninstalled.")
 
+
+def add_usb_modeswitch_rule():
+    MODESWITCH_RULE_CONTENT = """
+# /etc/usb_modeswitch.d/0bda:8151
+# Realtek RTL8151
+TargetVendor=0x0bda
+TargetProduct=8152
+MessageContent="555342430860d9a9c0000000800006e0000000000000000000000000000000"
+"""
+    MODESWITCH_RULE_PATH = "/etc/usb_modeswitch.d/0bda:8151"
+    if not os.path.exists(MODESWITCH_RULE_PATH):
+        print("Adding USB mode switch rule for Realtek RTL8151...")
+        with open(MODESWITCH_RULE_PATH, "w") as f:
+            f.write(MODESWITCH_RULE_CONTENT)
+        print(f"USB mode switch rule written to {MODESWITCH_RULE_PATH}")
+    else:
+        print("USB mode switch rule already exists.")
+
+
+def remove_usb_modeswitch_rule():
+    MODESWITCH_RULE_PATH = "/etc/usb_modeswitch.d/0bda:8151"
+    if os.path.exists(MODESWITCH_RULE_PATH):
+        print("Removing USB mode switch rule for Realtek RTL8151...")
+        os.remove(MODESWITCH_RULE_PATH)
+        print(f"Removed {MODESWITCH_RULE_PATH}")
+    else:
+        print("USB mode switch rule does not exist.")
+
+
+def add_modeswitch_udev_rule():
+    MODESWITCH_UDEV_RULE_CONTENT = """# /etc/udev/rules.d/40-usb_modeswitch.rules
+# Custom usb_modeswitch rules
+# If matched, usb_modeswitch refers to the external rules in /etc/usb_modeswitch.d/xxxx:yyyy
+# Where xxxx and yyyy are vendor ID and device ID.
+# Realtek RTL8151
+ATTR{idVendor}=="0bda", ATTR{idProduct}=="8151", RUN+="/usr/sbin/usb_modeswitch -c /etc/usb_modeswitch.d/0bda:8151"
+"""
+    MODESWITCH_UDEV_RULE_PATH = "/etc/udev/rules.d/40-usb_modeswitch.rules"
+    if not os.path.exists(MODESWITCH_UDEV_RULE_PATH):
+        print("Adding USB mode switch udev rule for Realtek RTL8151...")
+        with open(MODESWITCH_UDEV_RULE_PATH, "w") as f:
+            f.write(MODESWITCH_UDEV_RULE_CONTENT)
+        print(f"USB mode switch udev rule written to {MODESWITCH_UDEV_RULE_PATH}")
+    else:
+        print("USB mode switch udev rule already exists.")
+
+
+def remove_modeswitch_udev_rule():
+    MODESWITCH_UDEV_RULE_PATH = "/etc/udev/rules.d/40-usb_modeswitch.rules"
+    if os.path.exists(MODESWITCH_UDEV_RULE_PATH):
+        print("Removing USB mode switch udev rule for Realtek RTL8151...")
+        os.remove(MODESWITCH_UDEV_RULE_PATH)
+        print(f"Removed {MODESWITCH_UDEV_RULE_PATH}")
+    else:
+        print("USB mode switch udev rule does not exist.")
+
+
+def apply_udev_changes():
+    print("Applying udev changes...")
+    subprocess.run(["udevadm", "control", "--reload-rules"], check=True)
+    subprocess.run(["udevadm", "trigger"], check=True)
+    print("Udev changes successfully applied.")
+
 def setup():
     """Main setup function to deploy or check NetFang system hooks."""
     if is_linux() and not is_elevated():
@@ -80,6 +143,9 @@ def setup():
 
     if should_deploy():
         setup_systemd_service()
+        add_usb_modeswitch_rule()
+        add_modeswitch_udev_rule()
+        apply_udev_changes()
     else:
         print(
             "\033[91mNetFang does not support this device or operating system.\n"
@@ -89,13 +155,16 @@ def setup():
         )
 
 def uninstall():
-    """Main uninstall function to remove NetFang system hooks."""
+    """Main uninstallation function to remove NetFang system hooks."""
     if is_linux() and not is_elevated():
         print("NetFang needs root privileges to uninstall.")
         sys.exit(1)
 
     if should_deploy():
         uninstall_systemd_service()
+        remove_usb_modeswitch_rule()
+        remove_modeswitch_udev_rule()
+        apply_udev_changes()
     else:
         print(
             "\033[91mNetFang does not support this device or operating system.\n"

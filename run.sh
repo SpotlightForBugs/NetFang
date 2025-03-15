@@ -30,7 +30,7 @@ if [ "$update_repo" = true ]; then
   git pull
 fi
 
-chmod +x netfang/setup/arp_helper.py
+chmod +x netfang/scripts/arp_helper.py
 chmod +x netfang/setup/setup_manager.py
 
 sudo python netfang/setup/setup_manager.py &&

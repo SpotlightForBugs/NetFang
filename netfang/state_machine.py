@@ -4,7 +4,6 @@ from typing import Awaitable
 
 import netifaces
 import psutil  # used to check interface status
-import scapy.layers.l2
 from scapy.layers.l2 import *
 
 from netfang.db import get_network_by_mac
@@ -275,7 +274,7 @@ class NetworkManager:
             
             # Get the script's directory path for relative script reference
             script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            helper_script = os.path.join(script_dir, "netfang/setup/arp_helper.py")
+            helper_script = os.path.join(script_dir, "netfang/scripts/arp_helper.py")
             
             try:
                 result = subprocess.run(
