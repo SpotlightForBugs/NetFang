@@ -48,15 +48,24 @@ for plugin in PluginManager.plugins.values():
         plugin.register_routes(app)
 
 # Now start the network state-machine loop (async loop running in a background thread)
-NetworkManager.start()
+import asyncio
+asyncio.run(NetworkManager.start())  # Start the NetworkManager
 
 
-@app.teardown_appcontext
-async def teardown(exception):
-    await NetworkManager.start()
+# Remove the problematic teardown_appcontext handler that attempted to restart NetworkManager
+# @app.teardown_appcontext
+# async def teardown(exception):
+#     await NetworkManager.start()
 
 
-"""
+# Implement proper process cleanup using atexit
+def cleanup_resources():
+    """Clean up resources when the application exits."""
+    if NetworkManager:
+        asyncio.run(NetworkManager.stop())
+
+atexit.register(cleanup_resources)
+```
 def OnExit() -> None:
     setup_manager.stop()
 
