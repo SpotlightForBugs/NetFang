@@ -41,9 +41,7 @@ def subprocess_for_led_control(color: str, duration: int, brightness: int, sim_m
     except subprocess.CalledProcessError as e:
         print(f"[LED Hardware Error] Failed to control LED HAT: {e}")
         print(f"[LED Simulation] Color: {color}, Duration: {duration}s, Brightness: {brightness}")
-        global USE_HARDWARE
-        USE_HARDWARE = False
-
+        instance.use_hardware = False
 
 class WaveShareRGBLEDHat(BasePlugin):
     name = "WaveShareRGBLEDHat"
