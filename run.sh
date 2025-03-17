@@ -58,6 +58,3 @@ else
   python -m netfang.main
 fi
 
-# Optionally stop the setup manager at the end
-# (If running in systemd, this may be undesired.)
-sudo python netfang/setup/setup_manager.py stop
