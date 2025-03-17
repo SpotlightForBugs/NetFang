@@ -14,8 +14,8 @@ def subprocess_for_led_control(color: str, duration: int, brightness: int):
         sys.executable,
         "../scripts/waveshare_rgb_led_hat.py",
         "--color", color,
-        "--timeout", duration,
-        "--brightness", brightness
+        "--timeout", str(duration),
+        "--brightness", str(brightness)
     ], check=True)
 
 
