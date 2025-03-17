@@ -97,7 +97,7 @@ async def condition_cpu_temp_high() -> bool:
 async def action_alert_battery_low():
     print("[TriggerManager] ACTION: Battery is too low!")
     # Update state to ALERTING with extra context
-    NetworkManager.instance.update_state(
+    NetworkManager.instance._update_state(
         State.ALERTING, alert_data={"type": "battery", "message": "Battery level is low!"}
     )
 
@@ -241,7 +241,11 @@ class NetworkManager:
         elif state == State.SCAN_COMPLETED:
             self.plugin_manager.on_scan_completed(**self.state_context)
 
-    def _update_state(self, new_state: State, mac: str = "", ssid: str = "", message: str = "") -> None:
+    def _update_state(self, new_state: State, mac: str = "", ssid: str = "", message: str = "",
+                      alert_data=None) -> None:
+        if alert_data is None:
+            alert_data = {}
+
         async def update():
             async with self.state_lock:
                 old_state = self.current_state
