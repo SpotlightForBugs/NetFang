@@ -60,6 +60,7 @@ def turn_off(strip, index=None):
 
 
 async def main():
+    print("LED MAIN TRIGGERED")
     parser = argparse.ArgumentParser(
         description="Async WS2812 LED Strip Color and Brightness Setter with Single LED and Timeout Options"
     )
