@@ -4,3 +4,4 @@ scapy
 netifaces-plus
 sentry-sdk[flask]
 psutil
+rpi_ws281x; platform_system == 'Linux'
