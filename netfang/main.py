@@ -1,4 +1,3 @@
-import atexit
 import os
 import platform
 from functools import wraps
@@ -8,7 +7,6 @@ from flask import request, jsonify, render_template, session, redirect, url_for,
 
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
-from netfang.setup import setup_manager
 from netfang.state_machine import NetworkManager, State  # Note: NetworkManager here is our refactored version
 
 try:
@@ -64,14 +62,6 @@ def cleanup_resources():
     if NetworkManager:
         asyncio.run(NetworkManager.stop())
 
-atexit.register(cleanup_resources)
-```
-def OnExit() -> None:
-    setup_manager.stop()
-
-
-atexit.register(OnExit)
-"""
 
 def local_only(f):
     @wraps(f)
@@ -162,7 +152,7 @@ def disable_plugin():
 def simulate_network_connection():
     """
     Simulate a network connection event.
-    JSON payload: { "mac_address": "00:11:22:33:44:55", "ssid": "OfficeWifi" }
+    JSON payload: {"mac_address": "00:11:22:33:44:55", "ssid": "UnknownNetwork"}
     """
     data = request.get_json() or {}
     mac = data.get("mac_address", "00:11:22:33:44:55")
