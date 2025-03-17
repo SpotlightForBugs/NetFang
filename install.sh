@@ -66,7 +66,7 @@ After=network.target
 Type=simple
 User=$RUN_USER
 WorkingDirectory=$SCRIPT_DIR
-ExecStart=$RUN_SCRIPT
+ExecStart=/bin/bash $RUN_SCRIPT
 Restart=always
 
 [Install]

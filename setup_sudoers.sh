@@ -5,6 +5,7 @@
 CURRENT_DIR=$(pwd)
 ARP_HELPER_PATH="$CURRENT_DIR/netfang/scripts/arp_helper.py"
 
+
 # Make the ARP helper script executable
 chmod +x "$ARP_HELPER_PATH"
 
