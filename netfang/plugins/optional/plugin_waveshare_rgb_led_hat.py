@@ -11,6 +11,8 @@ from netfang.scripts.waveshare_rgb_led_hat import ColorEnum
 def subprocess_for_led_control(color: str, duration: int, brightness: int):
     # This function will be used to control the LED Hat
     script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../scripts/waveshare_rgb_led_hat.py"))
+    print(
+        f"Running exactly this command: sudo {sys.executable} {script_path} --color {color} --timeout {duration} --brightness {brightness}")
     subprocess.run([
         "sudo",
         sys.executable,
