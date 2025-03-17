@@ -29,7 +29,7 @@ Power:
 
 LED Hat:
 
-- [ ] WaveShare RGB LED HAT (HAS NO ARGB SUPPORT)
+- [ ] WaveShare RGB LED HAT (for debugging purposes)
 
 Storage:
 
