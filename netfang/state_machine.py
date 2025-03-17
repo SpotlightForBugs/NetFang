@@ -1,4 +1,5 @@
 import asyncio
+import threading  # Add this import
 from enum import Enum
 from typing import Awaitable
 
@@ -153,7 +154,6 @@ class NetworkManager:
         NetworkManager.global_monitored_interfaces = self.monitored_interfaces
 
         self.current_state = State.WAITING_FOR_NETWORK
-        self.state_lock = asyncio.Lock()
         self.state_context: Dict[str, Any] = {}
 
         # Initialize TriggerManager with our triggers.
@@ -168,6 +168,8 @@ class NetworkManager:
         self.running = False
         self.flow_task: Optional[asyncio.Task] = None
         self.trigger_task: Optional[asyncio.Task] = None
+        self._thread = None  # Thread to host the event loop
+        self._loop = None  # The event loop for async operations
 
         # Set the global instance to allow triggers/actions to access this manager
         NetworkManager.instance = self
@@ -175,16 +177,50 @@ class NetworkManager:
     async def start(self) -> None:
         if self.running:
             return
+        
+        # Start the background thread for the event loop
+        if not self._thread:
+            self._thread = threading.Thread(
+                target=self._run_async_loop,
+                name="NetworkManagerEventLoop",
+                daemon=True
+            )
+            self._thread.start()
+            
+            # Wait briefly for the thread to initialize the event loop
+            await asyncio.sleep(0.1)
+
+    def _run_async_loop(self) -> None:
+        """Run the asyncio event loop in this thread."""
+        self._loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(self._loop)
+        self.state_lock = asyncio.Lock()  # Create the lock in this event loop's context
+        
         self.running = True
-        self.flow_task = asyncio.create_task(self.flow_loop())
-        self.trigger_task = asyncio.create_task(self.trigger_loop())
+        self.flow_task = self._loop.create_task(self.flow_loop())
+        self.trigger_task = self._loop.create_task(self.trigger_loop())
+        
+        print("[NetworkManager] Event loop started in background thread")
+        self._loop.run_forever()
+        print("[NetworkManager] Event loop stopped")
 
     async def stop(self) -> None:
+        """Stop the network manager and its background tasks."""
         self.running = False
+        
+        # Cancel the tasks if they exist
         if self.flow_task:
             self.flow_task.cancel()
         if self.trigger_task:
             self.trigger_task.cancel()
+            
+        # Stop the event loop
+        if self._loop and self._loop.is_running():
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            
+        # Wait for the thread to terminate
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
 
     async def flow_loop(self) -> None:
         """
@@ -255,12 +291,13 @@ class NetworkManager:
                 self.current_state = new_state
                 print(f"[NetworkManager] New state set: {self.current_state.value}")
 
-        # Use the background loop if available:
-        if hasattr(self, "_loop") and self._loop.is_running():
+        # Use the background loop if available
+        if self._loop and self._loop.is_running():
             asyncio.run_coroutine_threadsafe(update(), self._loop)
         else:
-            # Fallback: run the coroutine synchronously
-            asyncio.run(update())
+            # Fallback: log an error since we should always use the dedicated loop
+            print("[NetworkManager] ERROR: No event loop available for state update")
+
 
     def handle_network_connection(self, interface_name: str):
         """
