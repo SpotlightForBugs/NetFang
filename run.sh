@@ -2,7 +2,7 @@
 
 # Path to your user home and venv.
 USER_HOME="/home/NetFang"
-VENV_DIR="$USER_HOME/netfang/.venv"
+VENV_DIR="$USER_HOME/.netfang_venv"
 
 # Check if the virtual environment exists
 if [ ! -f "$VENV_DIR/bin/activate" ]; then

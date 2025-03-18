@@ -73,22 +73,10 @@ Restart=always
 WantedBy=multi-user.target
 EOF
 
-echo "Created systemd service file at $SERVICE_PATH"
 
-# 2. Create a sudoers file so that $RUN_USER can execute setup_manager.py without password
-# Adjust the absolute path if your Python interpreter or script location differ
-cat <<EOF > "$SUDOERS_FILE"
-# Allow $RUN_USER to run setup_manager.py without a password
-$RUN_USER ALL=(ALL) NOPASSWD: /usr/bin/python $SCRIPT_DIR/netfang/setup/setup_manager.py
-# Also allow usage if the script is launched via the venv Python
-$RUN_USER ALL=(ALL) NOPASSWD: $SCRIPT_DIR/netfang/.venv/bin/python $SCRIPT_DIR/netfang/setup/setup_manager.py
-EOF
-
-chmod 440 "$SUDOERS_FILE"
-echo "Created sudoers file at $SUDOERS_FILE"
 
 sudo usermod -aG kali-trusted $RUN_USER
-
+echo "added $RUN_USER to kali-trusted group"
 # 3. Reload systemd and enable the service
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
