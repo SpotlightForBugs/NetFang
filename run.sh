@@ -56,12 +56,14 @@ chmod +x netfang/setup/setup_manager.py
 # Run setup manager with sudo
 sudo python netfang/setup/setup_manager.py &
 
-python netfang/api/netfang_monitor.py &
-
 # Run the main application, optionally in the background
 if [ "$run_hidden" = true ]; then
   nohup python -m netfang.main &
 else
   python -m netfang.main
 fi
+
+python netfang/api/netfang_monitor.py &
+
+
 

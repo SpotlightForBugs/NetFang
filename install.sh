@@ -66,9 +66,9 @@ After=network.target
 Type=simple
 User=$RUN_USER
 WorkingDirectory=$SCRIPT_DIR
-ExecStart=/bin/bash $RUN_SCRIPT -u --hidden
-Restart=on-failure
-RestartSec = 5s
+ExecStart=/bin/bash $RUN_SCRIPT -u
+Restart=always
+RestartSec=5
 [Install]
 WantedBy=multi-user.target
 EOF
