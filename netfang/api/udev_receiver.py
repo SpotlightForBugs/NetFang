@@ -12,13 +12,14 @@ def send_data(event_type, interface_name, retry=0):
         response = requests.post(url, json=data, timeout=5)
         response.raise_for_status()  # Raise an error for bad responses
     except Exception as e:
-        if retry < 5:
+        if retry < 10:
             print(f"Retrying... Attempt {retry + 1}")
             print(f"Waiting for {retry + 1} seconds")
             time.sleep(retry + 1)
             send_data(event_type, interface_name, retry=retry + 1)
         else:
-            print(f"Dropped event {event_type} for {interface_name} after 3 retries due to {e}")
+            print(f"Dropped event {event_type} for {interface_name} after {retry + 1} retries due to {e}")
+
             return
     else:
         print(response.text)

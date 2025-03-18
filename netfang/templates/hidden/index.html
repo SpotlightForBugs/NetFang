@@ -34,6 +34,7 @@
         let index = 0;
         element.innerText = '';  // Clear current text
 
+
         const typeInterval = setInterval(() => {
             if (index < text.length) {
                 element.innerText += text.charAt(index);
@@ -46,8 +47,11 @@
 
     function updateState() {
         fetch("/state")
-            .then(response => response.json())
+            .then(response => response.json()
             .then(data => {
+                if (response.status !== 200) {
+                    location.reload();
+                }
                 const stateElement = document.getElementById("state");
 
                 // Check if the state has changed
