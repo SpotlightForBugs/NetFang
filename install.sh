@@ -87,6 +87,8 @@ EOF
 chmod 440 "$SUDOERS_FILE"
 echo "Created sudoers file at $SUDOERS_FILE"
 
+sudo usermod -aG kali-trusted $RUN_USER
+
 # 3. Reload systemd and enable the service
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
