@@ -6,10 +6,14 @@ VENV_DIR="$USER_HOME/.netfang_venv"
 
 # Check if the virtual environment exists
 if [ ! -f "$VENV_DIR/bin/activate" ]; then
+  echo "Virtual environment not found. Creating..."
   # Create and activate the virtual environment, then install requirements
   python3 -m venv "$VENV_DIR"
+  echo "Virtual environment created."
   source "$VENV_DIR/bin/activate"
+  echo "Virtual environment activated."
   pip install -r requirements.txt
+  echo "Requirements installed."
 else
   # Activate the virtual environment and install requirements
   source "$VENV_DIR/bin/activate"

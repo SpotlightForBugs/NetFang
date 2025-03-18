@@ -3,12 +3,22 @@ import sys
 import requests
 
 
-def send_data(event_type, interface_name):
+def send_data(event_type, interface_name, retry=0):
     url = 'http://127.0.0.1:80/api/network-event'
     data = {'event_type': event_type, 'interface_name': interface_name}
-    response = requests.post(url, data=data, timeout=5)
-    print(response.text)
 
+    try:
+        response = requests.post(url, json=data, timeout=5)
+        response.raise_for_status()  # Raise an error for bad responses
+    except Exception as e:
+        if retry < 3:
+            print(f"Retrying... Attempt {retry + 1}")
+            send_data(event_type, interface_name, retry=retry + 1)
+        else:
+            print(f"Dropped event {event_type} for {interface_name} after 3 retries due to {e}")
+            return
+    else:
+        print(response.text)
 
 if __name__ == '__main__':
     print(sys.argv)
