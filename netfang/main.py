@@ -274,8 +274,8 @@ def test_state(state_num: int):
 def api():
     """The Api endpoint is used to receive state updates"""
 
-    event_type = request.form.get("event_type")
-    interface_name = request.form.get("interface_name")
+    event_type = request.json["event_type"]
+    interface_name = request.json["interface_name"]
     if event_type == "connected":
         NetworkManager.handle_network_connection(interface_name)
     elif event_type == "disconnected":
@@ -283,8 +283,8 @@ def api():
     elif event_type == "cable_inserted":
         NetworkManager.handle_cable_inserted(interface_name)
     else:
-        return jsonify({"error": "Invalid event type"}), 400
-    return jsonify({"status": "Event processed"}), 200
+        return jsonify({"error": "Invalid event type", "event_type": event_type, "interface_name": interface_name}), 400
+    return jsonify({"status": "Event processed", "event_type": event_type, "interface_name": interface_name}), 200
 
 
 
