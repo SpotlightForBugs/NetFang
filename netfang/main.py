@@ -1,10 +1,12 @@
 import os
 import platform
+import sys
 from functools import wraps
 from platform import system
 
 from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string, abort, Flask
 
+from netfang.api import pi_utils
 from netfang.db import init_db
 from netfang.plugin_manager import PluginManager
 from netfang.state_machine import NetworkManager, State  # Note: NetworkManager here is our refactored version
@@ -24,7 +26,13 @@ except ImportError as e:
     print("Error tracing is disabled by default. To enable, install the sentry-sdk package.")
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Required for session management
+if pi_utils.is_pi():
+    # TODO: EVALUATE SAFETY OF THIS SECRET KEY GENERATION METHOD
+    app.secret_key = pi_utils.get_pi_serial()
+elif pi_utils.is_linux() and not pi_utils.is_pi():
+    app.secret_key = pi_utils.linux_machine_id()
+elif sys.platform in ["win32", "cygwin"]:
+    app.secret_key = os.environ.get("NETFANG_SECRET_KEY", "SFB{D3f4ult_N37F4N6_S3cr3t_K3y}")
 app.config['SESSION_COOKIE_NAME'] = 'NETFANG_SECURE_SESSION'
 
 BASE_DIR = os.path.dirname(__file__)
@@ -45,18 +53,10 @@ for plugin in PluginManager.plugins.values():
     if hasattr(plugin, "register_routes"):
         plugin.register_routes(app)
 
-# Now start the network state-machine loop (async loop running in a background thread)
 import asyncio
 asyncio.run(NetworkManager.start())  # Start the NetworkManager
 
 
-# Remove the problematic teardown_appcontext handler that attempted to restart NetworkManager
-# @app.teardown_appcontext
-# async def teardown(exception):
-#     await NetworkManager.start()
-
-
-# Implement proper process cleanup using atexit
 def cleanup_resources():
     """Clean up resources when the application exits."""
     if NetworkManager:
@@ -191,6 +191,8 @@ def test_page():
 
 @app.route("/test/<int:state_num>", methods=["GET"])
 def test_state(state_num: int):
+    if not session.get('logged_in'):
+        return redirect(url_for('frontpage'))
     """
     Force the NetworkManager into a specific state and trigger corresponding plugin callbacks.
     Each state test uses distinct values where needed.

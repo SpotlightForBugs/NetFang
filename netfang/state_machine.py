@@ -7,7 +7,7 @@ import netifaces
 import psutil  # used to check interface status
 from scapy.layers.l2 import *
 
-from netfang.api import is_pi
+from netfang.api import pi_utils
 from netfang.api.waveshare_ups_hat_c import waveshare_ups_hat_c
 from netfang.db import get_network_by_mac
 
@@ -176,7 +176,7 @@ class NetworkManager:
             AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp),
             # Add more triggers as needed
         ])
-        if is_pi.check() and config.get("hardware", {}).get("ups-hat-c", False):
+        if pi_utils.is_pi() and config.get("hardware", {}).get("ups-hat-c", False):
             self.trigger_manager.add_trigger(
                 AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low)
             )

@@ -1,9 +1,9 @@
-import netfang.api.is_pi
+import netfang.api.pi_utils
 
 try:
     import smbus
 except ImportError:
-    if not netfang.api.is_pi.check():
+    if not netfang.api.pi_utils.is_pi():
         # make smbus a dummy class (mainly for windows)
         class smbus:
             class SMBus:

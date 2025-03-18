@@ -12,10 +12,9 @@
 <header>
     <div class="header-content">
         <!-- Router Logo + Title left-aligned -->
-        <div>
             <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
             <h1>NetFang Secured Router</h1>
-        </div>
+
 
         <!-- Badge in top-right corner -->
         <span id="connectionBadge" class="badge">Unknown</span>
@@ -23,9 +22,8 @@
 </header>
 
 <main>
-    <!-- State indicates if the server has Internet -->
     <div>
-        <strong>Server Internet State:</strong>
+        <strong>NetFang Status</strong>
         <span id="state"></span>
     </div>
     <a href="{{ url_for('test_page') }}" class="button">Perform Tests</a>
