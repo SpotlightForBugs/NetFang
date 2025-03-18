@@ -7,6 +7,8 @@ import netifaces
 import psutil  # used to check interface status
 from scapy.layers.l2 import *
 
+from netfang.api import is_pi
+from netfang.api.waveshare_ups_hat_c import waveshare_ups_hat_c
 from netfang.db import get_network_by_mac
 
 # ------------------------------------------------------------------------------
@@ -37,6 +39,9 @@ class TriggerManager:
     def __init__(self, triggers: List[AsyncTrigger]):
         self.triggers = triggers
 
+    def add_trigger(self, trigger: AsyncTrigger):
+        self.triggers.append(trigger)
+
     async def check_triggers(self):
         for trigger in self.triggers:
             await trigger.check_and_fire()
@@ -46,22 +51,31 @@ class TriggerManager:
 # Example sensor condition functions
 # ------------------------------------------------------------------------------
 async def condition_battery_low() -> bool:
-    """
-    Checks if battery level (simulated from an INA219 reading) is below 20%.
-    Replace get_battery_percentage() with a real sensor call.
-    """
     battery_percentage = await asyncio.to_thread(get_battery_percentage)
-    return battery_percentage < 20
+    is_charging = await asyncio.to_thread(get_charging_status)
+    return battery_percentage < 20 and is_charging == False
+
+
+def get_charging_status() -> bool:
+    if not globals()["ups_hat_c"]:
+        globals()["ups_hat_c"] = waveshare_ups_hat_c()
+    ups_hat_c = globals()["ups_hat_c"]
+    return ups_hat_c.is_charging()
 
 
 def get_battery_percentage() -> float:
-    """
-    Dummy battery percentage calculation.
-    In practice, instantiate and use your INA219 instance.
-    For example:
-      p = (bus_voltage - 3) / 1.2 * 100
-    """
-    return 15.0  # Simulated low battery
+    if not globals()["ups_hat_c"]:
+        globals()["ups_hat_c"] = waveshare_ups_hat_c()
+    ups_hat_c = globals()["ups_hat_c"]
+    return ups_hat_c.get_battery_percentage()
+
+
+
+
+
+
+
+
 
 
 async def condition_interface_unplugged() -> bool:
@@ -158,11 +172,14 @@ class NetworkManager:
 
         # Initialize TriggerManager with our triggers.
         self.trigger_manager = TriggerManager([
-            AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low),
             AsyncTrigger("InterfaceUnplugged", condition_interface_unplugged, action_alert_interface_unplugged),
             AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp),
             # Add more triggers as needed
         ])
+        if is_pi.check() and config.get("hardware", {}).get("ups-hat-c", False):
+            self.trigger_manager.add_trigger(
+                AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low)
+            )
 
         # Async loop tasks
         self.running = False

@@ -1,4 +1,5 @@
 import sys
+import time
 
 import requests
 
@@ -13,6 +14,8 @@ def send_data(event_type, interface_name, retry=0):
     except Exception as e:
         if retry < 3:
             print(f"Retrying... Attempt {retry + 1}")
+            print(f"Waiting for {retry + 1} seconds")
+            time.sleep(retry + 1)
             send_data(event_type, interface_name, retry=retry + 1)
         else:
             print(f"Dropped event {event_type} for {interface_name} after 3 retries due to {e}")

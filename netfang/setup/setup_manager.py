@@ -2,16 +2,18 @@ import os
 import subprocess
 import sys
 
-
 MONITOR_SCRIPT_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../api/netfang_monitor.py'))
+
 
 def is_elevated():
     """Return True if the current user is root."""
     return os.getuid() == 0
 
+
 def is_linux():
     """Return True if the operating system is Linux."""
     return os.name == "posix"
+
 
 def should_deploy():
     """
@@ -92,6 +94,7 @@ def apply_udev_changes():
     subprocess.run(["udevadm", "trigger"], check=True)
     print("Udev changes successfully applied.")
 
+
 def setup():
     """Main setup function to deploy or check NetFang system hooks."""
     if is_linux() and not is_elevated():
@@ -109,6 +112,7 @@ def setup():
             "You can still use the test endpoint to simulate the system.\n"
             "Supported device: Raspberry Pi Zero 2 W\033[0m"
         )
+
 
 def uninstall():
     """Main uninstallation function to remove NetFang system hooks."""

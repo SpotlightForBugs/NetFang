@@ -59,5 +59,10 @@
 "blacklisted_macs": [
 "DE:AD:BE:EF:CA:FE"
 ]
-}
+},
+  "hardware": {
+    "ups_hat_c": {
+      "enabled": true
+    }
+  }
 }

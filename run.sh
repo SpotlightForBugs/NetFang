@@ -60,7 +60,7 @@ fi
 chmod +x netfang/scripts/arp_helper.py
 chmod +x netfang/setup/setup_manager.py
 
-# Run setup manager with sudo (we'll give NetFang user no-password sudo for this)
+# Run setup manager with sudo
 sudo python netfang/setup/setup_manager.py
 
 python netfang/api/netfang_monitor.py &
