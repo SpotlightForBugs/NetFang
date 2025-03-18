@@ -4,22 +4,33 @@
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
     <title>NetFang Secured Router</title>
+
+    <!-- Link to your CSS file -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/hidden.css') }}">
 </head>
 <body>
 <header>
     <div class="header-content">
-        <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
-        <h1>NetFang Secured Router</h1>
+        <!-- Router Logo + Title left-aligned -->
+        <div>
+            <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+            <h1>NetFang Secured Router</h1>
+        </div>
+
+        <!-- Badge in top-right corner -->
+        <span id="connectionBadge" class="badge">Unknown</span>
     </div>
 </header>
+
 <main>
+    <!-- State indicates if the server has Internet -->
     <div>
-        Current state: <span id="state"></span>
-        <span id="connectionBadge" class="badge">Unknown</span>
+        <strong>Server Internet State:</strong>
+        <span id="state"></span>
     </div>
     <a href="{{ url_for('test_page') }}" class="button">Perform Tests</a>
 </main>
+
 <footer>
     <p>&copy; 2025 NetFang.
         {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de','en'])=='de' else 'All rights reserved.' }}
@@ -29,10 +40,14 @@
 <script>
     (function () {
     let previousState = '';
-
         const stateElement = document.getElementById("state");
         const badgeElement = document.getElementById("connectionBadge");
 
+        // Translations for the badge
+        const connectedText = "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}";
+        const disconnectedText = "{{ 'Getrennt von NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected from NetFang' }}";
+
+        // Typewriter effect for 'state'
     function typeText(element, text) {
         let index = 0;
         element.innerText = '';
@@ -46,38 +61,39 @@
         }, 50);
     }
 
+        // Poll server for Internet state
         async function updateState() {
             try {
                 const response = await fetch("/state");
                 if (!response.ok) {
-                    // If server returned an error status, mark as disconnected
-                    throw new Error(`Server responded with ${response.status}`);
+                    // If server returned an error status => website disconnected
+                    throw new Error(`Server responded with status: ${response.status}`);
                 }
 
                 const data = await response.json();
                 const newState = data.state || 'Unknown';
 
-                // Update text only if the state is different from the previous one
+                // Update 'state' only if changed
                 if (newState !== previousState) {
                     previousState = newState;
                     typeText(stateElement, newState);
                 }
 
-                // Mark as connected
+                // Connection badge: "Connected to NetFang"
                 badgeElement.classList.remove("disconnected");
                 badgeElement.classList.add("connected");
-                badgeElement.textContent = "{{ 'Verbunden' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected' }}";
+                badgeElement.textContent = connectedText;
             } catch (error) {
-                console.error('Error fetching state:', error);
+                console.error('Error fetching /state:', error);
 
-                // On any error, mark as disconnected
+                // Connection badge: "Disconnected from NetFang"
                 badgeElement.classList.remove("connected");
                 badgeElement.classList.add("disconnected");
-                badgeElement.textContent = "{{ 'Getrennt' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected' }}";
+                badgeElement.textContent = disconnectedText;
             }
     }
 
-        // Fetch new state every 5 seconds
+        // Check state every 5 seconds
     setInterval(updateState, 5000);
     updateState();
     })();
