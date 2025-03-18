@@ -67,8 +67,8 @@ Type=simple
 User=$RUN_USER
 WorkingDirectory=$SCRIPT_DIR
 ExecStart=/bin/bash $RUN_SCRIPT -u --hidden
-Restart=always
-
+Restart=on-failure
+RestartSec = 5s
 [Install]
 WantedBy=multi-user.target
 EOF
