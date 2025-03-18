@@ -5,6 +5,7 @@ from functools import wraps
 from platform import system
 
 from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string, abort, Flask
+from flask import send_from_directory
 
 from netfang.api import pi_utils
 from netfang.db import init_db
@@ -136,6 +137,11 @@ def enable_plugin():
     _set_plugin_enabled_in_config(plugin_name, True)
     return jsonify({"status": f"{plugin_name} enabled"}), 200
 
+
+@app.route("/favicon.ico", methods=["GET"])
+def favicon():
+    return send_from_directory(os.path.join(app.root_path, 'static'), 'router_logo.png',
+                               mimetype='image/vnd.microsoft.icon')
 
 @app.route("/plugins/disable", methods=["POST"])
 def disable_plugin():
