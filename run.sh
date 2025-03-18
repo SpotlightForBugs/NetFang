@@ -53,6 +53,7 @@ fi
 # Update the repository if requested
 if [ "$update_repo" = true ]; then
   git pull && bash $0 $FLAGS
+  exit 0
 fi
 
 # Ensure scripts are executable
