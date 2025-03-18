@@ -30,8 +30,9 @@ def monitor():
         else:
             if last_state is None and state != "up":
                 # On first detection, consider it as a cable insertion event.
+                # TODO: WTF? REMOVE ASAP! IT SHOULD JUST BE SOME KIND OF WAITING STATE
                 call_receiver("cable_inserted", INTERFACE)
-                last_state = state
+                last_state = "cable_inserted"
             elif state != last_state:
                 if state == "up":
                     call_receiver("connected", INTERFACE)
