@@ -1,4 +1,3 @@
-<!-- netfang/templates/hidden/index.html -->
 <!DOCTYPE html>
 <html lang="{{ 'de' if request.accept_languages.best_match(['de','en'])=='de' else 'en' }}">
 <head>
@@ -28,7 +27,11 @@
 </footer>
 
 <script>
+    (function () {
     let previousState = '';
+
+        const stateElement = document.getElementById("state");
+        const badgeElement = document.getElementById("connectionBadge");
 
     function typeText(element, text) {
         let index = 0;
@@ -43,36 +46,41 @@
         }, 50);
     }
 
-    function updateState() {
-        fetch("/state")
-            .then(response => response.json()
-                .then(data => {
-                    if (response.status !== 200) {
-                        location.reload();
-                    }
-                    const newState = data.state;
-                    const stateElement = document.getElementById("state");
-                    const badgeElement = document.getElementById("connectionBadge");
-                    if (newState !== previousState) {
-                        previousState = newState;
-                        typeText(stateElement, newState);
-                    }
-                    if (newState === "DISCONNECTED") {
-                        badgeElement.classList.remove("connected");
-                        badgeElement.classList.add("disconnected");
-                        badgeElement.textContent = {{ '"Nicht verbunden"' if request.accept_languages.best_match(['de','en'])=='de' else '"Disconnected"' }};
-                    } else {
-                        badgeElement.classList.remove("disconnected");
-                        badgeElement.classList.add("connected");
-                        badgeElement.textContent = {{ '"Verbunden"' if request.accept_languages.best_match(['de','en'])=='de' else '"Connected"' }};
-                    }
-                })
-                .catch(error => console.error(error))
-            );
+        async function updateState() {
+            try {
+                const response = await fetch("/state");
+                if (!response.ok) {
+                    // If server returned an error status, mark as disconnected
+                    throw new Error(`Server responded with ${response.status}`);
+                }
+
+                const data = await response.json();
+                const newState = data.state || 'Unknown';
+
+                // Update text only if the state is different from the previous one
+                if (newState !== previousState) {
+                    previousState = newState;
+                    typeText(stateElement, newState);
+                }
+
+                // Mark as connected
+                badgeElement.classList.remove("disconnected");
+                badgeElement.classList.add("connected");
+                badgeElement.textContent = "{{ 'Verbunden' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected' }}";
+            } catch (error) {
+                console.error('Error fetching state:', error);
+
+                // On any error, mark as disconnected
+                badgeElement.classList.remove("connected");
+                badgeElement.classList.add("disconnected");
+                badgeElement.textContent = "{{ 'Getrennt' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected' }}";
+            }
     }
 
+        // Fetch new state every 5 seconds
     setInterval(updateState, 5000);
     updateState();
+    })();
 </script>
 </body>
 </html>
