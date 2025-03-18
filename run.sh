@@ -43,9 +43,16 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 
+# Flags to pass to the main application
+if [ "$run_hidden" = true ]; then
+  FLAGS="--hidden"
+else
+  FLAGS=""
+fi
+
 # Update the repository if requested
 if [ "$update_repo" = true ]; then
-  git pull
+  git pull && bash $0 $FLAGS
 fi
 
 # Ensure scripts are executable
