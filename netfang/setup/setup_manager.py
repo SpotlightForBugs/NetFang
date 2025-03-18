@@ -30,16 +30,6 @@ def should_deploy():
         return False
 
 
-def run_monitor_script():
-    print("Running NetFang monitor script...")
-    subprocess.Popen(
-        ["python3", MONITOR_SCRIPT_PATH],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        preexec_fn=os.setpgrp  # This detaches the child process
-    )
-
-
 def add_usb_modeswitch_rule():
     MODESWITCH_RULE_CONTENT = """
 # /etc/usb_modeswitch.d/0bda:8151
@@ -112,7 +102,6 @@ def setup():
         add_usb_modeswitch_rule()
         add_modeswitch_udev_rule()
         apply_udev_changes()
-        run_monitor_script()
     else:
         print(
             "\033[91mNetFang does not support this device or operating system.\n"
