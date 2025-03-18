@@ -22,18 +22,14 @@ def call_receiver(event, interface):
     subprocess.run(["/usr/bin/python3", UDEV_RECEIVER_PATH, event, interface])
 
 def monitor():
-    last_state = None
+    last_state = "down"
     while True:
         state = get_operstate(INTERFACE)
         if state is None:
-            print(f"Interface '{INTERFACE}' not found.")
+            last_state = "down"
+            call_receiver("down", INTERFACE)
         else:
-            if last_state is None and state != "up":
-                # On first detection, consider it as a cable insertion event.
-                # TODO: WTF? REMOVE ASAP! IT SHOULD JUST BE SOME KIND OF WAITING STATE
-                call_receiver("cable_inserted", INTERFACE)
-                last_state = "cable_inserted"
-            elif state != last_state:
+            if state != last_state:
                 if state == "up":
                     call_receiver("connected", INTERFACE)
                 elif state == "down":
