@@ -148,16 +148,10 @@ def disable_plugin():
     return jsonify({"status": f"{plugin_name} disabled"}), 200
 
 
-@app.route("/network/connect", methods=["POST"])
+@app.route("/network/connect", methods=["GET", "POST"])
 def simulate_network_connection():
-    """
-    Simulate a network connection event.
-    JSON payload: {"mac_address": "00:11:22:33:44:55", "ssid": "UnknownNetwork"}
-    """
-    data = request.get_json() or {}
-    mac = data.get("mac_address", "00:11:22:33:44:55")
-    ssid = data.get("ssid", "UnknownNetwork")
-    NetworkManager.handle_network_connection(mac, ssid)
+    interface = "eth0"
+    NetworkManager.handle_network_connection(interface)
     return jsonify({"status": "Connection processed"}), 200
 
 

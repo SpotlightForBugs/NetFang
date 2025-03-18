@@ -60,7 +60,8 @@
                     typeText(stateElement, data.state);  // Type new state
                 }
             })
-            .catch(error => console.error('Failed to fetch state:', error));
+                .catch(error => console.error(error)));
+
     }
 
     setInterval(updateState, 5000);
