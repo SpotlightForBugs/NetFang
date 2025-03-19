@@ -360,16 +360,11 @@ class NetworkManager:
             NetworkManager.handle_network_disconnection()
             return
 
-
-
-
-
-
-
         mac_upper = mac_address.upper()
         is_blacklisted = mac_upper in self.blacklisted_macs
         is_home = (mac_upper == self.home_mac)
         net_info = get_network_by_mac(self.db_path, mac_upper)
+        print(f"{net_info=} for {mac_upper=}")
         if is_blacklisted:
             self._update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
         elif is_home:
