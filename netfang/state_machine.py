@@ -9,7 +9,7 @@ from scapy.layers.l2 import *
 
 from netfang.api import pi_utils
 from netfang.api.waveshare_ups_hat_c import waveshare_ups_hat_c
-from netfang.db import get_network_by_mac
+from netfang.db import get_network_by_mac, add_or_update_network
 
 # ------------------------------------------------------------------------------
 # AsyncTrigger and TriggerManager to allow async condition checking and actions
@@ -366,12 +366,16 @@ class NetworkManager:
         net_info = get_network_by_mac(self.db_path, mac_upper)
         print(f"{net_info=} for {mac_upper=}")
         if is_blacklisted:
+            add_or_update_network(self.db_path, mac_upper, is_blacklisted=True, is_home=False)
             self._update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
         elif is_home:
+            add_or_update_network(self.db_path, mac_upper, is_blacklisted=False, is_home=True)
             self._update_state(State.CONNECTED_HOME, mac=mac_upper)
         elif not net_info:
+            add_or_update_network(self.db_path, mac_upper, is_blacklisted=False, is_home=False)
             self._update_state(State.CONNECTED_NEW, mac=mac_upper)
         else:
+            add_or_update_network(self.db_path, mac_upper, is_blacklisted=False, is_home=False)
             self._update_state(State.CONNECTED_KNOWN, mac=mac_upper)
 
     @classmethod

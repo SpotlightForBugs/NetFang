@@ -7,7 +7,7 @@ def init_db(db_path: str) -> None:
     """
     Create initial schema if not present.
     Tables:
-      - networks: known networks with MAC, SSID, blacklist and home flags.
+      - networks: known networks with MAC, blacklist and home flags.
       - devices: scanned hosts and their services.
       - plugin_logs: record plugin events.
     """
@@ -18,7 +18,6 @@ def init_db(db_path: str) -> None:
         CREATE TABLE IF NOT EXISTS networks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             mac_address TEXT UNIQUE,
-            name TEXT,
             is_blacklisted BOOLEAN,
             is_home BOOLEAN,
             first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -26,6 +25,7 @@ def init_db(db_path: str) -> None:
         )
     """)
 
+    # Other table creation statements remain the same
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +52,8 @@ def init_db(db_path: str) -> None:
     conn.commit()
     conn.close()
 
-def add_or_update_network(db_path: str, mac_address: str, name: str,
+
+def add_or_update_network(db_path: str, mac_address: str,
                           is_blacklisted: bool = False, is_home: bool = False) -> None:
     """
     Insert a new network or update an existing one by MAC address.
@@ -65,18 +66,17 @@ def add_or_update_network(db_path: str, mac_address: str, name: str,
 
     if row is None:
         cursor.execute("""
-            INSERT INTO networks (mac_address, name, is_blacklisted, is_home)
-            VALUES (?, ?, ?, ?)
-        """, (mac_address, name, is_blacklisted, is_home))
+            INSERT INTO networks (mac_address, is_blacklisted, is_home)
+            VALUES (?, ?, ?)
+        """, (mac_address, is_blacklisted, is_home))
     else:
         cursor.execute("""
             UPDATE networks
-            SET name = ?,
-                is_blacklisted = ?,
+            SET is_blacklisted = ?,
                 is_home = ?,
                 last_seen = CURRENT_TIMESTAMP
             WHERE mac_address = ?
-        """, (name, is_blacklisted, is_home, mac_address))
+        """, (is_blacklisted, is_home, mac_address))
 
     conn.commit()
     conn.close()
