@@ -22,6 +22,7 @@ def _expand_env_in_config(obj: Any) -> Any:
     else:
         return obj
 
+
 class PluginManager:
     def __init__(self, config_path: str) -> None:
         self.config_path: str = config_path
@@ -65,7 +66,6 @@ class PluginManager:
 
             if is_enabled:
                 plugin.on_setup()
-
 
         self._apply_enable_disable()
 
@@ -144,6 +144,7 @@ class PluginManager:
             plugin_conf = o_conf[p_lower]
         return plugin_conf.get("dependencies", [])
 
+    # TODO: Allow for more complex dependencies (Enabling a plugin only if another plugin is enabled or a shell command etc.)
     def _satisfy_dependency(self, dependency: str) -> None:
         parts = dependency.split(".")
         if len(parts) != 4:
@@ -166,13 +167,13 @@ class PluginManager:
         for p in self.plugins.values():
             p.on_home_network_connected()
 
-    def on_new_network_connected(self, mac: str, name: str) -> None:
+    def on_new_network_connected(self, mac: str) -> None:
         for p in self.plugins.values():
-            p.on_new_network_connected(mac, name)
+            p.on_new_network_connected(mac)
 
-    def on_known_network_connected(self, mac: str, name: str, is_blacklisted: bool) -> None:
+    def on_known_network_connected(self, mac: str) -> None:
         for p in self.plugins.values():
-            p.on_known_network_connected(mac, name, is_blacklisted)
+            p.on_known_network_connected(mac)
 
     def on_disconnected(self):
         for p in self.plugins.values():
@@ -186,9 +187,9 @@ class PluginManager:
         for p in self.plugins.values():
             p.on_connected_home()
 
-    def on_connected_blacklisted(self, mac_address="", ssid="", *args, **kwargs):
+    def on_connected_blacklisted(self, mac_address):
         for p in self.plugins.values():
-            p.on_connected_blacklisted(mac_address, ssid, *args, **kwargs)
+            p.on_connected_blacklisted(mac_address)
 
     def on_connected_known(self):
         for p in self.plugins.values():
