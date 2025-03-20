@@ -5,8 +5,10 @@ netifaces-plus
 sentry-sdk[flask]
 psutil
 Flask-SocketIO
+
 #FOR Raspberry Pi
 rpi_ws281x; platform_system == 'Linux'
 smbus; platform_system == 'Linux'
 werkzeug>=3.0.6 # not directly required, pinned by Snyk to avoid a vulnerability
 zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
+mac-vendor-lookup

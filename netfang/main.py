@@ -10,6 +10,7 @@ from flask import request, jsonify, render_template, session, redirect, url_for,
 from flask import send_from_directory
 from flask_socketio import SocketIO, emit
 
+from netfang.alert_manager import AlertManager, Alert
 from netfang.api import pi_utils
 from netfang.db.database import init_db
 from netfang.network_manager import NetworkManager
@@ -52,15 +53,22 @@ def state_change_callback(state, context):
     )
 
 
+def alert_callback(alert: Alert):
+    socketio.emit(
+        "alert_sync",
+        alert.to_dict(),
+    )
+
+
 # Instantiate PluginManager and NetworkManager
 PluginManager = PluginManager(CONFIG_PATH)
 PluginManager.load_config()
 NetworkManager = NetworkManager(PluginManager, PluginManager.config, state_change_callback)
 
-# Load configuration, initialize database, and load plugins BEFORE starting the server
-PluginManager.load_config()
 init_db(PluginManager.config.get("database_path", "netfang.db"))
 PluginManager.load_plugins()
+
+AlertManager = AlertManager(PluginManager, PluginManager.config.get("database_path", "netfang.db"), alert_callback)
 
 # Register plugin routes (for plugins that provide blueprints) immediately
 for plugin in PluginManager.plugins.values():
@@ -137,6 +145,7 @@ def handle_connect():
         return False
     emit("state_update", {"state": NetworkManager.instance.state_machine.current_state.value,
                           "context": NetworkManager.instance.state_machine.state_context})
+    emit("all_alerts", AlertManager.get_alerts(limit_to_this_session=True))
 
 
 @socketio.on("disconnect")
@@ -270,10 +279,6 @@ def test_state(state_num: int):
         ssid = "TestBlacklistedNetwork"
         NetworkManager.instance.state_machine.update_state(new_state)
         status_msg = f"Simulated connection to blacklisted network with MAC {blacklisted_mac} and SSID {ssid}"
-    elif new_state == State.ALERTING:
-        alert_msg = "Test Alert: Something went wrong!"
-        NetworkManager.instance.state_machine.update_state(new_state)
-        status_msg = f"Simulated alerting state with message: {alert_msg}"
     elif new_state == State.DISCONNECTED:
         NetworkManager.instance.state_machine.update_state(new_state)
         status_msg = f"Simulated disconnected state."

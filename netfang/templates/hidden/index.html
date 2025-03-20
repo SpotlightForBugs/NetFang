@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/hidden.css') }}">
 
     <!-- Include Socket.IO client library -->
-    <script src="//cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"
             integrity="sha512-8BHxHDLsOHx+flIrQ0DrZcea7MkHqRU5GbTHmbdzMRnAaoCIkZ97PqZcXJkKZckMMhqfoeaJE+DNUVuyoQsO3Q=="
             crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
@@ -95,6 +95,14 @@
                 typeText(stateElement, newState);
             }
         });
+        socket.on("all_alerts", (data) => {
+            console.log(`[${new Date().toLocaleTimeString()}] All alerts received:`, data);
+        });
+
+        socket.on("alert_sync", (data) => {
+            console.log(`[${new Date().toLocaleTimeString()}] Alert sync received:`, data);
+        });
+
     })();
 </script>
 </body>

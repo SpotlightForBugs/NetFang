@@ -5,7 +5,16 @@ import sys
 from typing import Any, Dict
 
 from netfang.plugins.base_plugin import BasePlugin
-from netfang.scripts.waveshare_rgb_led_hat import ColorEnum
+
+class ColorEnum:
+    RED = "red"
+    GREEN = "green"
+    BLUE = "blue"
+    MAGENTA = "magenta"
+    YELLOW = "yellow"
+    CYAN = "cyan"
+    WHITE = "white"
+    ORANGE = "orange"
 
 
 def subprocess_for_led_control(color: str, duration: int, brightness: int):
@@ -43,10 +52,10 @@ class WaveshareRGBLEDHat(BasePlugin):
         subprocess_for_led_control(ColorEnum.WHITE, 5, 1)
         print(f"[{self.name}] Disabled.")
 
-    def on_known_network_connected(self, mac: str, name: str, is_blacklisted: bool) -> None:
+    def on_known_network_connected(self, mac: str) -> None:
         subprocess_for_led_control(ColorEnum.MAGENTA, 5, 1)
         print(
-            f"[{self.name}] WaveShare RGB LED Hat received known network connection event: {mac=}, {name=}, {is_blacklisted=}")
+            f"[{self.name}] WaveShare RGB LED Hat received known network connection event: {mac=}")
 
     def on_new_network_connected(self, mac: str, name: str) -> None:
         subprocess_for_led_control(ColorEnum.YELLOW, 5, 1)

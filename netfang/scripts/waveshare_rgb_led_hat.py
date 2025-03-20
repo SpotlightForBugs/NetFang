@@ -38,16 +38,6 @@ COLOR_MAP = {
 }
 
 
-# also provide a color enum so that we can use it in the plugin more easily by importing it
-class ColorEnum:
-    RED = "red"
-    GREEN = "green"
-    BLUE = "blue"
-    MAGENTA = "magenta"
-    YELLOW = "yellow"
-    CYAN = "cyan"
-    WHITE = "white"
-    ORANGE = "orange"
 
 
 def turn_off(strip, index=None):
@@ -61,7 +51,6 @@ def turn_off(strip, index=None):
 
 
 async def main():
-    print("LED MAIN TRIGGERED")
     parser = argparse.ArgumentParser(
         description="Async WS2812 LED Strip Color and Brightness Setter with Single LED and Timeout Options"
     )

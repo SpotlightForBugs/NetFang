@@ -5,6 +5,7 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
+from netfang.alert_manager import AlertManager, Alert
 from netfang.plugins.base_plugin import BasePlugin
 
 
@@ -179,9 +180,13 @@ class PluginManager:
         for p in self.plugins.values():
             p.on_disconnected()
 
-    def on_alerting(self, message: str):
+    def on_alerting(self, alert:Alert):
         for p in self.plugins.values():
-            p.on_alerting(message)
+            p.on_alerting(alert)
+
+    def on_alert_resolved(self, alert:Alert):
+        for p in self.plugins.values():
+            p.on_alert_resolved(alert)
 
     def on_reconnecting(self):
         for p in self.plugins.values():

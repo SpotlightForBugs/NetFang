@@ -87,10 +87,7 @@ class StateMachine:
             if not mac:
                 raise ValueError("on_known_network_connected expects a mac address in mac:str")
             self.plugin_manager.on_known_network_connected(mac)
-        elif state == "alerting":
-            if not message:
-                raise ValueError("on_alerting expects a message in message:str")
-            self.plugin_manager.on_alerting(message)
+
 
         elif state == "perform_action":
             plugin = self.plugin_manager.get_plugin_by_name(perform_action_data[0])
@@ -103,8 +100,7 @@ class StateMachine:
                 if not plugin:
                     raise ValueError(f"perform_action expects a plugin_name in args[0]: "
                                      f"{perform_action_data[0]} as specified in the plugin's self.name")
-                if not verify_network_id(self.db_path,
-                                         perform_action_data[1]):
+                if not verify_network_id(self.db_path, perform_action_data[1]):
                     raise ValueError(f"perform_action expects a valid network_id in args[1]: "
                                      f"{perform_action_data[1]} as specified in the database. (see database.py)\nYou can use database.verify_network_id(db_path, network_id) to check if the network_id exists.")
         else:

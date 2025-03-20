@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import Any, Dict
 
+from netfang.alert_manager import Alert
+
 
 class BasePlugin(ABC):
     """
@@ -43,8 +45,12 @@ class BasePlugin(ABC):
         """Triggered when the network is disconnected from the observed network."""
         pass
 
-    def on_alerting(self, message: str) -> None:
+    def on_alerting(self, alert: Alert) -> None:
         """Triggered when there is an alert message to display. We loop it through all plugins in case one wants to display it."""
+        pass
+
+    def on_alert_resolved(self, alert: Alert) -> None:
+        """Triggered when an alert is resolved."""
         pass
 
     def on_reconnecting(self) -> None:

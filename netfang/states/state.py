@@ -20,8 +20,6 @@ class State(Enum):
     # generic action state(s):
     PERFORM_ACTION = "PERFORM_ACTION"
 
-    ALERTING = "ALERTING"
-
     def __str__(self) -> str:
         return self.value
 
