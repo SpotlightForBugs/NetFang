@@ -32,10 +32,11 @@ class BasePlugin(ABC):
     def on_home_network_connected(self) -> None:
         pass
 
-    def on_new_network_connected(self, mac: str, name: str) -> None:
+    def on_new_network_connected(self, mac: str) -> None:
         pass
 
-    def on_known_network_connected(self, mac: str, name: str, is_blacklisted: bool) -> None:
+    def on_known_network_connected(self, mac: str) -> None:
+        """Triggered when the network is connected to a known network that is not blacklisted."""
         pass
 
     def on_disconnected(self) -> None:
@@ -59,7 +60,7 @@ class BasePlugin(ABC):
     def on_connected_home(self):
         pass
 
-    def on_connected_blacklisted(self, mac_address="", ssid="", *args, **kwargs):
+    def on_connected_blacklisted(self, mac_address):
         """Triggered when the network is connected to a blacklisted network."""
         pass
 
@@ -85,5 +86,6 @@ class BasePlugin(ABC):
         """
         Perform a specific action based on the provided arguments.
         args[0] is the self.name of the plugin that should perform the action.
+        @args[1] is the Network ID for the network
         """
         pass
