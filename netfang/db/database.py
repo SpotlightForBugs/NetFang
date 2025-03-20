@@ -10,6 +10,7 @@ def init_db(db_path: str) -> None:
       - networks: known networks with MAC, blacklist and home flags.
       - devices: scanned hosts and their services.
       - plugin_logs: record plugin events.
+      - alerts: record alerts
     """
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
@@ -25,7 +26,6 @@ def init_db(db_path: str) -> None:
         )
     """)
 
-    # Other table creation statements remain the same
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS devices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
