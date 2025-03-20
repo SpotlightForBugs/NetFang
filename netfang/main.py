@@ -317,5 +317,5 @@ def api():
 
 
 if __name__ == "__main__":
-    # For production, consider using gunicorn or similar.
-    socketio.run(app=app, host="0.0.0.0", port=80, debug=False)
+    # TODO: this is not safe for production, add Gunicorn or similar
+    socketio.run(app=app, host="0.0.0.0", port=80, debug=False, allow_unsafe_werkzeug=True)
