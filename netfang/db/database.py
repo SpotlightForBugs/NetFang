@@ -170,3 +170,18 @@ def add_or_update_device(db_path: str, ip_address: str, mac_address: str,
 
     conn.commit()
     conn.close()
+
+
+def verify_network_id(db_path: str, network_id: int) -> bool:
+    """
+    Check if a network ID exists in the database.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT id FROM networks WHERE id = ?", (network_id,))
+    row = cursor.fetchone()
+
+    conn.close()
+
+    return row is not None
