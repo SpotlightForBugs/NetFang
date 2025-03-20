@@ -44,7 +44,7 @@ class Alert:
     network_id: Optional[int] = None  # Optional network ID associated with the alert
     session_id: Optional[str] = None  # Session identifier
 
-    def to_dict(self):
+    def to_dict(self) -> Dict[str, Any]:
         return {
             "id": self.id,
             "category": self.category.value,
@@ -58,6 +58,21 @@ class Alert:
             "session_id": self.session_id,
         }
 
+    @staticmethod
+    def from_dict(data: Dict[str, Any]) -> "Alert":
+        return Alert(
+            category=AlertCategory(data["category"]),
+            level=AlertLevel(data["level"]),
+            message=data["message"],
+            is_resolved=bool(data["is_resolved"]),
+            resolved_at=datetime.fromisoformat(data["resolved_at"]) if data["resolved_at"] else None,
+            autodismisses_after=data.get("autodismisses_after"),
+            timestamp=datetime.fromisoformat(data["timestamp"]),
+            id=data.get("id"),
+            network_id=data.get("network_id"),
+            session_id=data.get("session_id"),
+        )
+
 
 class AlertManager:
     """
@@ -65,9 +80,9 @@ class AlertManager:
     triggers plugin notifications, and can push alerts via websockets.
 
     This class uses a singleton pattern so that it can be accessed via:
-    AlertManager.instance.alert_manager.raise_alert_from_data(alert_data)
-    and
-    AlertManager.instance.get_alerts(...)
+      AlertManager.instance.alert_manager.raise_alert_from_data(alert_data, check_duplicate=True)
+      and
+      AlertManager.instance.get_alerts(...)
 
     A new session is generated when the server starts.
     """
@@ -194,7 +209,7 @@ class AlertManager:
         if self.alert_callback is not None:
             self.alert_callback(alert)
 
-    def raise_alert_from_data(self, alert_data: Dict[str, Any]) -> Alert:
+    def raise_alert_from_data(self, alert_data: Dict[str, Any], check_duplicate: bool = False) -> Alert:
         """
         Create a new alert from a JSON-like dictionary input.
         Expected keys:
@@ -205,8 +220,12 @@ class AlertManager:
           - "autodismisses_after": (optional) Time in seconds for auto-dismissal.
           - "network_id": (optional) The network ID associated with the alert.
           - "session_id": (optional) The session identifier associated with the alert.
+        If check_duplicate is True, then an unresolved alert with the same category and message
+        (within the current session) is returned instead of creating a new alert.
+
         :param alert_data: Dictionary containing alert information.
-        :return: The created Alert object.
+        :param check_duplicate: Whether to check for duplicate unresolved alerts.
+        :return: The created or existing Alert object.
         """
         category_str: str = alert_data.get("type", "general").lower()
         try:
@@ -228,15 +247,35 @@ class AlertManager:
 
         message: Optional[str] = alert_data.get("message")
         if not message:
-            raise ValueError(
-                "Alert message must be provided in alert_data under the key 'message'."
-            )
+            raise ValueError("Alert message must be provided in alert_data under the key 'message'.")
 
         autodismisses_after: Optional[float] = alert_data.get("autodismisses_after")
         network_id: Optional[int] = alert_data.get("network_id")
         session_id: Optional[str] = alert_data.get("session_id", self.session)
 
+        # Check for duplicates if requested.
+        if check_duplicate:
+            duplicate = self.find_unresolved_alert(category, message)
+            if duplicate is not None:
+                return duplicate
+
         return self.raise_alert(category, level, message, autodismisses_after, network_id, session_id)
+
+    def find_unresolved_alert(self, category: AlertCategory, message: str) -> Optional[Alert]:
+        """
+        Searches for the latest unresolved alert with the specified category and message in the current session.
+        :param category: Category of the alert.
+        :param message: Alert message.
+        :return: Alert object if found, otherwise None.
+        """
+        alerts_data: List[Dict[str, Any]] = self.get_alerts(
+            limit=None, only_unresolved=True, limit_to_this_session=True
+        )
+        latest_alert: Optional[Alert] = None
+        for alert_dict in alerts_data:
+            if alert_dict.get("category") == category.value and alert_dict.get("message") == message:
+                latest_alert = Alert.from_dict(alert_dict)
+        return latest_alert
 
     def get_alerts(
             self,
@@ -247,15 +286,13 @@ class AlertManager:
     ) -> List[Dict[str, Any]]:
         """
         Retrieves alerts from the database with optional filtering.
-
-        If limit_to_this_session is True, only alerts from the current session
-        (as stored in self.session) are returned.
+        If limit_to_this_session is True, only alerts from the current session are returned.
 
         :param limit: Maximum number of alerts to retrieve.
-        :param only_unresolved: If True, returns only unresolved alerts.
-        :param only_resolved: If True, returns only resolved alerts.
-        :param limit_to_this_session: If True, returns only alerts from the current session.
-        :return: A list of dictionaries representing alerts.
+        :param only_unresolved: Only return unresolved alerts.
+        :param only_resolved: Only return resolved alerts.
+        :param limit_to_this_session: Only return alerts from the current session.
+        :return: A list of dictionaries representing the alerts.
         """
         session_id: Optional[str] = self.session if limit_to_this_session else None
         return db_get_alerts(self.db_path, limit, only_unresolved, only_resolved, session_id)

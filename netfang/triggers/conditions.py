@@ -34,6 +34,14 @@ async def condition_interface_unplugged() -> bool:
     stats = psutil.net_if_stats()
     return any(iface not in stats or not stats[iface].isup for iface in monitored)
 
+async def condition_interface_replugged() -> bool:
+    """Checks if any monitored network interface is replugged."""
+    # Import NetworkManager locally to avoid circular import issues.
+    from netfang.network_manager import NetworkManager
+    monitored = NetworkManager.global_monitored_interfaces
+    stats = psutil.net_if_stats()
+    return any(iface in stats and stats[iface].isup for iface in monitored)
+
 
 async def condition_cpu_temp_high() -> bool:
     """Checks if CPU temperature exceeds 70°C."""

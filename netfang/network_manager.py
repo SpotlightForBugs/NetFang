@@ -1,4 +1,3 @@
-import asyncio
 import json
 import os
 import subprocess
@@ -25,49 +24,31 @@ class NetworkManager:
     instance: Optional["NetworkManager"] = None
     global_monitored_interfaces: List[str] = ["eth0"]
 
-    def __init__(
-            self,
-            plugin_manager: PluginManager,
-            config: Dict[str, Any],
-            state_change_callback: Optional[Callable[[State, Dict[str, Any]], None]] = None,
-    ) -> None:
+    def __init__(self, plugin_manager: PluginManager, config: Dict[str, Any],
+            state_change_callback: Optional[Callable[[State, Dict[str, Any]], None]] = None, ) -> None:
         self.plugin_manager = plugin_manager
         plugin_manager.load_config()
         plugin_manager.load_plugins()
         self.config = config
         self.db_path: str = config.get("database_path", "netfang.db")
         flow_cfg: Dict[str, Any] = config.get("network_flows", {})
-        self.blacklisted_macs: List[str] = [
-            m.upper() for m in flow_cfg.get("blacklisted_macs", [])
-        ]
+        self.blacklisted_macs: List[str] = [m.upper() for m in flow_cfg.get("blacklisted_macs", [])]
         self.home_mac: str = flow_cfg.get("home_network_mac", "").upper()
-        self.monitored_interfaces: List[str] = flow_cfg.get(
-            "monitored_interfaces", ["eth0"]
-        )
+        self.monitored_interfaces: List[str] = flow_cfg.get("monitored_interfaces", ["eth0"])
         NetworkManager.global_monitored_interfaces = self.monitored_interfaces
 
         # Instantiate the state machine
         self.state_machine: StateMachine = StateMachine(plugin_manager, state_change_callback)
 
         self.trigger_manager = TriggerManager(
-            [
-                AsyncTrigger(
-                    "InterfaceUnplugged",
-                    condition_interface_unplugged,
-                    action_alert_interface_unplugged,
-                ),
-                AsyncTrigger(
-                    "CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp
-                ),
-            ]
-        )
+            [AsyncTrigger("InterfaceUnplugged", condition_interface_unplugged, action_alert_interface_unplugged, ),
+                AsyncTrigger("InterfaceReplugged", condition_interface_replugged, action_alert_interface_replugged, ),
+
+                AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp), ])
 
         if is_pi() and config.get("hardware", {}).get("ups-hat-c", False):
             self.trigger_manager.add_trigger(
-                AsyncTrigger(
-                    "BatteryLow", condition_battery_low, action_alert_battery_low
-                )
-            )
+                AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low))
 
         self.running: bool = False
         self.flow_task: Optional[asyncio.Task] = None
@@ -85,11 +66,7 @@ class NetworkManager:
             return
 
         if not self._thread:
-            self._thread = threading.Thread(
-                target=self._run_async_loop,
-                name="NetworkManagerEventLoop",
-                daemon=True,
-            )
+            self._thread = threading.Thread(target=self._run_async_loop, name="NetworkManagerEventLoop", daemon=True, )
             self._thread.start()
             await asyncio.sleep(0.1)
 
@@ -148,12 +125,8 @@ class NetworkManager:
             helper_script: str = os.path.join(script_dir, "netfang/scripts/arp_helper.py")
 
             try:
-                result = subprocess.run(
-                    ["sudo", "python3", helper_script, gateway_ip],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
+                result = subprocess.run(["sudo", "python3", helper_script, gateway_ip], capture_output=True, text=True,
+                    check=True, )
                 response = json.loads(result.stdout)
 
                 if response["success"]:
