@@ -76,6 +76,9 @@ def cleanup_resources():
         asyncio.run(NetworkManager.stop())
 
 
+## TODO: SECURITY VULNERABILITY - The local_only decorator can be bypassed by setting
+# a spoofed X-Forwarded-For header. This allows remote attackers to access restricted
+# endpoints. Before release, replace with a login system (needs to generate the password somehow though)
 def local_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
