@@ -133,10 +133,11 @@ def enable_plugin():
     plugin_name = data.get("plugin_name")
     if not plugin_name:
         return jsonify({"error": "No plugin_name provided"}), 400
-    PluginManager.enable_plugin(plugin_name)
-    _set_plugin_enabled_in_config(plugin_name, True)
-    return jsonify({"status": f"{plugin_name} enabled"}), 200
-
+    if PluginManager.enable_plugin(plugin_name):
+        _set_plugin_enabled_in_config(plugin_name, True)
+        return jsonify({"status": f"{plugin_name} enabled"}), 200
+    else:
+        return jsonify({"error": f"Failed to enable {plugin_name}, does the plugin exist?"}), 200
 
 @app.route("/favicon.ico", methods=["GET"])
 def favicon():
@@ -154,11 +155,6 @@ def disable_plugin():
     return jsonify({"status": f"{plugin_name} disabled"}), 200
 
 
-@app.route("/network/connect", methods=["GET", "POST"])
-def simulate_network_connection():
-    interface = "eth0"
-    NetworkManager.handle_network_connection(interface)
-    return jsonify({"status": "Connection processed"}), 200
 
 
 def _is_plugin_enabled(plugin_name: str) -> bool:

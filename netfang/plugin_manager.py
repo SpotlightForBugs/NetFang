@@ -115,7 +115,7 @@ class PluginManager:
                 return v
         return None
 
-    def enable_plugin(self, plugin_name: str) -> None:
+    def enable_plugin(self, plugin_name: str) -> bool:
         plugin_obj = self.get_plugin_by_name(plugin_name)
         if plugin_obj:
             # Satisfy dependencies if any
@@ -123,6 +123,8 @@ class PluginManager:
             for d in deps:
                 self._satisfy_dependency(d)
             plugin_obj.on_enable()
+            return True
+        return False
 
     def disable_plugin(self, plugin_name: str) -> None:
         plugin_obj = self.get_plugin_by_name(plugin_name)

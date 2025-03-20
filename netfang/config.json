@@ -27,13 +27,7 @@
       "enabled": true
     },
     "macchanger": {
-      "enabled": false,
-      "dependencies": [
-        "plugins.defaults.arpscan.run_arpscan"
-      ],
-      "plugin_config": {
-        "interface": "wlan0"
-      }
+      "enabled": false
     },
     "debug": {
       "enabled": true,
