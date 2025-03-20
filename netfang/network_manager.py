@@ -104,6 +104,8 @@ class NetworkManager:
         """
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
+        # Set the loop in the state machine
+        self.state_machine.set_loop(self._loop)
         self.running = True
 
         # Schedule the state machine's flow loop and the triggers loop.
