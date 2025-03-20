@@ -9,6 +9,7 @@ import netifaces
 
 from netfang.api.pi_utils import is_pi
 from netfang.db.database import get_network_by_mac, add_or_update_network
+from netfang.state_machine import StateMachine
 from netfang.states.state import State
 from netfang.triggers.actions import (
     action_alert_interface_unplugged,
@@ -25,8 +26,9 @@ from netfang.triggers.trigger_manager import TriggerManager
 
 
 class NetworkManager:
-    """Manages network states, triggers, and plugin notifications."""
-
+    """
+    Manages network events and delegates state transitions to the StateMachine.
+    """
     instance: Optional["NetworkManager"] = None
     global_monitored_interfaces: List[str] = ["eth0"]
 
@@ -49,10 +51,8 @@ class NetworkManager:
         )
         NetworkManager.global_monitored_interfaces = self.monitored_interfaces
 
-        self.current_state: State = State.WAITING_FOR_NETWORK
-        self.state_context: Dict[str, Any] = {}
-
-        self.state_change_callback = state_change_callback
+        # Instantiate the state machine
+        self.state_machine: StateMachine = StateMachine(state_change_callback)
 
         self.trigger_manager = TriggerManager(
             [
@@ -79,12 +79,13 @@ class NetworkManager:
         self.trigger_task: Optional[asyncio.Task] = None
         self._thread: Optional[threading.Thread] = None
         self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self.state_lock: Optional[asyncio.Lock] = None
 
         NetworkManager.instance = self
 
     async def start(self) -> None:
-        """Starts the network manager's background tasks."""
+        """
+        Starts the network manager's background tasks.
+        """
         if self.running:
             return
 
@@ -98,13 +99,15 @@ class NetworkManager:
             await asyncio.sleep(0.1)
 
     def _run_async_loop(self) -> None:
-        """Runs the asyncio event loop in a separate thread."""
+        """
+        Runs the asyncio event loop in a separate thread.
+        """
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
-        self.state_lock = asyncio.Lock()
-
         self.running = True
-        self.flow_task = self._loop.create_task(self.flow_loop())
+
+        # Schedule the state machine's flow loop and the triggers loop.
+        self.flow_task = self._loop.create_task(self.state_machine.flow_loop())
         self.trigger_task = self._loop.create_task(self.trigger_loop())
 
         print("[NetworkManager] Event loop started in background thread")
@@ -112,7 +115,9 @@ class NetworkManager:
         print("[NetworkManager] Event loop stopped")
 
     async def stop(self) -> None:
-        """Stops the network manager and its background tasks."""
+        """
+        Stops the network manager and its background tasks.
+        """
         self.running = False
 
         if self.flow_task:
@@ -126,72 +131,24 @@ class NetworkManager:
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
 
-    async def flow_loop(self) -> None:
-        """Main loop to handle state updates and notify plugins."""
-        while self.running:
-            async with self.state_lock:
-                current = self.current_state
-                print(f"[NetworkManager] (Flow Loop) Current state: {current.value}")
-                await self.notify_plugins(current)
-            await asyncio.sleep(5)
-
     async def trigger_loop(self) -> None:
-        """Loop to periodically check and fire triggers."""
+        """
+        Loop to periodically check and execute triggers.
+        """
         while self.running:
             await self.trigger_manager.check_triggers()
             await asyncio.sleep(2)
 
-    async def notify_plugins(self, state: State) -> None:
-        """Dispatches the current state to all plugin callbacks."""
-        method_name = f"on_{state.value.lower()}"
-        callback = getattr(self.plugin_manager, method_name, None)
-        if callback:
-            callback(**self.state_context)
-
-    def update_state(
-            self,
-            new_state: State,
-            mac: str = "",
-            ssid: str = "",
-            message: str = "",
-            alert_data: Optional[Dict[str, Any]] = None,
-    ) -> None:
-        """Updates the current state and notifies plugins."""
-        if alert_data is None:
-            alert_data = {}
-
-        async def update() -> None:
-            async with self.state_lock:
-                old_state = self.current_state
-                if old_state == new_state:
-                    return
-                print(
-                    f"[NetworkManager] State transition: {old_state.value} -> {new_state.value}"
-                )
-                self.current_state = new_state
-                self.state_context = {
-                    "mac": mac,
-                    "ssid": ssid,
-                    "message": message,
-                    "alert_data": alert_data,
-                }
-
-                if self.state_change_callback:
-                    self.state_change_callback(self.current_state, self.state_context)
-
-        if self._loop and self._loop.is_running():
-            asyncio.run_coroutine_threadsafe(update(), self._loop)
-        else:
-            print("[NetworkManager] ERROR: No event loop available for state update")
-
     def handle_network_connection(self, interface_name: str) -> None:
-        """Processes a network connection event."""
+        """
+        Processes a network connection event.
+        """
         gateways = netifaces.gateways()
         default_gateway = gateways.get("default", [])
         if default_gateway and netifaces.AF_INET in default_gateway:
-            gateway_ip = default_gateway[netifaces.AF_INET][0]
-            script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            helper_script = os.path.join(script_dir, "netfang/scripts/arp_helper.py")
+            gateway_ip: str = default_gateway[netifaces.AF_INET][0]
+            script_dir: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            helper_script: str = os.path.join(script_dir, "netfang/scripts/arp_helper.py")
 
             try:
                 result = subprocess.run(
@@ -203,9 +160,9 @@ class NetworkManager:
                 response = json.loads(result.stdout)
 
                 if response["success"]:
-                    mac_address = response["mac_address"]
+                    mac_address: str = response["mac_address"]
                 else:
-                    error_msg = response.get("error", "Unknown ARP error")
+                    error_msg: str = response.get("error", "Unknown ARP error")
                     self.plugin_manager.on_alerting(f"ARP helper error: {error_msg}")
                     return
             except (subprocess.SubprocessError, json.JSONDecodeError) as e:
@@ -216,30 +173,36 @@ class NetworkManager:
             self.handle_network_disconnection()
             return
 
-        mac_upper = mac_address.upper()
-        is_blacklisted = mac_upper in self.blacklisted_macs
-        is_home = mac_upper == self.home_mac
+        mac_upper: str = mac_address.upper()
+        is_blacklisted: bool = mac_upper in self.blacklisted_macs
+        is_home: bool = mac_upper == self.home_mac
         net_info = get_network_by_mac(self.db_path, mac_upper)
 
         if is_blacklisted:
             add_or_update_network(self.db_path, mac_upper, True, False)
-            self.update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
+            self.state_machine.update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
         elif is_home:
             add_or_update_network(self.db_path, mac_upper, False, True)
-            self.update_state(State.CONNECTED_HOME, mac=mac_upper)
+            self.state_machine.update_state(State.CONNECTED_HOME, mac=mac_upper)
         elif not net_info:
             add_or_update_network(self.db_path, mac_upper, False, False)
-            self.update_state(State.CONNECTED_NEW, mac=mac_upper)
+            self.state_machine.update_state(State.CONNECTED_NEW, mac=mac_upper)
         else:
             add_or_update_network(self.db_path, mac_upper, False, False)
-            self.update_state(State.CONNECTED_KNOWN, mac=mac_upper)
+            self.state_machine.update_state(State.CONNECTED_KNOWN, mac=mac_upper)
 
     @classmethod
     def handle_network_disconnection(cls) -> None:
-        """Handles network disconnection events."""
-        cls.instance.update_state(State.DISCONNECTED)
+        """
+        Handles network disconnection events.
+        """
+        if cls.instance is not None:
+            cls.instance.state_machine.update_state(State.DISCONNECTED)
 
     @classmethod
     def handle_cable_inserted(cls, interface_name: str) -> None:
-        """Handles cable insertion events."""
-        cls.instance.update_state(State.CONNECTING)
+        """
+        Handles cable insertion events.
+        """
+        if cls.instance is not None:
+            cls.instance.state_machine.update_state(State.CONNECTING)

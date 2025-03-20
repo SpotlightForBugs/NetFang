@@ -49,6 +49,16 @@ def init_db(db_path: str) -> None:
         )
     """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS alerts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            message TEXT,
+            is_resolved BOOLEAN,
+            resolved_at DATETIME,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
     conn.commit()
     conn.close()
 
@@ -109,6 +119,23 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
 
     conn.commit()
     conn.close()
+
+
+def add_alert(db_path: str, message, is_resolved=False, resolved_at=None) -> None:
+    """
+    This saves the alerts that can be displayed in the UI.
+    """
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO alerts (message, is_resolved, resolved_at)
+        VALUES (?, ?, ?)
+    """, (message, is_resolved, resolved_at))
+
+    conn.commit()
+    conn.close()
+
 
 
 def add_or_update_device(db_path: str, ip_address: str, mac_address: str,

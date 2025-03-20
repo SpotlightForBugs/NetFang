@@ -80,6 +80,7 @@
 
         // Listen for state updates from the server
         socket.on("state_update", (data) => {
+            console.log(`[${new Date().toLocaleTimeString()}] State update received:`, data);
             const newState = data.state || 'Unknown';
 
             if (newState !== previousState) {

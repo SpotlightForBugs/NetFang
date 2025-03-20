@@ -15,6 +15,7 @@ It uses asynchronous sleep for non-blocking timeout handling.
 import argparse
 import asyncio
 
+# noinspection PyUnresolvedReferences
 from rpi_ws281x import Adafruit_NeoPixel, Color
 
 # LED strip configuration:
