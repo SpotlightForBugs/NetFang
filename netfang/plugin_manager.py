@@ -126,10 +126,12 @@ class PluginManager:
             return True
         return False
 
-    def disable_plugin(self, plugin_name: str) -> None:
+    def disable_plugin(self, plugin_name: str) -> bool:
         plugin_obj = self.get_plugin_by_name(plugin_name)
         if plugin_obj:
             plugin_obj.on_disable()
+            return True
+        return False
 
     def _get_plugin_dependencies(self, plugin_name: str) -> List[str]:
         d_conf = self.config.get("default_plugins", {})

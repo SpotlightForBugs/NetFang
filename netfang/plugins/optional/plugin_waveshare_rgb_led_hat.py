@@ -23,8 +23,8 @@ def subprocess_for_led_control(color: str, duration: int, brightness: int):
     ], check=True)
 
 
-class WaveShareRGBLEDHat(BasePlugin):
-    name = "WaveShareRGBLEDHat"
+class WaveshareRGBLEDHat(BasePlugin):
+    name = "WaveshareRGBLEDHat"
 
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)

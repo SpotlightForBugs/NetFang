@@ -23,7 +23,7 @@
         "psk": "replace_with_psk_or_credentials"
       }
     },
-    "waveshare_rgb_led_hat": {
+    "WaveshareRGBLEDHat": {
       "enabled": true
     },
     "macchanger": {

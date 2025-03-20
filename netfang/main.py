@@ -150,10 +150,11 @@ def disable_plugin():
     plugin_name = data.get("plugin_name")
     if not plugin_name:
         return jsonify({"error": "No plugin_name provided"}), 400
-    PluginManager.disable_plugin(plugin_name)
-    _set_plugin_enabled_in_config(plugin_name, False)
-    return jsonify({"status": f"{plugin_name} disabled"}), 200
-
+    if PluginManager.disable_plugin(plugin_name):
+        _set_plugin_enabled_in_config(plugin_name, False)
+        return jsonify({"status": f"{plugin_name} disabled"}), 200
+    else:
+        return jsonify({"error": f"Failed to disable {plugin_name}, does the plugin exist?"}), 200
 
 
 
