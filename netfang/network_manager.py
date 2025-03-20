@@ -9,19 +9,12 @@ import netifaces
 
 from netfang.api.pi_utils import is_pi
 from netfang.db.database import get_network_by_mac, add_or_update_network
+from netfang.plugin_manager import PluginManager
 from netfang.state_machine import StateMachine
 from netfang.states.state import State
-from netfang.triggers.actions import (
-    action_alert_interface_unplugged,
-    action_alert_cpu_temp,
-    action_alert_battery_low,
-)
+from netfang.triggers.actions import *
 from netfang.triggers.async_trigger import AsyncTrigger
-from netfang.triggers.conditions import (
-    condition_interface_unplugged,
-    condition_cpu_temp_high,
-    condition_battery_low,
-)
+from netfang.triggers.conditions import *
 from netfang.triggers.trigger_manager import TriggerManager
 
 
@@ -34,11 +27,13 @@ class NetworkManager:
 
     def __init__(
             self,
-            plugin_manager: Any,
+            plugin_manager: PluginManager,
             config: Dict[str, Any],
             state_change_callback: Optional[Callable[[State, Dict[str, Any]], None]] = None,
     ) -> None:
         self.plugin_manager = plugin_manager
+        plugin_manager.load_config()
+        plugin_manager.load_plugins()
         self.config = config
         self.db_path: str = config.get("database_path", "netfang.db")
         flow_cfg: Dict[str, Any] = config.get("network_flows", {})
@@ -52,7 +47,7 @@ class NetworkManager:
         NetworkManager.global_monitored_interfaces = self.monitored_interfaces
 
         # Instantiate the state machine
-        self.state_machine: StateMachine = StateMachine(state_change_callback)
+        self.state_machine: StateMachine = StateMachine(plugin_manager, state_change_callback)
 
         self.trigger_manager = TriggerManager(
             [
@@ -109,7 +104,7 @@ class NetworkManager:
         self.running = True
 
         # Schedule the state machine's flow loop and the triggers loop.
-        self.flow_task = self._loop.create_task(self.state_machine.flow_loop())
+        # self.flow_task = self._loop.create_task(self.state_machine.flow_loop())
         self.trigger_task = self._loop.create_task(self.trigger_loop())
 
         print("[NetworkManager] Event loop started in background thread")
