@@ -1,10 +1,12 @@
 # netfang/plugins/optional/plugin_fierce.py
 
-import subprocess
 from typing import Any, Dict
+
 from flask import Blueprint, request, jsonify
+
+from netfang.db.database import add_plugin_log
 from netfang.plugins.base_plugin import BasePlugin
-from netfang.db import add_plugin_log
+
 
 class FiercePlugin(BasePlugin):
     name = "Fierce"

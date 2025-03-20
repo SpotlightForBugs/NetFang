@@ -1,4 +1,4 @@
-# netfang/db.py
+# netfang/database.py
 
 import sqlite3
 from typing import Any, Dict, Optional

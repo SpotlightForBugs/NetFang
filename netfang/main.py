@@ -5,14 +5,19 @@ import sys
 from functools import wraps
 from platform import system
 
-from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string, abort, Flask
+from flask import request, jsonify, render_template, session, redirect, url_for, \
+    render_template_string, abort, Flask
 from flask import send_from_directory
 from flask_socketio import SocketIO, emit
 
 from netfang.api import pi_utils
-from netfang.db import init_db
+# Database initializer from new file location
+from netfang.db.database import init_db
+# Updated imports for network manager and state definitions
+from netfang.network_manager import NetworkManager
+# PluginManager remains unchanged
 from netfang.plugin_manager import PluginManager
-from netfang.state_machine import NetworkManager, State  # Note: NetworkManager here is our refactored version
+from netfang.states.state import State
 
 try:
     import sentry_sdk
@@ -231,53 +236,53 @@ def test_state(state_num: int):
     new_state = states[state_num]
     status_msg = ""
     if new_state == State.WAITING_FOR_NETWORK:
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         status_msg = f"State forced to {new_state.value}"
     elif new_state == State.CONNECTING:
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         status_msg = f"State forced to {new_state.value}"
     elif new_state == State.CONNECTED_HOME:
         home_mac = PluginManager.config.get("network_flows", {}).get("home_network_mac", "AA:BB:CC:11:22:33")
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_home_network_connected()
         status_msg = f"Simulated connection to home network with MAC {home_mac}"
     elif new_state == State.CONNECTED_NEW:
         new_mac = "00:00:00:00:00:01"
         new_ssid = "TestNewNetwork"
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_new_network_connected(new_mac, new_ssid)
         status_msg = f"Simulated connection to new network with MAC {new_mac} and SSID {new_ssid}"
     elif new_state == State.SCANNING_IN_PROGRESS:
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_scanning_in_progress()
         status_msg = f"Simulated scanning in progress."
     elif new_state == State.SCAN_COMPLETED:
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_scan_completed()
         status_msg = f"Simulated scan completed."
     elif new_state == State.CONNECTED_KNOWN:
         known_mac = "00:00:00:00:00:02"
         known_ssid = "TestKnownNetwork"
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_known_network_connected(known_mac, known_ssid, False)
         status_msg = f"Simulated connection to known network with MAC {known_mac} and SSID {known_ssid}"
     elif new_state == State.RECONNECTING:
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_reconnecting()
         status_msg = f"Simulated reconnecting state."
     elif new_state == State.CONNECTED_BLACKLISTED:
         blacklisted_mac = "DE:AD:BE:EF:CA:FE"
         ssid = "TestBlacklistedNetwork"
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_connected_blacklisted(blacklisted_mac, ssid)
         status_msg = f"Simulated connection to blacklisted network with MAC {blacklisted_mac} and SSID {ssid}"
     elif new_state == State.ALERTING:
         alert_msg = "Test Alert: Something went wrong!"
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_alerting(message=alert_msg)
         status_msg = f"Simulated alerting state with message: {alert_msg}"
     elif new_state == State.DISCONNECTED:
-        NetworkManager._update_state(new_state)
+        NetworkManager.update_state(new_state)
         NetworkManager.plugin_manager.on_disconnected()
         status_msg = f"Simulated disconnected state."
 

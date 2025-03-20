@@ -1,10 +1,10 @@
 # netfang/plugins/optional/plugin_pushover.py
 
-import os
-import requests
 from typing import Any, Dict
+
+from netfang.db.database import add_plugin_log
 from netfang.plugins.base_plugin import BasePlugin
-from netfang.db import add_plugin_log
+
 
 class PushoverPlugin(BasePlugin):
     name = "Pushover"

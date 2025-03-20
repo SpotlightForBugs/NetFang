@@ -3,7 +3,7 @@ import subprocess
 from typing import Any, Dict
 
 import netfang.db
-from netfang.db import add_plugin_log
+from netfang.db.database import add_plugin_log
 from netfang.plugins.base_plugin import BasePlugin
 
 
@@ -85,7 +85,9 @@ class ArpScanPlugin(BasePlugin):
                 # save the result to the database
                 print(f"[{self.name}] Found {len(parsed_data['devices'])} devices on {parsed_data['interface']}")
                 for device in parsed_data["devices"]:
-                    netfang.db.add_or_update_device(db_path, device["ip"], device["mac"], hostname=None, services=None,
-                                                    network_id=args[2], vendor=device["vendor"], deviceclass=None)
+                    netfang.db.database.add_or_update_device(db_path, device["ip"], device["mac"], hostname=None,
+                                                             services=None,
+                                                             network_id=args[2], vendor=device["vendor"],
+                                                             deviceclass=None)
 
             add_plugin_log(db_path, self.name, "Executed run_arpscan")

@@ -2,7 +2,7 @@
 
 from typing import Any, Dict
 
-from netfang.db import add_plugin_log
+from netfang.db.database import add_plugin_log
 from netfang.plugins.base_plugin import BasePlugin
 
 

@@ -1,9 +1,10 @@
 # netfang/plugins/defaults/plugin_rustscan.py
 
-import subprocess
 from typing import Any, Dict
+
+from netfang.db.database import add_plugin_log
 from netfang.plugins.base_plugin import BasePlugin
-from netfang.db import add_plugin_log
+
 
 class RustScanPlugin(BasePlugin):
     name = "RustScan"
