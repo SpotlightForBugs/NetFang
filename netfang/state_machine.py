@@ -70,14 +70,6 @@ def get_battery_percentage() -> float:
     return ups_hat_c.get_battery_percentage()
 
 
-
-
-
-
-
-
-
-
 async def condition_interface_unplugged() -> bool:
     """
     Checks if any of the monitored interfaces (e.g. eth0, wlan0) are down.
@@ -99,8 +91,7 @@ async def condition_cpu_temp_high() -> bool:
     try:
         # Read synchronously in a thread
         cpu_temp = await asyncio.to_thread(
-            lambda: float(open("/sys/class/thermal/thermal_zone0/temp").read().strip()) / 1000.0
-        )
+            lambda: float(open("/sys/class/thermal/thermal_zone0/temp").read().strip()) / 1000.0)
     except Exception:
         cpu_temp = 50.0  # Default if error occurs
     return cpu_temp > 70.0
@@ -112,23 +103,20 @@ async def condition_cpu_temp_high() -> bool:
 async def action_alert_battery_low():
     print("[TriggerManager] ACTION: Battery is too low!")
     # Update state to ALERTING with extra context
-    NetworkManager.instance._update_state(
-        State.ALERTING, alert_data={"type": "battery", "message": "Battery level is low!"}
-    )
+    NetworkManager.instance._update_state(State.ALERTING,
+                                          alert_data={"type": "battery", "message": "Battery level is low!"})
 
 
 async def action_alert_interface_unplugged():
     print("[TriggerManager] ACTION: A monitored interface is unplugged!")
-    NetworkManager.instance.update_state(
-        State.ALERTING, alert_data={"type": "interface", "message": "Interface unplugged!"}
-    )
+    NetworkManager.instance.update_state(State.ALERTING,
+                                         alert_data={"type": "interface", "message": "Interface unplugged!"})
 
 
 async def action_alert_cpu_temp():
     print("[TriggerManager] ACTION: CPU temperature is too high!")
-    NetworkManager.instance.update_state(
-        State.ALERTING, alert_data={"type": "temperature", "message": "CPU temperature is high!"}
-    )
+    NetworkManager.instance.update_state(State.ALERTING,
+                                         alert_data={"type": "temperature", "message": "CPU temperature is high!"})
 
 
 # ------------------------------------------------------------------------------
@@ -145,19 +133,19 @@ class State(Enum):
     RECONNECTING = "RECONNECTING"
     CONNECTED_BLACKLISTED = "CONNECTED_BLACKLISTED"
     ALERTING = "ALERTING"
-    DISCONNECTED = "DISCONNECTED"
-    # You can add extra states if needed
+    DISCONNECTED = "DISCONNECTED"  # You can add extra states if needed
 
 
 # ------------------------------------------------------------------------------
 # The main NetworkManager that ties triggers, state changes, and plugins together.
 # ------------------------------------------------------------------------------
+
 class NetworkManager:
-    # Global references to support triggers reading config
     instance: "NetworkManager" = None
     global_monitored_interfaces: List[str] = ["eth0"]
 
-    def __init__(self, plugin_manager, config: Dict[str, Any]) -> None:
+    def __init__(self, plugin_manager, config: Dict[str, Any],
+                 state_change_callback: Optional[Callable[[State, Dict[str, Any]], None]] = None, ) -> None:
         self.plugin_manager = plugin_manager
         self.config = config
         self.db_path = config.get("database_path", "netfang.db")
@@ -170,16 +158,17 @@ class NetworkManager:
         self.current_state = State.WAITING_FOR_NETWORK
         self.state_context: Dict[str, Any] = {}
 
+        # Store the callback
+        self.state_change_callback = state_change_callback
+
         # Initialize TriggerManager with our triggers.
-        self.trigger_manager = TriggerManager([
-            AsyncTrigger("InterfaceUnplugged", condition_interface_unplugged, action_alert_interface_unplugged),
-            AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp),
-            # Add more triggers as needed
-        ])
+        self.trigger_manager = TriggerManager(
+            [AsyncTrigger("InterfaceUnplugged", condition_interface_unplugged, action_alert_interface_unplugged),
+             AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp),  # Add more triggers as needed
+             ])
         if pi_utils.is_pi() and config.get("hardware", {}).get("ups-hat-c", False):
             self.trigger_manager.add_trigger(
-                AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low)
-            )
+                AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low))
 
         # Async loop tasks
         self.running = False
@@ -194,16 +183,12 @@ class NetworkManager:
     async def start(self) -> None:
         if self.running:
             return
-        
+
         # Start the background thread for the event loop
         if not self._thread:
-            self._thread = threading.Thread(
-                target=self._run_async_loop,
-                name="NetworkManagerEventLoop",
-                daemon=True
-            )
+            self._thread = threading.Thread(target=self._run_async_loop, name="NetworkManagerEventLoop", daemon=True)
             self._thread.start()
-            
+
             # Wait briefly for the thread to initialize the event loop
             await asyncio.sleep(0.1)
 
@@ -212,11 +197,11 @@ class NetworkManager:
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
         self.state_lock = asyncio.Lock()  # Create the lock in this event loop's context
-        
+
         self.running = True
         self.flow_task = self._loop.create_task(self.flow_loop())
         self.trigger_task = self._loop.create_task(self.trigger_loop())
-        
+
         print("[NetworkManager] Event loop started in background thread")
         self._loop.run_forever()
         print("[NetworkManager] Event loop stopped")
@@ -224,17 +209,17 @@ class NetworkManager:
     async def stop(self) -> None:
         """Stop the network manager and its background tasks."""
         self.running = False
-        
+
         # Cancel the tasks if they exist
         if self.flow_task:
             self.flow_task.cancel()
         if self.trigger_task:
             self.trigger_task.cancel()
-            
+
         # Stop the event loop
         if self._loop and self._loop.is_running():
             self._loop.call_soon_threadsafe(self._loop.stop)
-            
+
         # Wait for the thread to terminate
         if self._thread and self._thread.is_alive():
             self._thread.join(timeout=2.0)
@@ -295,7 +280,7 @@ class NetworkManager:
             self.plugin_manager.on_scan_completed(**self.state_context)
 
     def _update_state(self, new_state: State, mac: str = "", ssid: str = "", message: str = "",
-                      alert_data=None) -> None:
+                      alert_data=None, ) -> None:
         if alert_data is None:
             alert_data = {}
 
@@ -306,7 +291,12 @@ class NetworkManager:
                     return
                 print(f"[NetworkManager] State transition: {old_state.value} -> {new_state.value}")
                 self.current_state = new_state
+                self.state_context = {"mac": mac, "ssid": ssid, "message": message, "alert_data": alert_data, }
                 print(f"[NetworkManager] New state set: {self.current_state.value}")
+
+                # Invoke the callback if provided
+                if self.state_change_callback:
+                    self.state_change_callback(self.current_state, self.state_context)
 
         # Use the background loop if available
         if self._loop and self._loop.is_running():
@@ -314,7 +304,6 @@ class NetworkManager:
         else:
             # Fallback: log an error since we should always use the dedicated loop
             print("[NetworkManager] ERROR: No event loop available for state update")
-
 
     def handle_network_connection(self, interface_name: str):
         """
@@ -329,20 +318,16 @@ class NetworkManager:
         if default_gateway and netifaces.AF_INET in default_gateway:
             gateway_ip = default_gateway[netifaces.AF_INET][0]
             print(f"Default gateway IP: {gateway_ip}")
-            
+
             # Get the script's directory path for relative script reference
             script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
             helper_script = os.path.join(script_dir, "netfang/scripts/arp_helper.py")
-            
+
             try:
-                result = subprocess.run(
-                    ["sudo", "python3", helper_script, gateway_ip],
-                    capture_output=True,
-                    text=True,
-                    check=True
-                )
+                result = subprocess.run(["sudo", "python3", helper_script, gateway_ip], capture_output=True, text=True,
+                                        check=True)
                 response = json.loads(result.stdout)
-                
+
                 if response["success"]:
                     mac_address = response["mac_address"]
                 else:

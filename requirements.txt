@@ -4,6 +4,7 @@ scapy
 netifaces-plus
 sentry-sdk[flask]
 psutil
+Flask-SocketIO
 #FOR Raspberry Pi
 rpi_ws281x; platform_system == 'Linux'
 smbus; platform_system == 'Linux'

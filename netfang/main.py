@@ -1,3 +1,4 @@
+import asyncio
 import os
 import platform
 import sys
@@ -6,6 +7,7 @@ from platform import system
 
 from flask import request, jsonify, render_template, session, redirect, url_for, render_template_string, abort, Flask
 from flask import send_from_directory
+from flask_socketio import SocketIO, emit
 
 from netfang.api import pi_utils
 from netfang.db import init_db
@@ -27,6 +29,7 @@ except ImportError as e:
     print("Error tracing is disabled by default. To enable, install the sentry-sdk package.")
 
 app = Flask(__name__)
+socketio = SocketIO(app)
 if pi_utils.is_pi():
     # TODO: EVALUATE SAFETY OF THIS SECRET KEY GENERATION METHOD
     app.secret_key = pi_utils.get_pi_serial()
@@ -39,10 +42,18 @@ app.config['SESSION_COOKIE_NAME'] = 'NETFANG_SECURE_SESSION'
 BASE_DIR = os.path.dirname(__file__)
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 
+
+def state_change_callback(state, context):
+    socketio.emit(
+        "state_update",
+        {"state": state.value, "context": context},
+    )
+
+
 # Instantiate PluginManager and NetworkManager
 PluginManager = PluginManager(CONFIG_PATH)
 PluginManager.load_config()
-NetworkManager = NetworkManager(PluginManager, PluginManager.config)
+NetworkManager = NetworkManager(PluginManager, PluginManager.config, state_change_callback)
 
 # Load configuration, initialize database, and load plugins BEFORE starting the server
 PluginManager.load_config()
@@ -54,7 +65,6 @@ for plugin in PluginManager.plugins.values():
     if hasattr(plugin, "register_routes"):
         plugin.register_routes(app)
 
-import asyncio
 asyncio.run(NetworkManager.start())  # Start the NetworkManager
 
 
@@ -116,6 +126,19 @@ def get_current_state():
     return jsonify({"state": NetworkManager.current_state.value})
 
 
+@socketio.on("connect")
+def handle_connect():
+    if not session.get('logged_in'):
+        return False
+    emit("state_update", {"state": NetworkManager.current_state.value, "context": NetworkManager.state_context})
+
+
+@socketio.on("disconnect")
+def handle_disconnect():
+    # TODO: Handle disconnect or cleanup
+    pass
+
+
 @app.route("/plugins", methods=["GET"])
 def list_plugins():
     response = []
@@ -139,10 +162,12 @@ def enable_plugin():
     else:
         return jsonify({"error": f"Failed to enable {plugin_name}, does the plugin exist?"}), 200
 
+
 @app.route("/favicon.ico", methods=["GET"])
 def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'router_logo.png',
                                mimetype='image/vnd.microsoft.icon')
+
 
 @app.route("/plugins/disable", methods=["POST"])
 def disable_plugin():
@@ -155,7 +180,6 @@ def disable_plugin():
         return jsonify({"status": f"{plugin_name} disabled"}), 200
     else:
         return jsonify({"error": f"Failed to disable {plugin_name}, does the plugin exist?"}), 200
-
 
 
 def _is_plugin_enabled(plugin_name: str) -> bool:
@@ -292,10 +316,6 @@ def api():
     return jsonify({"status": "Event processed", "event_type": event_type, "interface_name": interface_name}), 200
 
 
-
-
-
-
 if __name__ == "__main__":
     # For production, consider using gunicorn or similar.
-    app.run(host="0.0.0.0", port=80, debug=False)
+    socketio.run(app=app, host="0.0.0.0", port=80, debug=False)
