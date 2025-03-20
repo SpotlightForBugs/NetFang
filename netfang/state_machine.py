@@ -110,29 +110,30 @@ class StateMachine:
         else:
             print("Event not handled:", state)
 
+    def update_state(self, new_state: State, mac: str = "", message: str = "",
+                     alert_data: Optional[Dict[str, Any]] = None,
+                     perform_action_data: list[Union[str, int]] = None, ) -> None:
+        """
+        Updates the current state and schedules a task to notify plugins.
+        """
+        if alert_data is None:
+            alert_data = {}
+        if perform_action_data is None:
+            perform_action_data = []
 
-def update_state(self, new_state: State, mac: str = "", message: str = "", alert_data: Optional[Dict[str, Any]] = None,
-                 perform_action_data: list[Union[str, int]] = None, ) -> None:
-    """
-    Updates the current state and schedules a task to notify plugins.
-    """
-    if alert_data is None:
-        alert_data = {}
-    if perform_action_data is None:
-        perform_action_data = []
+        async def update() -> None:
+            async with self.state_lock:
+                if self.current_state == new_state:
+                    return
+                self.previous_state = self.current_state
+                self.current_state = new_state
+                self.state_context = {"mac": mac, "message": message, "alert_data": alert_data, }
+                print(f"[StateMachine] State transition: {self.previous_state.value} -> {new_state.value}")
+                if self.state_change_callback:
+                    self.state_change_callback(self.current_state, self.state_context)
+                await self.notify_plugins(self.current_state, self.state_context, mac, message, alert_data,
+                                          perform_action_data)
 
-    async def update() -> None:
-        async with self.state_lock:
-            if self.current_state == new_state:
-                return
-            self.previous_state = self.current_state
-            self.current_state = new_state
-            self.state_context = {"mac": mac, "message": message, "alert_data": alert_data, }
-            print(f"[StateMachine] State transition: {self.previous_state.value} -> {new_state.value}")
-            if self.state_change_callback:
-                self.state_change_callback(self.current_state, self.state_context)
-            await self.notify_plugins(self.current_state, mac, message, alert_data, perform_action_data)
-
-    if self.loop is None:
-        raise RuntimeError("Event loop for StateMachine is not set!")
-    self.loop.create_task(update())
+        if self.loop is None:
+            raise RuntimeError("Event loop for StateMachine is not set!")
+        self.loop.create_task(update())

@@ -49,16 +49,23 @@
         const connectedText = "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}";
         const disconnectedText = "{{ 'Getrennt von NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected from NetFang' }}";
 
+        let currentIntervalID = null;
+
         // Typewriter effect for 'state'
         function typeText(element, text) {
+            if (currentIntervalID !== null) {
+                clearInterval(currentIntervalID);
+            }
             let index = 0;
             element.innerText = '';
-            const typeInterval = setInterval(() => {
+            currentIntervalID = setInterval(() => {
                 if (index < text.length) {
                     element.innerText += text.charAt(index);
                     index++;
                 } else {
-                    clearInterval(typeInterval);
+                    clearInterval(currentIntervalID);
+                    currentIntervalID = null;
+
                 }
             }, 50);
         }
