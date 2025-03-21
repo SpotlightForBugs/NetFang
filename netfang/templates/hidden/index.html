@@ -12,6 +12,177 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"
             integrity="sha512-8BHxHDLsOHx+flIrQ0DrZcea7MkHqRU5GbTHmbdzMRnAaoCIkZ97PqZcXJkKZckMMhqfoeaJE+DNUVuyoQsO3Q=="
             crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- AlertifyJS CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
+    <!-- AlertifyJS JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
+
+    <style>
+        /* AlertifyJS Terminal Theme */
+        .alertify-notifier .ajs-message {
+            font-family: 'Source Code Pro', monospace;
+            background-color: #121212;
+            border: 1px solid #33FF33;
+            color: #33FF33;
+            box-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
+            text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+            border-radius: 0;
+        }
+
+        .alertify-notifier .ajs-message.ajs-error {
+            border-color: #FF3333;
+            color: #FF3333;
+            text-shadow: 0 0 5px rgba(255, 51, 51, 0.7);
+        }
+
+        .alertify-notifier .ajs-message.ajs-warning {
+            border-color: #FFCC00;
+            color: #FFCC00;
+            text-shadow: 0 0 5px rgba(255, 204, 0, 0.7);
+        }
+
+        /* Alert Panel Styles */
+        #alertPanel {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            max-height: 400px;
+            background-color: rgba(18, 18, 18, 0.95);
+            border: 1px solid #33FF33;
+            border-radius: 0;
+            overflow: hidden;
+            transition: height 0.3s;
+            z-index: 1000;
+            box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        #alertPanelHeader {
+            padding: 8px;
+            background-color: #000;
+            border-bottom: 1px solid #33FF33;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #alertPanelHeader h3 {
+            margin: 0;
+            font-size: 14px;
+            color: #33FF33;
+            text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+        }
+
+        #alertCounter {
+            background-color: #33FF33;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        #alertList {
+            overflow-y: auto;
+            max-height: 350px;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+        }
+
+        .alert-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid rgba(51, 255, 51, 0.2);
+            font-size: 12px;
+        }
+
+        .alert-item-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+        }
+
+        .alert-category {
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .alert-timestamp {
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .alert-message {
+            word-break: break-word;
+        }
+
+        .alert-item.info {
+            color: #33FF33;
+            border-left: 3px solid #33FF33;
+        }
+
+        .alert-item.warning {
+            color: #FFCC00;
+            border-left: 3px solid #FFCC00;
+        }
+
+        .alert-item.critical {
+            color: #FF3333;
+            border-left: 3px solid #FF3333;
+        }
+
+        .alert-item.resolved {
+            opacity: 0.6;
+        }
+
+        .alert-resolved-badge {
+            font-size: 9px;
+            padding: 1px 4px;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+            margin-left: 5px;
+        }
+
+        #alertControls {
+            display: flex;
+            padding: 5px;
+            border-top: 1px solid rgba(51, 255, 51, 0.3);
+            background-color: rgba(0, 0, 0, 0.3);
+        }
+
+        .alert-filter {
+            background: none;
+            border: 1px solid rgba(51, 255, 51, 0.5);
+            color: #33FF33;
+            font-size: 10px;
+            padding: 2px 5px;
+            margin-right: 5px;
+            cursor: pointer;
+            text-shadow: 0 0 5px rgba(51, 255, 51, 0.3);
+        }
+
+        .alert-filter.active {
+            background-color: #33FF33;
+            color: #000;
+        }
+
+        .notification-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #FF3333;
+            border-radius: 50%;
+            margin-left: 5px;
+            display: none;
+        }
+
+        .notification-dot.visible {
+            display: inline-block;
+        }
+    </style>
 </head>
 <body>
 <header>
@@ -39,70 +210,264 @@
     </p>
 </footer>
 
+<!-- Alert Panel -->
+<div id="alertPanel">
+    <div id="alertPanelHeader">
+        <h3>System Notifications <span class="notification-dot" id="newAlertDot"></span></h3>
+        <span id="alertCounter">0</span>
+    </div>
+    <ul id="alertList"></ul>
+    <div id="alertControls">
+        <button class="alert-filter active" data-filter="all">All</button>
+        <button class="alert-filter" data-filter="active">Active</button>
+        <button class="alert-filter" data-filter="info">Info</button>
+        <button class="alert-filter" data-filter="warning">Warning</button>
+        <button class="alert-filter" data-filter="critical">Critical</button>
+    </div>
+</div>
+
 <script>
-    (function () {
-        const stateElement = document.getElementById("state");
-        const badgeElement = document.getElementById("connectionBadge");
-        let previousState = '{{ state }}';
+    const stateElement = document.getElementById("state");
+    const badgeElement = document.getElementById("connectionBadge");
+    let previousState = '{{ state }}';
 
-        // Translations for the badge
-        const connectedText = "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}";
-        const disconnectedText = "{{ 'Getrennt von NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected from NetFang' }}";
+    // Translations for the badge
+    const connectedText = "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}";
+    const disconnectedText = "{{ 'Getrennt von NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected from NetFang' }}";
 
-        let currentIntervalID = null;
+    let currentIntervalID = null;
 
-        // Typewriter effect for 'state'
-        function typeText(element, text) {
-            if (currentIntervalID !== null) {
+    // Typewriter effect for 'state'
+    function typeText(element, text) {
+        if (currentIntervalID !== null) {
+            clearInterval(currentIntervalID);
+        }
+        let index = 0;
+        element.innerText = '';
+        currentIntervalID = setInterval(() => {
+            if (index < text.length) {
+                element.innerText += text.charAt(index);
+                index++;
+            } else {
                 clearInterval(currentIntervalID);
+                currentIntervalID = null;
             }
-            let index = 0;
-            element.innerText = '';
-            currentIntervalID = setInterval(() => {
-                if (index < text.length) {
-                    element.innerText += text.charAt(index);
-                    index++;
-                } else {
-                    clearInterval(currentIntervalID);
-                    currentIntervalID = null;
+        }, 50);
+    }
 
-                }
-            }, 50);
+    // Initialize Socket.IO connection
+    const socket = io();
+
+    socket.on('connect', () => {
+        badgeElement.classList.remove("disconnected");
+        badgeElement.classList.add("connected");
+        badgeElement.textContent = connectedText;
+    });
+
+    socket.on('disconnect', () => {
+        badgeElement.classList.remove("connected");
+        badgeElement.classList.add("disconnected");
+        badgeElement.textContent = disconnectedText;
+    });
+
+    // Listen for state updates from the server
+    socket.on("state_update", (data) => {
+        console.log(`[${new Date().toLocaleTimeString()}] State update received:`, data);
+        const newState = data.state || 'Unknown';
+
+        if (newState !== previousState) {
+            previousState = newState;
+            typeText(stateElement, newState);
+        }
+    });
+
+    // Alert System Implementation
+    (function () {
+        // Initialize variables for alert management
+        const alerts = [];
+        let currentFilter = 'all';
+        let isPanelOpen = true;
+        let hasNewAlerts = false;
+
+        // Get DOM elements
+        const alertPanel = document.getElementById('alertPanel');
+        const alertPanelHeader = document.getElementById('alertPanelHeader');
+        const alertList = document.getElementById('alertList');
+        const alertCounter = document.getElementById('alertCounter');
+        const newAlertDot = document.getElementById('newAlertDot');
+        const filterButtons = document.querySelectorAll('.alert-filter');
+
+        // Configure AlertifyJS
+        alertify.defaults.notifier.position = "bottom-right";
+        alertify.defaults.notifier.delay = 5;
+
+        // Toggle alert panel visibility
+        alertPanelHeader.addEventListener('click', () => {
+            isPanelOpen = !isPanelOpen;
+            alertList.style.display = isPanelOpen ? 'block' : 'none';
+            document.getElementById('alertControls').style.display = isPanelOpen ? 'flex' : 'none';
+
+            if (isPanelOpen && hasNewAlerts) {
+                hasNewAlerts = false;
+                newAlertDot.classList.remove('visible');
+            }
+        });
+
+        // Set up filter buttons
+        filterButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+
+                // Add active class to clicked button
+                button.classList.add('active');
+
+                // Update filter and refresh list
+                currentFilter = button.getAttribute('data-filter');
+                renderAlertList();
+            });
+        });
+
+        // Format timestamp to local time
+        function formatTimestamp(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                const pad = n => n < 10 ? '0' + n : n;
+                return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+            } catch (e) {
+                return 'Invalid time';
+            }
         }
 
-        // Initialize Socket.IO connection
-        const socket = io();
+        // Render alert list based on current filter
+        function renderAlertList() {
+            // Clear current list
+            alertList.innerHTML = '';
 
-        socket.on('connect', () => {
-            badgeElement.classList.remove("disconnected");
-            badgeElement.classList.add("connected");
-            badgeElement.textContent = connectedText;
-        });
+            // Filter alerts
+            let filteredAlerts = [...alerts];
 
-        socket.on('disconnect', () => {
-            badgeElement.classList.remove("connected");
-            badgeElement.classList.add("disconnected");
-            badgeElement.textContent = disconnectedText;
-        });
-
-        // Listen for state updates from the server
-        socket.on("state_update", (data) => {
-            console.log(`[${new Date().toLocaleTimeString()}] State update received:`, data);
-            const newState = data.state || 'Unknown';
-
-            if (newState !== previousState) {
-                previousState = newState;
-                typeText(stateElement, newState);
+            if (currentFilter === 'active') {
+                filteredAlerts = filteredAlerts.filter(alert => !alert.is_resolved);
+            } else if (['info', 'warning', 'critical'].includes(currentFilter)) {
+                filteredAlerts = filteredAlerts.filter(alert => alert.level === currentFilter);
             }
-        });
-        socket.on("all_alerts", (data) => {
-            console.log(`[${new Date().toLocaleTimeString()}] All alerts received:`, data);
+
+            // Sort alerts by timestamp, newest first
+            filteredAlerts.sort((a, b) => {
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            });
+
+            // Update alert counter
+            const activeCount = alerts.filter(alert => !alert.is_resolved).length;
+            alertCounter.textContent = activeCount;
+
+            // Create alert items
+            filteredAlerts.forEach(alert => {
+                const alertItem = document.createElement('li');
+                alertItem.className = `alert-item ${alert.level} ${alert.is_resolved ? 'resolved' : ''}`;
+
+                const alertHeader = document.createElement('div');
+                alertHeader.className = 'alert-item-header';
+
+                const category = document.createElement('span');
+                category.className = 'alert-category';
+                category.textContent = alert.category;
+
+                if (alert.is_resolved) {
+                    const resolvedBadge = document.createElement('span');
+                    resolvedBadge.className = 'alert-resolved-badge';
+                    resolvedBadge.textContent = 'RESOLVED';
+                    category.appendChild(resolvedBadge);
+                }
+
+                const timestamp = document.createElement('span');
+                timestamp.className = 'alert-timestamp';
+                timestamp.textContent = formatTimestamp(alert.timestamp);
+
+                alertHeader.appendChild(category);
+                alertHeader.appendChild(timestamp);
+
+                const message = document.createElement('div');
+                message.className = 'alert-message';
+                message.textContent = alert.message;
+
+                alertItem.appendChild(alertHeader);
+                alertItem.appendChild(message);
+
+                alertList.appendChild(alertItem);
+            });
+
+            // Show message when no alerts match filter
+            if (filteredAlerts.length === 0) {
+                const emptyItem = document.createElement('li');
+                emptyItem.className = 'alert-item';
+                emptyItem.textContent = 'No notifications to display';
+                alertList.appendChild(emptyItem);
+            }
+        }
+
+        // Add a new alert
+        function addAlert(alert) {
+            // Check if alert already exists (by ID)
+            const existingIndex = alerts.findIndex(a => a.id === alert.id);
+
+            if (existingIndex !== -1) {
+                // Update existing alert
+                alerts[existingIndex] = alert;
+            } else {
+                // Add new alert
+                alerts.push(alert);
+
+                // Show notification dot if panel is closed
+                if (!isPanelOpen) {
+                    hasNewAlerts = true;
+                    newAlertDot.classList.add('visible');
+                }
+
+                // Show toast notification for new unresolved alerts
+                if (!alert.is_resolved) {
+                    showToastNotification(alert);
+                }
+            }
+
+            // Re-render the alert list
+            renderAlertList();
+        }
+
+        // Show toast notification
+        function showToastNotification(alert) {
+            let duration = alert.autodismisses_after || 5;
+
+            switch (alert.level) {
+                case "critical":
+                    alertify.error(alert.message, duration);
+                    break;
+                case "warning":
+                    alertify.warning(alert.message, duration);
+                    break;
+                default: // info
+                    alertify.success(alert.message, duration);
+            }
+        }
+
+        // Socket.IO event handlers
+        socket.on("alert_sync", function (alert) {
+            console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, alert);
+            addAlert(alert);
         });
 
-        socket.on("alert_sync", (data) => {
-            console.log(`[${new Date().toLocaleTimeString()}] Alert sync received:`, data);
+        socket.on("all_alerts", function (alertsData) {
+            console.log(`[${new Date().toLocaleTimeString()}] All alerts received:`, alertsData);
+
+            // Process all alerts
+            alertsData.forEach(alert => {
+                addAlert(alert);
+            });
         });
 
+        // Initialize alert panel
+        renderAlertList();
     })();
 </script>
 </body>

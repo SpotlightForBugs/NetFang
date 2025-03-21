@@ -118,3 +118,100 @@ button {
     background-color: #FF5722;
     color: #FFFFFF;
 }
+
+/* AlertifyJS custom styling */
+.alertify .ajs-header {
+    font-family: 'Source Code Pro', monospace;
+    background-color: #000;
+    color: #33FF33;
+    border-bottom: 1px solid #33FF33;
+    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+}
+
+.alertify .ajs-body {
+    font-family: 'Source Code Pro', monospace;
+    color: #33FF33;
+    background-color: #121212;
+    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+}
+
+.alertify .ajs-footer {
+    background-color: #000;
+    border-top: 1px solid #33FF33;
+}
+
+.alertify .ajs-dialog {
+    border: 2px solid #33FF33;
+    box-shadow: 0 0 15px rgba(51, 255, 51, 0.5);
+    background-color: #121212;
+}
+
+.alertify .ajs-commands button {
+    background-color: #121212;
+    border: 1px solid #33FF33;
+}
+
+.alertify .ajs-commands button:hover {
+    background-color: #1a1a1a;
+}
+
+.alertify .ajs-footer .ajs-buttons .ajs-button {
+    background-color: #000;
+    color: #33FF33;
+    border: 1px solid #33FF33;
+    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+}
+
+.alertify .ajs-footer .ajs-buttons .ajs-button:hover {
+    background-color: #33FF33;
+    color: #000;
+}
+
+.alertify-notifier .ajs-message {
+    font-family: 'Source Code Pro', monospace;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #33FF33;
+    border: 1px solid #33FF33;
+    box-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
+    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+    padding: 10px;
+}
+
+.alertify-notifier .ajs-message.ajs-success {
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #33FF33;
+    border-color: #33FF33;
+}
+
+.alertify-notifier .ajs-message.ajs-error {
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #ff3333;
+    border-color: #ff3333;
+    text-shadow: 0 0 5px rgba(255, 51, 51, 0.7);
+}
+
+.alertify-notifier .ajs-message.ajs-warning {
+    background-color: rgba(0, 0, 0, 0.9);
+    color: #ffcc00;
+    border-color: #ffcc00;
+    text-shadow: 0 0 5px rgba(255, 204, 0, 0.7);
+}
+/* Add this to the <style> section to hide empty alertify container */
+.alertify-notifier.ajs-bottom.ajs-right:empty {
+    display: none !important;
+}
+
+/* Update these styles to position the notifications above the panel */
+#alertPanel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 300px;
+    max-height: 400px;
+    /* Other styles remain the same */
+}
+
+/* Add this to style section to adjust alertify position */
+.alertify-notifier.ajs-bottom.ajs-right {
+    bottom: 440px !important; /* Ensures toasts appear above the alert panel */
+}
