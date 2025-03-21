@@ -27,6 +27,22 @@ async def action_alert_interface_replugged() -> None:
         AlertManager.instance.resolve_alert(duplicate)
 
 
+async def action_alert_on_battery() -> None:
+    """Action for device running on battery alert."""
+    alert_data = {
+        "type": "battery",
+        "message": "Device is running on battery!"
+    }
+    AlertManager.instance.alert_manager.raise_alert_from_data(alert_data)
+
+async def action_alert_power_connected() -> None:
+    """Action for power connected alert."""
+    alert_data = {
+        "type": "power",
+        "message": "Power connected!"
+    }
+    AlertManager.instance.alert_manager.raise_alert_from_data(alert_data)
+
 
 async def action_alert_cpu_temp() -> None:
     """Action for high CPU temperature alert."""

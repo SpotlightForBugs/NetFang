@@ -25,7 +25,12 @@ def get_battery_percentage() -> float:
         globals()["ups_hat_c"] = waveshare_ups_hat_c()
     return globals()["ups_hat_c"].get_battery_percentage()
 
+async def condition_on_battery() -> bool:
+    return not await asyncio.to_thread(get_charging_status)
 
+async def condition_power_connected() -> bool:
+    """Checks if the device is connected to power."""
+    return await asyncio.to_thread(get_charging_status)
 async def condition_interface_unplugged() -> bool:
     """Checks if any monitored network interface is unplugged."""
     # Import NetworkManager locally to avoid circular import issues.
@@ -50,5 +55,5 @@ async def condition_cpu_temp_high() -> bool:
             lambda: float(open("/sys/class/thermal/thermal_zone0/temp").read().strip()) / 1000.0
         )
     except Exception:
-        cpu_temp = 50.0
+        return True # Default to True if we can't read the temperature because of a missing file or permission issue
     return cpu_temp > 70.0
