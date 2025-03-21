@@ -25,7 +25,7 @@ class NetworkManager:
     global_monitored_interfaces: List[str] = ["eth0"]
 
     def __init__(self, plugin_manager: PluginManager, config: Dict[str, Any],
-            state_change_callback: Optional[Callable[[State, Dict[str, Any]], None]] = None, ) -> None:
+                 state_change_callback: Optional[Callable[[State, Dict[str, Any]], None]] = None, ) -> None:
         self.plugin_manager = plugin_manager
         plugin_manager.load_config()
         plugin_manager.load_plugins()
@@ -42,13 +42,17 @@ class NetworkManager:
 
         self.trigger_manager = TriggerManager(
             [AsyncTrigger("InterfaceUnplugged", condition_interface_unplugged, action_alert_interface_unplugged, ),
-                AsyncTrigger("InterfaceReplugged", condition_interface_replugged, action_alert_interface_replugged, ),
+             AsyncTrigger("InterfaceReplugged", condition_interface_replugged, action_alert_interface_replugged, ),
 
-                AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp), ])
+             AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp), ])
 
         if is_pi() and config.get("hardware", {}).get("ups-hat-c", False):
             self.trigger_manager.add_trigger(
                 AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low))
+            self.trigger_manager.add_trigger(
+                AsyncTrigger("OnBattery", condition_on_battery, action_alert_on_battery))
+            self.trigger_manager.add_trigger(
+                AsyncTrigger("PowerConnected", condition_power_connected, action_alert_power_connected))
 
         self.running: bool = False
         self.flow_task: Optional[asyncio.Task] = None
@@ -126,7 +130,7 @@ class NetworkManager:
 
             try:
                 result = subprocess.run(["sudo", "python3", helper_script, gateway_ip], capture_output=True, text=True,
-                    check=True, )
+                                        check=True, )
                 response = json.loads(result.stdout)
 
                 if response["success"]:
