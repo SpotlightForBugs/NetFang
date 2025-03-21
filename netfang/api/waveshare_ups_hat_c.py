@@ -212,7 +212,7 @@ class waveshare_ups_hat_c:
         p = (bus_voltage - 3) / 1.2 * 100
         if p > 100: p = 100
         if p < 0: p = 0
-        return float("{:3.1f}%".format(p))
+        return float("{:3.1f}".format(p))
 
     def is_charging(self) -> bool:
         return self.getCurrent_mA() > 0
