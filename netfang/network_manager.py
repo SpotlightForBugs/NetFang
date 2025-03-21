@@ -5,8 +5,8 @@ import threading
 from typing import Dict, Any, Optional, Callable, List
 
 import netifaces
-import sentry_sdk
 
+from netfang.alert_manager import Alert
 from netfang.api.pi_utils import is_pi
 from netfang.db.database import get_network_by_mac, add_or_update_network
 from netfang.plugin_manager import PluginManager
@@ -54,7 +54,6 @@ class NetworkManager:
                 AsyncTrigger("OnBattery", condition_on_battery, action_alert_on_battery))
             self.trigger_manager.add_trigger(
                 AsyncTrigger("PowerConnected", condition_power_connected, action_alert_power_connected))
-
 
         self.running: bool = False
         self.flow_task: Optional[asyncio.Task] = None
@@ -139,10 +138,12 @@ class NetworkManager:
                     mac_address: str = response["mac_address"]
                 else:
                     error_msg: str = response.get("error", "Unknown ARP error")
-                    self.plugin_manager.on_alerting(f"ARP helper error: {error_msg}")
+                    AlertManager.instance.alert_manager.raise_alert(Alert.category.NETWORK, Alert.level.WARNING,
+                                                                    error_msg)
                     return
             except (subprocess.SubprocessError, json.JSONDecodeError) as e:
-                self.plugin_manager.on_alerting(f"ARP helper failed: {str(e)}")
+                AlertManager.instance.alert_manager.raise_alert(Alert.category.NETWORK, Alert.level.WARNING,
+                                                                f"Error while fetching MAC address: {e}")
                 return
         else:
             print("No default gateway found!")
