@@ -1,5 +1,3 @@
-# alert_manager.py
-
 import threading
 import uuid
 from dataclasses import dataclass, field
@@ -121,6 +119,7 @@ class AlertManager:
             autodismisses_after: Optional[float] = None,
             network_id: Optional[int] = None,
             session_id: Optional[str] = None,
+            check_duplicate: bool = False,
     ) -> Alert:
         """
         Create a new alert, store it in the database, and notify plugins/websocket clients.
@@ -133,10 +132,17 @@ class AlertManager:
         :param autodismisses_after: Time in seconds after which the alert is auto-dismissed.
         :param network_id: Optional network ID related to this alert.
         :param session_id: Optional session identifier. Defaults to the current session if not provided.
+        :param check_duplicate: Whether to check for duplicate unresolved alerts.
         :return: The created Alert object.
         """
         if session_id is None:
             session_id = self.session
+
+        # Check for duplicates if requested
+        if check_duplicate:
+            duplicate = self.find_unresolved_alert(category, message)
+            if duplicate is not None:
+                return duplicate
 
         alert: Alert = Alert(
             category=category,
@@ -254,13 +260,15 @@ class AlertManager:
         network_id: Optional[int] = alert_data.get("network_id")
         session_id: Optional[str] = alert_data.get("session_id", self.session)
 
-        # Check for duplicates if requested.
-        if check_duplicate:
-            duplicate = self.find_unresolved_alert(category, message)
-            if duplicate is not None:
-                return duplicate
-
-        return self.raise_alert(category, level, message, autodismisses_after, network_id, session_id)
+        return self.raise_alert(
+            category,
+            level,
+            message,
+            autodismisses_after,
+            network_id,
+            session_id,
+            check_duplicate=check_duplicate
+        )
 
     def find_unresolved_alert(self, category: AlertCategory, message: str) -> Optional[Alert]:
         """

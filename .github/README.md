@@ -21,7 +21,7 @@ Ethernet:
 - [x] Your standard USB to Ethernet adapter
 - [ ] Eth/USB Hub HAT (B) from Waveshare
 
-- [ ] PoE/USB Hub HAT from Waveshare
+- [x] PoE/USB Hub HAT from Waveshare - works Plug and Play (no setup required)
 
 Power:
 
