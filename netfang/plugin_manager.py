@@ -223,3 +223,7 @@ class PluginManager:
     def perform_action(self, args: list) -> None:
         for p in self.plugins.values():
             p.perform_action(args)
+
+    def is_device_enabled(self, param):
+        # following structure is assumed: "hardware": {"device_name": {"enabled": true|false}}
+        return self.config.get("hardware", {}).get(param, {}).get("enabled", False)
