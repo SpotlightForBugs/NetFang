@@ -15,10 +15,20 @@ class AsyncTrigger:
 
     async def check_and_fire(self) -> None:
         """Checks the condition and fires the action if condition is True."""
-        cond_result = self.condition()
-        if asyncio.iscoroutine(cond_result):
-            cond_result = await cond_result
+        # Check if the condition is a coroutine function (async def)
+        if asyncio.iscoroutinefunction(self.condition):
+            cond_result = await self.condition()
+        else:
+            # Handle regular functions or objects that could be awaitable
+            cond_result = self.condition()
+            if asyncio.iscoroutine(cond_result):
+                cond_result = await cond_result
         if cond_result:
-            act_result = self.action()
-            if asyncio.iscoroutine(act_result):
-                await act_result
+            # Check if the action is a coroutine function (async def)
+            if asyncio.iscoroutinefunction(self.action):
+                await self.action()
+            else:
+                # Handle regular functions or objects that could be awaitable
+                act_result = self.action()
+                if asyncio.iscoroutine(act_result):
+                    await act_result
