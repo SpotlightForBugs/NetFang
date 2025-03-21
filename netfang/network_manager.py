@@ -48,15 +48,13 @@ class NetworkManager:
              AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp), ])
 
         if is_pi() and plugin_manager.is_device_enabled("ups_hat_c"):
-            sentry_sdk.capture_event({"message": "UPS HAT C plugin enabled"})
             self.trigger_manager.add_trigger(
                 AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low))
             self.trigger_manager.add_trigger(
                 AsyncTrigger("OnBattery", condition_on_battery, action_alert_on_battery))
             self.trigger_manager.add_trigger(
                 AsyncTrigger("PowerConnected", condition_power_connected, action_alert_power_connected))
-        else:
-            sentry_sdk.capture_event({"message": f"{is_pi()=}, {plugin_manager.is_device_enabled('ups_hat_c')=}"})
+
 
         self.running: bool = False
         self.flow_task: Optional[asyncio.Task] = None
