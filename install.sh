@@ -8,8 +8,22 @@ SUDOERS_FILE="/etc/sudoers.d/netfang-setup-manager"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 RUN_SCRIPT="$SCRIPT_DIR/run.sh"
 
-# The user who will run the service
-RUN_USER="NetFang"
+# Automatically get the non-elevated username
+if [ -n "$SUDO_USER" ]; then
+    RUN_USER="$SUDO_USER"
+elif [ -n "$LOGNAME" ]; then
+    RUN_USER="$LOGNAME"
+else
+    # Fallback method using who
+    RUN_USER=$(who am i | awk '{print $1}')
+fi
+
+# Validate that we got a username
+if [ -z "$RUN_USER" ]; then
+    echo "Error: Could not determine the original username."
+    echo "Please run this script with sudo directly (not through su or other methods)."
+    exit 1
+fi
 
 usage() {
   cat <<EOF
@@ -53,7 +67,7 @@ if [[ "$1" == "--uninstall" ]]; then
     exit 0
 fi
 
-echo "Installing netfang service..."
+echo "Installing netfang service with user: $RUN_USER..."
 
 # 1. Create a systemd service file
 # Adjust ExecStart if you need to pass arguments to run.sh (like --hidden)
@@ -73,13 +87,19 @@ RestartSec=5
 WantedBy=multi-user.target
 EOF
 
+# Check if kali-trusted group exists before adding user to it
+if getent group kali-trusted > /dev/null; then
+    usermod -aG kali-trusted $RUN_USER
+    echo "Added $RUN_USER to kali-trusted group"
+else
+    echo "Note: kali-trusted group doesn't exist on this system. Skipping group assignment."
+fi
 
-
-sudo usermod -aG kali-trusted $RUN_USER
-echo "added $RUN_USER to kali-trusted group"
-# 3. Reload systemd and enable the service
+# 2. Reload systemd and enable the service
 systemctl daemon-reload
 systemctl enable "$SERVICE_NAME"
 systemctl start "$SERVICE_NAME"
 
 echo "netfang service installed and started successfully!"
+echo "Service is running as user: $RUN_USER"
+echo "Service status: $(systemctl is-active $SERVICE_NAME)"
