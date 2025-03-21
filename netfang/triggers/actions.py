@@ -32,8 +32,9 @@ async def action_alert_on_battery() -> None:
     alert_data = {
         "type": "battery",
         "message": "Device is running on battery!"
+
     }
-    AlertManager.instance.alert_manager.raise_alert_from_data(alert_data)
+    AlertManager.instance.alert_manager.raise_alert_from_data(alert_data,check_duplicate=True)
 
 async def action_alert_power_connected() -> None:
     """Resolves the on battery alert."""
