@@ -129,7 +129,7 @@ def login():
 def dashboard():
     if not session.get('logged_in'):
         return redirect(url_for('frontpage'))
-    return render_template("hidden/index.html")
+    return render_template("hidden/index.html",hostname=platform.node(),state=NetworkManager.instance.state_machine.current_state.value)
 
 
 @app.route("/state")

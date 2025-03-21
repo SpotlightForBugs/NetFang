@@ -18,7 +18,7 @@
     <div class="header-content">
         <!-- Router Logo + Title left-aligned -->
         <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
-        <h1>NetFang Secured Router</h1>
+        <h1>NetFang Secured Router - {{ hostname }}</h1>
 
         <!-- Badge in top-right corner -->
         <span id="connectionBadge" class="badge disconnected">Unknown</span>
@@ -28,7 +28,7 @@
 <main>
     <div>
         <strong>NetFang Status:</strong>
-        <span id="state">...</span>
+        <span id="state">{{ state }}</span>
     </div>
     <a href="{{ url_for('test_page') }}" class="button">Perform Tests</a>
 </main>
@@ -43,7 +43,7 @@
     (function () {
         const stateElement = document.getElementById("state");
         const badgeElement = document.getElementById("connectionBadge");
-        let previousState = '';
+        let previousState = '{{ state }}';
 
         // Translations for the badge
         const connectedText = "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}";
