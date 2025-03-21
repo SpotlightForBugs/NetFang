@@ -79,6 +79,27 @@ def init_db(db_path: str) -> None:
         """
     )
     conn.commit()
+    
+    # Verify all required tables exist with proper structure
+    cursor.execute("SELECT name, sql FROM sqlite_master WHERE type='table'")
+    table_definitions = {row[0]: row[1] for row in cursor.fetchall()}
+    
+    required_tables = {
+        "networks": "CREATE TABLE networks",
+        "devices": "CREATE TABLE devices",
+        "plugin_logs": "CREATE TABLE plugin_logs",
+        "alerts": "CREATE TABLE alerts"
+    }
+    
+    # Check that all required tables exist
+    for table_name, table_prefix in required_tables.items():
+        if table_name not in table_definitions:
+            raise RuntimeError(f"Failed to create required table: {table_name}")
+        
+        # Basic check that the table definition contains expected prefix
+        if not table_definitions[table_name].startswith(table_prefix):
+            raise RuntimeError(f"Table {table_name} has unexpected definition")
+    
     conn.close()
 
     # Ensure that each table contains all required columns.
