@@ -36,12 +36,11 @@ async def action_alert_on_battery() -> None:
     AlertManager.instance.alert_manager.raise_alert_from_data(alert_data)
 
 async def action_alert_power_connected() -> None:
-    """Action for power connected alert."""
-    alert_data = {
-        "type": "power",
-        "message": "Power connected!"
-    }
-    AlertManager.instance.alert_manager.raise_alert_from_data(alert_data)
+    """Resolves the on battery alert."""
+    duplicate = AlertManager.instance.find_unresolved_alert(AlertCategory.BATTERY, "Device is running on battery!")
+    if duplicate is not None:
+        AlertManager.instance.resolve_alert(duplicate)
+
 
 
 async def action_alert_cpu_temp() -> None:
