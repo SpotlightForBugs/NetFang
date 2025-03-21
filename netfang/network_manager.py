@@ -46,7 +46,7 @@ class NetworkManager:
 
              AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp), ])
 
-        if is_pi() and config.get("hardware", {}).get("ups-hat-c", False):
+        if is_pi() and config.get("hardware", {}).get("ups_hat_c", False):
             self.trigger_manager.add_trigger(
                 AsyncTrigger("BatteryLow", condition_battery_low, action_alert_battery_low))
             self.trigger_manager.add_trigger(
