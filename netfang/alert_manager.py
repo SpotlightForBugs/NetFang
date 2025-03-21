@@ -21,6 +21,7 @@ class AlertCategory(Enum):
     NETWORK = "network"
     SECURITY = "security"
     BATTERY = "battery"
+    POWER = "power"
     INTERFACE = "interface"
     TEMPERATURE = "temperature"
 
