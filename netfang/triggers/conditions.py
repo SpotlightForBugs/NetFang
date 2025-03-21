@@ -27,17 +27,14 @@ def get_battery_percentage() -> float:
 
 async def condition_on_battery() -> bool:
     """Checks if the device is running on battery."""
-    print("Checking on battery")
     return not await asyncio.to_thread(get_charging_status)
 
 async def condition_power_connected() -> bool:
-    print("Checking power connected")
     """Checks if the device is connected to power."""
     return await asyncio.to_thread(get_charging_status)
 async def condition_interface_unplugged() -> bool:
     """Checks if any monitored network interface is unplugged."""
     # Import NetworkManager locally to avoid circular import issues.
-    print("Checking interface unplugged")
     from netfang.network_manager import NetworkManager
     monitored = NetworkManager.global_monitored_interfaces
     stats = psutil.net_if_stats()
