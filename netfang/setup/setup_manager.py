@@ -19,14 +19,14 @@ def should_deploy():
     """
     Check if deployment should proceed:
     - Only on Linux.
-    - Only if '/proc/device-tree/model' exists and contains 'Raspberry Pi Zero 2 W'.
+    - Only if '/proc/device-tree/model' exists and contains 'Raspberry Pi'.
     """
     if not is_linux():
         return False
     try:
         with open("/proc/device-tree/model", "r") as f:
             model = f.read()
-            return "Raspberry Pi Zero 2 W" in model
+            return "Raspberry Pi" in model
     except Exception:
         # File might not exist or cannot be read.
         return False
@@ -110,7 +110,7 @@ def setup():
             "\033[91mNetFang does not support this device or operating system.\n"
             "No system hooks were installed.\n"
             "You can still use the test endpoint to simulate the system.\n"
-            "Supported device: Raspberry Pi Zero 2 W\033[0m"
+            "Supported device: Raspberry Pis\033[0m"
         )
 
 
