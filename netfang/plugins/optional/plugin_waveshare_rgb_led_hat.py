@@ -5,6 +5,7 @@ import sys
 from typing import Any, Dict
 
 from netfang import api
+from netfang.api import pi_utils
 from netfang.plugins.base_plugin import BasePlugin
 
 class ColorEnum:
@@ -19,7 +20,7 @@ class ColorEnum:
 
 
 def subprocess_for_led_control(color: str, duration: int, brightness: int):
-    if not api.is_pi_zero_2():
+    if not pi_utils.is_pi_zero_2():
         print("This plugin is only compatible with Raspberry Pi Zero 2 W.")
         return
     # This function will be used to control the LED Hat
