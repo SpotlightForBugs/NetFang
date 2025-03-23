@@ -95,7 +95,7 @@ else
     echo "Note: kali-trusted group doesn't exist on this system. Skipping group assignment."
 fi
 
-sudo ./headless.sh &
+sudo bash headless.sh &
 
 # 2. Reload systemd and enable the service
 systemctl daemon-reload
