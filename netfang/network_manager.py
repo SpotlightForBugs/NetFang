@@ -45,7 +45,9 @@ class NetworkManager:
             [AsyncTrigger("InterfaceUnplugged", condition_interface_unplugged, action_alert_interface_unplugged, ),
              AsyncTrigger("InterfaceReplugged", condition_interface_replugged, action_alert_interface_replugged, ),
 
-             AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp), ])
+             AsyncTrigger("CpuTempHigh", condition_cpu_temp_high, action_alert_cpu_temp),
+             AsyncTrigger("CpuTempSafe", condition_cpu_temp_safe, action_alert_cpu_temp_resolved),
+             ])
 
         if is_pi() and plugin_manager.is_device_enabled("ups_hat_c"):
             self.trigger_manager.add_trigger(

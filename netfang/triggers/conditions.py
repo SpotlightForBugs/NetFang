@@ -58,3 +58,7 @@ async def condition_cpu_temp_high() -> bool:
     except Exception:
         return True # Default to True if we can't read the temperature because of a missing file or permission issue
     return cpu_temp > 70.0
+
+async def condition_cpu_temp_safe() -> bool:
+    """Checks if CPU temperature is below 70°C."""
+    return not await condition_cpu_temp_high()

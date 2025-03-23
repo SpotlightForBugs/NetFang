@@ -50,4 +50,10 @@ async def action_alert_cpu_temp() -> None:
         "type": "temperature",
         "message": "CPU temperature is high!"
     }
-    AlertManager.instance.alert_manager.raise_alert_from_data(alert_data)
+    AlertManager.instance.alert_manager.raise_alert_from_data(alert_data,check_duplicate=True)
+
+async def action_alert_cpu_temp_resolved() -> None:
+    """Resolves the high CPU temperature alert."""
+    duplicate = AlertManager.instance.find_unresolved_alert(AlertCategory.TEMPERATURE, "CPU temperature is high!")
+    if duplicate is not None:
+        AlertManager.instance.resolve_alert(duplicate)
