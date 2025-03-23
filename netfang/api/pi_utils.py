@@ -48,7 +48,12 @@ def linux_machine_id() -> str:
 def is_linux() -> bool:
     return sys.platform.startswith("linux")
 
-
+def is_pi_zero_2():
+    try:
+        with open("/sys/firmware/devicetree/base/model", "r") as f:
+            return "raspberry pi zero 2" in f.read().lower()
+    except OSError:
+        return False
 
 if __name__ == "__main__":
     is_pi = is_pi()

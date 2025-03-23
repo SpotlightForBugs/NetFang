@@ -43,6 +43,67 @@ The following hardware is supported (✓ = Done, ✖ = In progress):
 - USB Flash Drive ✖ 
 
 ---
+```plaintext
+┌─────────────────────────────────────────────────────────────────────┐
+│                      HARDWARE DECISION TREE                         │
+└─────────────────────────────────────────────────────────────────────┘
+
+Start → Do you need battery backup?
+├── Yes → Use Waveshare UPS HAT (C)
+│   │
+│   └── For Ethernet, you must use either:
+│       │
+│       ├── Configuration A:
+│       │   ┌─────────────────────┐
+│       │   │  Eth/USB Hub HAT (B)│ ← Top (requires headers)
+│       │   ├─────────────────────┤
+│       │   │  Raspberry Pi Zero 2│ ← Middle
+│       │   ├─────────────────────┤
+│       │   │  Waveshare UPS HAT  │ ← Bottom (connects to pads under Pi)
+│       │   └─────────────────────┘
+│       │   Optional: RGB LED HAT can be added on top of Eth/USB Hub HAT (B)
+│       │
+│       └── Configuration B:
+│           ┌─────────────────────┐
+│           │  USB Ethernet Adapter│ ← Connected via USB
+│           ├─────────────────────┤
+│           │  Raspberry Pi Zero 2│ ← Middle
+│           ├─────────────────────┤
+│           │  Waveshare UPS HAT  │ ← Bottom (connects to pads under Pi)
+│           └─────────────────────┘
+│
+└── No → Do you want to use PoE?
+    │
+    ├── Yes → Configuration C:
+    │       ┌─────────────────────┐
+    │       │  Raspberry Pi Zero 2│ ← Top
+    │       ├─────────────────────┤
+    │       │  PoE/USB Hub HAT    │ ← Bottom (provides Ethernet & power)
+    │       └─────────────────────┘
+    │       Note: Not compatible with UPS HAT as PoE HAT blocks access to required pads
+    │       Note: Does not require headers
+    │
+    └── No → Choose either:
+        │
+        ├── Configuration D:
+        │   ┌─────────────────────┐
+        │   │  Eth/USB Hub HAT (B)│ ← Top (requires headers)
+        │   ├─────────────────────┤
+        │   │  Raspberry Pi Zero 2│ ← Bottom
+        │   └─────────────────────┘
+        │   Note: Powered via standard USB power
+        │   Optional: RGB LED HAT can be added on top of Eth/USB Hub HAT (B)
+        │
+        └── Configuration E:
+            ┌─────────────────────┐
+            │  USB Ethernet Adapter│ ← Connected via USB
+            ├─────────────────────┤
+            │  Raspberry Pi Zero 2│ ← Single board
+            └─────────────────────┘
+            Note: Powered via standard USB power
+            Optional: RGB LED HAT can be added on top of Pi (requires headers)
+```
+---
 
 ## Setup Guide
 
@@ -65,7 +126,7 @@ Follow these steps to set up your NetFang device using Kali Linux.
    - Safely eject the MicroSD card from your computer and insert it into your Raspberry Pi.
 2. **Assemble the Hardware:**
    - **For PoE/USB Hub HAT Users:**  
-     Attach the PoE/USB Hub HAT from Waveshare directly to the Raspberry Pi Zero 2 W’s header. This HAT provides both Ethernet connectivity and power over Ethernet—no further configuration is needed.
+     Attach the PoE/USB Hub HAT from Waveshare directly to the Raspberry Pi Zero 2 W’s header. This HAT provides both Ethernet connectivity and power over Ethernet—no further configuration is needed^*
    - **For UPS HAT (or Battery Bank) Users:**  
      If you are not using PoE, attach the Waveshare UPS HAT (C) according to the manufacturer’s instructions. Make sure that any external battery bank is securely connected.
 3. **Power Up Your Raspberry Pi:**
@@ -127,7 +188,3 @@ If you also wish to remove the cloned repository, execute:
 rm -rf ~/NetFang
 ```
 > **Warning:** The `rm -rf` command permanently deletes files and directories. Make sure you really want to remove the repository before running this command.
-
----
-
-This revised README should provide clear and comprehensive instructions for setting up and using NetFang. Enjoy hacking!

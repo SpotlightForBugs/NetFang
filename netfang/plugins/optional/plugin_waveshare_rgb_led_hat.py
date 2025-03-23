@@ -4,6 +4,7 @@ import subprocess
 import sys
 from typing import Any, Dict
 
+from netfang import api
 from netfang.plugins.base_plugin import BasePlugin
 
 class ColorEnum:
@@ -18,6 +19,9 @@ class ColorEnum:
 
 
 def subprocess_for_led_control(color: str, duration: int, brightness: int):
+    if not api.is_pi_zero_2():
+        print("This plugin is only compatible with Raspberry Pi Zero 2 W.")
+        return
     # This function will be used to control the LED Hat
     script_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../scripts/waveshare_rgb_led_hat.py"))
     subprocess.run([
@@ -55,7 +59,7 @@ class WaveshareRGBLEDHat(BasePlugin):
         print(
             f"[{self.name}] WaveShare RGB LED Hat received known network connection event: {mac=}")
 
-    def on_new_network_connected(self, mac: str, name: str) -> None:
+    def on_new_network_connected(self, mac: str) -> None:
         subprocess_for_led_control(ColorEnum.YELLOW, 5, 1)
         print(f"[{self.name}] WaveShare RGB LED Hat received new network connection event: {mac=}, {name=}")
 
