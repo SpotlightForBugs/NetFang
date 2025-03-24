@@ -1,0 +1,381 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: add CPU temperature resolution handling and safety check triggers">
+      <change beforePath="$PROJECT_DIR$/netfang/plugins/optional/plugin_waveshare_rgb_led_hat.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugins/optional/plugin_waveshare_rgb_led_hat.py" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;SpotlightForBugs&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/SpotlightForBugs/NetFang.git&quot;,
+    &quot;accountId&quot;: &quot;86113c39-68b5-4a8d-99aa-b2f34df980d0&quot;
+  }
+}</component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 3
+}</component>
+  <component name="ProjectId" id="2udLfNEa7Qs8uJQ9XbU6tXuDCkY" />
+  <component name="ProjectViewState">
+    <option name="autoscrollToSource" value="true" />
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="openDirectoriesWithSingleClick" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.NetFang.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/Johannes/PycharmProjects/NetFang&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  },
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;sqlite&quot;
+    ]
+  }
+}</component>
+  <component name="RunManager" selected="Python.NetFang">
+    <configuration name="NetFang" type="PythonConfigurationType" factoryName="Python">
+      <module name="NetFang" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/netfang/main.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <option name="MODULE_MODE" value="false" />
+      <option name="REDIRECT_INPUT" value="false" />
+      <option name="INPUT_FILE" value="" />
+      <method v="2" />
+    </configuration>
+    <configuration name="NetFang" type="Python.FlaskServer">
+      <module name="NetFang" />
+      <option name="target" value="$PROJECT_DIR$/netfang/main.py" />
+      <option name="targetType" value="PATH" />
+      <option name="ENV_FILES" value="" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="" />
+      <option name="IS_MODULE_SDK" value="false" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" runner="coverage.py" />
+      <option name="launchJavascriptDebuger" value="false" />
+      <method v="2" />
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-js-predefined-d6986cc7102b-1632447f56bf-JavaScript-PY-243.25659.43" />
+        <option value="bundled-python-sdk-181015f7ab06-4df51de95216-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-243.25659.43" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="" />
+      <created>1742573606109</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1742573606109</updated>
+      <workItem from="1742573608979" duration="9916000" />
+      <workItem from="1742587267399" duration="7452000" />
+      <workItem from="1742748620400" duration="11368000" />
+      <workItem from="1742768996072" duration="38000" />
+      <workItem from="1742838119258" duration="1676000" />
+      <workItem from="1742848482916" duration="1374000" />
+      <workItem from="1742850788359" duration="36000" />
+      <workItem from="1742850827325" duration="461000" />
+    </task>
+    <task id="LOCAL-00001" summary="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity">
+      <option name="closed" value="true" />
+      <created>1742576417269</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1742576417269</updated>
+    </task>
+    <task id="LOCAL-00002" summary="fix: Update virtual environment path in run.sh to use HOME variable">
+      <option name="closed" value="true" />
+      <created>1742576429019</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1742576429019</updated>
+    </task>
+    <task id="LOCAL-00003" summary="feat: Ensure database initialization and verify table structure in database.py">
+      <option name="closed" value="true" />
+      <created>1742576748532</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1742576748532</updated>
+    </task>
+    <task id="LOCAL-00004" summary="feat: Improve user handling in install.sh by dynamically determining the non-elevated username">
+      <option name="closed" value="true" />
+      <created>1742577468040</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1742577468040</updated>
+    </task>
+    <task id="LOCAL-00005" summary="feat: Enhance index.html and main.py to display dynamic hostname and state information in the dashboard">
+      <option name="closed" value="true" />
+      <created>1742578035364</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1742578035364</updated>
+    </task>
+    <task id="LOCAL-00006" summary="feat: Implement INITIAL alert system with custom styling and notification panel in index.html and hidden.css">
+      <option name="closed" value="true" />
+      <created>1742583480902</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1742583480902</updated>
+    </task>
+    <task id="LOCAL-00007" summary="feat: Add battery and power connection alert actions and conditions in actions.py and conditions.py">
+      <option name="closed" value="true" />
+      <created>1742586114163</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1742586114163</updated>
+    </task>
+    <task id="LOCAL-00008" summary="feat: Remove debug print statement from LED control subprocess in plugin_waveshare_rgb_led_hat.py">
+      <option name="closed" value="true" />
+      <created>1742588158246</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1742588158246</updated>
+    </task>
+    <task id="LOCAL-00009" summary="feat: Add debug print statements for battery and power connection checks in conditions.py">
+      <option name="closed" value="true" />
+      <created>1742588401498</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1742588401498</updated>
+    </task>
+    <task id="LOCAL-00010" summary="fix: Correct key name for UPS HAT configuration in network_manager.py">
+      <option name="closed" value="true" />
+      <created>1742588756861</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1742588756861</updated>
+    </task>
+    <task id="LOCAL-00011" summary="fix: Correct key name for UPS HAT configuration in network_manager.py">
+      <option name="closed" value="true" />
+      <created>1742589058628</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1742589058628</updated>
+    </task>
+    <task id="LOCAL-00012" summary="feat: Add Sentry event logging for UPS HAT C plugin status in network_manager.py">
+      <option name="closed" value="true" />
+      <created>1742589352423</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1742589352423</updated>
+    </task>
+    <task id="LOCAL-00013" summary="feat: move Sentry logging (debug)">
+      <option name="closed" value="true" />
+      <created>1742589595698</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1742589595698</updated>
+    </task>
+    <task id="LOCAL-00014" summary="fix: remove Sentry logging from trigger checks in trigger_manager.py">
+      <option name="closed" value="true" />
+      <created>1742589966820</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1742589966820</updated>
+    </task>
+    <task id="LOCAL-00015" summary="feat: integrate AlertManager for improved error handling in ARP helper">
+      <option name="closed" value="true" />
+      <created>1742591638221</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1742591638221</updated>
+    </task>
+    <task id="LOCAL-00016" summary="fix: adjust percentage formatting in waveshare_ups_hat_c.py to return a float value">
+      <option name="closed" value="true" />
+      <created>1742591657840</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1742591657840</updated>
+    </task>
+    <task id="LOCAL-00017" summary="feat: add POWER category to alert types in alert_manager.py">
+      <option name="closed" value="true" />
+      <created>1742591826598</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1742591826598</updated>
+    </task>
+    <task id="LOCAL-00018" summary="fix: update action_alert_power_connected to resolve battery alerts instead of raising new ones">
+      <option name="closed" value="true" />
+      <created>1742592086893</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1742592086893</updated>
+    </task>
+    <task id="LOCAL-00019" summary="fix: update action_alert_power_connected to resolve battery alerts instead of raising new ones">
+      <option name="closed" value="true" />
+      <created>1742592530679</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1742592530679</updated>
+    </task>
+    <task id="LOCAL-00020" summary="fix: update action_alert_power_connected to check for duplicate battery alerts">
+      <option name="closed" value="true" />
+      <created>1742593359731</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1742593359731</updated>
+    </task>
+    <task id="LOCAL-00021" summary="refactor: remove debug print statements from conditions and trigger manager">
+      <option name="closed" value="true" />
+      <created>1742595063811</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1742595063811</updated>
+    </task>
+    <task id="LOCAL-00022" summary="feat: add headless setup script and update README with detailed setup instructions for NetFang">
+      <option name="closed" value="true" />
+      <created>1742750868268</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1742750868268</updated>
+    </task>
+    <task id="LOCAL-00023" summary="feat: add Raspberry Pi Zero 2 compatibility check and update README with hardware decision tree">
+      <option name="closed" value="true" />
+      <created>1742758866471</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1742758866471</updated>
+    </task>
+    <task id="LOCAL-00024" summary="fix: update install script to use bash for headless setup execution">
+      <option name="closed" value="true" />
+      <created>1742758956144</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1742758956144</updated>
+    </task>
+    <task id="LOCAL-00025" summary="fix: update LED control check to use pi_utils for Raspberry Pi Zero 2 compatibility">
+      <option name="closed" value="true" />
+      <created>1742759035678</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1742759035678</updated>
+    </task>
+    <task id="LOCAL-00026" summary="feat: add CPU temperature resolution handling and safety check triggers">
+      <option name="closed" value="true" />
+      <created>1742760326932</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1742760326932</updated>
+    </task>
+    <option name="localTasksCounter" value="27" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity" />
+    <MESSAGE value="fix: Update virtual environment path in run.sh to use HOME variable" />
+    <MESSAGE value="feat: Ensure database initialization and verify table structure in database.py" />
+    <MESSAGE value="feat: Improve user handling in install.sh by dynamically determining the non-elevated username" />
+    <MESSAGE value="feat: Enhance index.html and main.py to display dynamic hostname and state information in the dashboard" />
+    <MESSAGE value="feat: Implement INITIAL alert system with custom styling and notification panel in index.html and hidden.css" />
+    <MESSAGE value="feat: Add battery and power connection alert actions and conditions in actions.py and conditions.py" />
+    <MESSAGE value="feat: Remove debug print statement from LED control subprocess in plugin_waveshare_rgb_led_hat.py" />
+    <MESSAGE value="feat: Add debug print statements for battery and power connection checks in conditions.py" />
+    <MESSAGE value="fix: Correct key name for UPS HAT configuration in network_manager.py" />
+    <MESSAGE value="feat: Add Sentry event logging for UPS HAT C plugin status in network_manager.py" />
+    <MESSAGE value="feat: move Sentry logging (debug)" />
+    <MESSAGE value="fix: remove Sentry logging from trigger checks in trigger_manager.py" />
+    <MESSAGE value="feat: integrate AlertManager for improved error handling in ARP helper" />
+    <MESSAGE value="fix: adjust percentage formatting in waveshare_ups_hat_c.py to return a float value" />
+    <MESSAGE value="feat: add POWER category to alert types in alert_manager.py" />
+    <MESSAGE value="fix: update action_alert_power_connected to resolve battery alerts instead of raising new ones" />
+    <MESSAGE value="fix: update action_alert_power_connected to check for duplicate battery alerts" />
+    <MESSAGE value="refactor: remove debug print statements from conditions and trigger manager" />
+    <MESSAGE value="feat: add headless setup script and update README with detailed setup instructions for NetFang" />
+    <MESSAGE value="feat: add Raspberry Pi Zero 2 compatibility check and update README with hardware decision tree" />
+    <MESSAGE value="fix: update install script to use bash for headless setup execution" />
+    <MESSAGE value="fix: update LED control check to use pi_utils for Raspberry Pi Zero 2 compatibility" />
+    <MESSAGE value="feat: add CPU temperature resolution handling and safety check triggers" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add CPU temperature resolution handling and safety check triggers" />
+  </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
+    </breakpoint-manager>
+  </component>
+  <component name="com.intellij.coverage.CoverageDataManagerImpl">
+    <SUITE FILE_PATH="coverage/NetFang$NetFang.coverage" NAME="NetFang Coverage Results" MODIFIED="1742590330433" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+  </component>
+</project>
