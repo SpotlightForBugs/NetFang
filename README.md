@@ -36,6 +36,7 @@ The following hardware is supported (✓ = Done, ✖ = In progress):
 **LED Hat (for debugging purposes):**
 
 - Waveshare RGB LED HAT ✖  
+- Some Kind of GPIO LED Array 
 
 **Storage:**
 
