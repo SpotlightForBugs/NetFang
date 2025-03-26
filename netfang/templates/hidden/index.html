@@ -182,6 +182,100 @@
         .notification-dot.visible {
             display: inline-block;
         }
+
+        /* Dashboard panels for displaying DB data */
+        .dashboard-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .dashboard-panel {
+            flex: 1 1 300px;
+            background-color: rgba(18, 18, 18, 0.8);
+            border: 1px solid #33FF33;
+            padding: 15px;
+            box-shadow: 0 0 10px rgba(51, 255, 51, 0.2);
+        }
+
+        .dashboard-panel h2 {
+            color: #33FF33;
+            font-size: 16px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(51, 255, 51, 0.3);
+            padding-bottom: 5px;
+        }
+
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+
+        .data-table th {
+            text-align: left;
+            padding: 6px;
+            border-bottom: 1px solid rgba(51, 255, 51, 0.5);
+            color: #33FF33;
+        }
+
+        .data-table td {
+            padding: 6px;
+            border-bottom: 1px solid rgba(51, 255, 51, 0.2);
+            color: #CCC;
+        }
+
+        .data-table tr:hover td {
+            background-color: rgba(51, 255, 51, 0.05);
+        }
+
+        .sync-button {
+            background: none;
+            border: 1px solid #33FF33;
+            color: #33FF33;
+            padding: 8px 15px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        .sync-button:hover {
+            background-color: rgba(51, 255, 51, 0.1);
+            box-shadow: 0 0 8px rgba(51, 255, 51, 0.5);
+        }
+
+        .service-button {
+            background: none;
+            border: 1px solid #FF3333;
+            color: #FF3333;
+            padding: 8px 15px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+
+        .service-button:hover {
+            background-color: rgba(255, 51, 51, 0.1);
+            box-shadow: 0 0 8px rgba(255, 51, 51, 0.5);
+        }
+
+        .status-message {
+            margin-top: 5px;
+            font-size: 12px;
+            color: #33FF33;
+            height: 15px;
+        }
+
+        .network-home {
+            color: #33FF33;
+        }
+
+        .network-blacklisted {
+            color: #FF3333;
+        }
     </style>
 </head>
 <body>
@@ -201,6 +295,72 @@
         <strong>NetFang Status:</strong>
         <span id="state">{{ state }}</span>
     </div>
+    
+    <div class="dashboard-container">
+        <!-- Network Information -->
+        <div class="dashboard-panel">
+            <h2>Networks</h2>
+            <div class="table-container">
+                <table class="data-table" id="networksTable">
+                    <thead>
+                        <tr>
+                            <th>MAC Address</th>
+                            <th>Status</th>
+                            <th>Last Seen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Devices Information -->
+        <div class="dashboard-panel">
+            <h2>Devices</h2>
+            <div class="table-container">
+                <table class="data-table" id="devicesTable">
+                    <thead>
+                        <tr>
+                            <th>IP Address</th>
+                            <th>MAC Address</th>
+                            <th>Hostname</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Plugin Logs -->
+        <div class="dashboard-panel">
+            <h2>Plugin Logs</h2>
+            <div class="table-container">
+                <table class="data-table" id="pluginLogsTable">
+                    <thead>
+                        <tr>
+                            <th>Plugin</th>
+                            <th>Event</th>
+                            <th>Timestamp</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- Data will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-controls">
+        <button id="syncButton" class="sync-button">Sync Dashboard</button>
+        <button id="restartServiceButton" class="service-button">Restart Netfang Service</button>
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+    
     <a href="{{ url_for('test_page') }}" class="button">Perform Tests</a>
 </main>
 
@@ -262,6 +422,9 @@
         badgeElement.classList.remove("disconnected");
         badgeElement.classList.add("connected");
         badgeElement.textContent = connectedText;
+        
+        // Request initial dashboard data when connected
+        socket.emit('sync_dashboard');
     });
 
     socket.on('disconnect', () => {
@@ -280,6 +443,131 @@
             typeText(stateElement, newState);
         }
     });
+
+    // Dashboard Data Management
+    (function() {
+        // Get DOM elements
+        const networksTable = document.getElementById('networksTable').getElementsByTagName('tbody')[0];
+        const devicesTable = document.getElementById('devicesTable').getElementsByTagName('tbody')[0];
+        const pluginLogsTable = document.getElementById('pluginLogsTable').getElementsByTagName('tbody')[0];
+        const syncButton = document.getElementById('syncButton');
+        const restartServiceButton = document.getElementById('restartServiceButton');
+        const statusMessage = document.getElementById('statusMessage');
+        
+        // Format timestamp for display
+        function formatTimestamp(timestamp) {
+            try {
+                const date = new Date(timestamp);
+                return date.toLocaleString();
+            } catch (e) {
+                return 'Invalid time';
+            }
+        }
+        
+        // Handle dashboard data sync
+        function updateDashboardData(data) {
+            // Clear existing tables
+            networksTable.innerHTML = '';
+            devicesTable.innerHTML = '';
+            pluginLogsTable.innerHTML = '';
+            
+            // Populate Networks table
+            data.networks.forEach(network => {
+                const row = networksTable.insertRow();
+                
+                const statusClass = network.is_home ? 'network-home' : 
+                                   (network.is_blacklisted ? 'network-blacklisted' : '');
+                
+                const statusText = network.is_home ? 'Home' : 
+                                  (network.is_blacklisted ? 'Blacklisted' : 'Known');
+                
+                row.innerHTML = `
+                    <td>${network.mac_address}</td>
+                    <td class="${statusClass}">${statusText}</td>
+                    <td>${formatTimestamp(network.last_seen)}</td>
+                `;
+            });
+            
+            // Populate Devices table
+            data.devices.forEach(device => {
+                const row = devicesTable.insertRow();
+                row.innerHTML = `
+                    <td>${device.ip_address || 'N/A'}</td>
+                    <td>${device.mac_address || 'N/A'}</td>
+                    <td>${device.hostname || 'Unknown'}</td>
+                `;
+            });
+            
+            // Populate Plugin Logs table
+            data.plugin_logs.forEach(log => {
+                const row = pluginLogsTable.insertRow();
+                row.innerHTML = `
+                    <td>${log.plugin_name}</td>
+                    <td>${log.event}</td>
+                    <td>${formatTimestamp(log.timestamp)}</td>
+                `;
+            });
+            
+            // Show success message
+            statusMessage.textContent = `Dashboard updated at ${new Date().toLocaleTimeString()}`;
+            setTimeout(() => {
+                statusMessage.textContent = '';
+            }, 3000);
+        }
+        
+        // Listen for dashboard data from the server
+        socket.on('dashboard_data', (data) => {
+            console.log(`[${new Date().toLocaleTimeString()}] Dashboard data received:`, data);
+            updateDashboardData(data);
+        });
+        
+        // Handle manual sync button click
+        syncButton.addEventListener('click', () => {
+            socket.emit('sync_dashboard');
+            statusMessage.textContent = 'Syncing...';
+        });
+        
+        // Handle service restart button
+        restartServiceButton.addEventListener('click', async () => {
+            if (confirm('Are you sure you want to restart the Netfang service?')) {
+                statusMessage.textContent = 'Restarting service...';
+                
+                try {
+                    const response = await fetch('/update', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.status === 'success') {
+                        statusMessage.textContent = data.message;
+                        // Show success notification
+                        alertify.success(data.message, 5);
+                    } else {
+                        statusMessage.textContent = data.message;
+                        // Show error notification
+                        alertify.error(data.message, 5);
+                    }
+                } catch (error) {
+                    statusMessage.textContent = `Error: ${error.message}`;
+                    alertify.error(`Error restarting service: ${error.message}`, 5);
+                }
+                
+                // Clear status message after 5 seconds
+                setTimeout(() => {
+                    statusMessage.textContent = '';
+                }, 5000);
+            }
+        });
+        
+        // Auto-refresh dashboard data every 30 seconds
+        setInterval(() => {
+            socket.emit('sync_dashboard');
+        }, 30000);
+    })();
 
     // Alert System Implementation
     (function () {

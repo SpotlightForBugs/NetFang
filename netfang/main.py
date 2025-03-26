@@ -1,6 +1,7 @@
 import asyncio
 import os
 import platform
+import subprocess
 import sys
 from functools import wraps
 from platform import system
@@ -12,7 +13,7 @@ from flask_socketio import SocketIO, emit
 
 from netfang.alert_manager import AlertManager, Alert
 from netfang.api import pi_utils
-from netfang.db.database import init_db
+from netfang.db.database import init_db, get_dashboard_data
 from netfang.network_manager import NetworkManager
 from netfang.plugin_manager import PluginManager
 from netfang.states.state import State
@@ -98,6 +99,16 @@ def local_only(f):
     return decorated_function
 
 
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in') or session.get('username') != 'admin':
+            abort(403)  # Forbidden - requires admin login
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
 @app.route("/")
 def frontpage():
     if session.get('logged_in'):
@@ -152,6 +163,57 @@ def handle_connect():
 def handle_disconnect():
     # TODO: Handle disconnect or cleanup
     pass
+
+
+@socketio.on("sync_dashboard")
+def handle_sync_dashboard():
+    """
+    Handle WebSocket sync request from the dashboard.
+    This sends all relevant database data to the client.
+    """
+    if not session.get('logged_in'):
+        return False
+    
+    db_path = PluginManager.config.get("database_path", "netfang.db")
+    dashboard_data = get_dashboard_data(db_path)
+    emit("dashboard_data", dashboard_data)
+
+
+@app.route("/update", methods=["POST"])
+@admin_required
+def update_service():
+    """
+    Restart the netfang service using systemctl.
+    Requires admin privileges.
+    """
+    try:
+        # Check if running in a Linux environment
+        if not pi_utils.is_linux():
+            return jsonify({"error": "Service restart only supported on Linux systems"}), 400
+        
+        # Execute the systemctl restart command
+        result = subprocess.run(
+            ["sudo", "systemctl", "restart", "netfang.service"], 
+            capture_output=True, 
+            text=True, 
+            check=False
+        )
+        
+        if result.returncode == 0:
+            return jsonify({
+                "status": "success",
+                "message": "Netfang service restarted successfully"
+            })
+        else:
+            return jsonify({
+                "status": "error",
+                "message": f"Failed to restart service: {result.stderr}"
+            }), 500
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": f"An error occurred: {str(e)}"
+        }), 500
 
 
 @app.route("/plugins", methods=["GET"])

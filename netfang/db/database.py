@@ -443,3 +443,101 @@ def get_alerts(
     rows: List[sqlite3.Row] = cursor.fetchall()
     conn.close()
     return [dict(row) for row in rows]
+
+
+def get_networks(db_path: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Retrieves all networks from the database.
+
+    :param db_path: Path to the database file.
+    :param limit: Maximum number of networks to retrieve (if None, no limit).
+    :return: A list of dictionaries representing the networks.
+    """
+    _ensure_db_initialized(db_path)
+
+    conn: sqlite3.Connection = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor: sqlite3.Cursor = conn.cursor()
+    query: str = "SELECT * FROM networks ORDER BY last_seen DESC"
+    params: List[Any] = []
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+    cursor.execute(query, params)
+    rows: List[sqlite3.Row] = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_devices(db_path: str, network_id: Optional[int] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Retrieves devices from the database, optionally filtered by network ID.
+
+    :param db_path: Path to the database file.
+    :param network_id: If provided, only devices from this network are returned.
+    :param limit: Maximum number of devices to retrieve (if None, no limit).
+    :return: A list of dictionaries representing the devices.
+    """
+    _ensure_db_initialized(db_path)
+
+    conn: sqlite3.Connection = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor: sqlite3.Cursor = conn.cursor()
+    query: str = "SELECT * FROM devices"
+    params: List[Any] = []
+    if network_id is not None:
+        query += " WHERE network_id = ?"
+        params.append(network_id)
+    query += " ORDER BY id DESC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+    cursor.execute(query, params)
+    rows: List[sqlite3.Row] = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_plugin_logs(db_path: str, plugin_name: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+    """
+    Retrieves plugin logs from the database, optionally filtered by plugin name.
+
+    :param db_path: Path to the database file.
+    :param plugin_name: If provided, only logs from this plugin are returned.
+    :param limit: Maximum number of logs to retrieve (if None, no limit).
+    :return: A list of dictionaries representing the plugin logs.
+    """
+    _ensure_db_initialized(db_path)
+
+    conn: sqlite3.Connection = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    cursor: sqlite3.Cursor = conn.cursor()
+    query: str = "SELECT * FROM plugin_logs"
+    params: List[Any] = []
+    if plugin_name is not None:
+        query += " WHERE plugin_name = ?"
+        params.append(plugin_name)
+    query += " ORDER BY timestamp DESC"
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+    cursor.execute(query, params)
+    rows: List[sqlite3.Row] = cursor.fetchall()
+    conn.close()
+    return [dict(row) for row in rows]
+
+
+def get_dashboard_data(db_path: str) -> Dict[str, Any]:
+    """
+    Retrieves all relevant data for the dashboard in a single call.
+    This reduces the number of database connections needed for syncing.
+
+    :param db_path: Path to the database file.
+    :return: A dictionary with all dashboard data.
+    """
+    return {
+        "networks": get_networks(db_path),
+        "devices": get_devices(db_path),
+        "alerts": get_alerts(db_path, limit=50),
+        "plugin_logs": get_plugin_logs(db_path, limit=20)
+    }
