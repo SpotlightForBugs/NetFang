@@ -94,10 +94,14 @@ class ArpScanPlugin(BasePlugin):
     def on_setup(self) -> None:
         self.logger.info(f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces)}")
         add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found interfaces: {', '.join(self.interfaces)}")
+        # Initial scan on setup
+        self.perform_action([self.name, "localnet", "all"])
 
     def on_enable(self) -> None:
         self.logger.info(f"[{self.name}] Enabled.")
         add_plugin_log(self.config["database_path"], self.name, "ArpScan enabled")
+        # Scan when plugin is enabled
+        self.perform_action([self.name, "localnet", "all"])
 
     def on_disable(self) -> None:
         self.logger.info(f"[{self.name}] Disabled.")
@@ -113,11 +117,34 @@ class ArpScanPlugin(BasePlugin):
             self.logger.info(f"[{self.name}] Network scanning state detected - initiating scan...")
             # Schedule scan after a brief delay
             time.sleep(1)
-            self.perform_action([self.name, "localnet", "current"])
+            # Changed to scan all networks
+            self.perform_action([self.name, "localnet", "all"])
         elif self.scan_in_progress:
             self.logger.debug(f"[{self.name}] Scan already in progress")
         else:
             self.logger.debug(f"[{self.name}] Scan throttled - last scan was {current_time - self.last_scan_time:.1f}s ago")
+
+    def on_new_network_connected(self, mac: str) -> None:
+        """Handle new network connection by scanning it"""
+        self.logger.info(f"[{self.name}] New network connected with MAC {mac} - initiating scan...")
+        # Scan on new network connection
+        self.perform_action([self.name, "localnet", "all"])
+
+    def on_known_network_connected(self, mac: str) -> None:
+        """Handle known network connection (not scanning the home network)"""
+        self.logger.info(f"[{self.name}] Known network connected with MAC {mac} - not scanning")
+        
+    def on_home_network_connected(self) -> None:
+        """Handle home network connection by scanning it"""
+        self.logger.info(f"[{self.name}] Home network connected - initiating scan...")
+        # Scan on home network connection
+        self.perform_action([self.name, "localnet", "all"])
+
+    def on_connected_new(self) -> None:
+        """Handle generic new connection by scanning"""
+        self.logger.info(f"[{self.name}] New connection detected - initiating scan...")
+        # Scan on any new connection
+        self.perform_action([self.name, "localnet", "all"])
 
     def on_scan_completed(self) -> None:
         """Reset scan flag when scan is complete"""

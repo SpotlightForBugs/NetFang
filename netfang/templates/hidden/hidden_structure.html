@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="{{ 'de' if request.accept_languages.best_match(['de','en'])=='de' else 'en' }}">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>{% block title %}NetFang Secured Router{% endblock %}</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500&display=swap" rel="stylesheet">
+    
+    <!-- Bootstrap CSS (with custom styling overrides) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Include Socket.IO client library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"
+            integrity="sha512-8BHxHDLsOHx+flIrQ0DrZcea7MkHqRU5GbTHmbdzMRnAaoCIkZ97PqZcXJkKZckMMhqfoeaJE+DNUVuyoQsO3Q=="
+            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- AlertifyJS CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
+    <!-- AlertifyJS JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/hidden.css') }}">
+    
+    {% block additional_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <!-- Router Logo + Title left-aligned -->
+            <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+            <h1>{% block header_title %}NetFang Secured Router{% endblock %}</h1>
+
+            <!-- Badge in top-right corner -->
+            <span id="connectionBadge" class="badge disconnected">Unknown</span>
+        </div>
+    </header>
+
+    <main>
+        {% block main_content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>&copy; 2025 NetFang.
+            {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de','en'])=='de' else 'All rights reserved.' }}
+        </p>
+    </footer>
+
+    <!-- Alert Panel -->
+    {% block alerts_panel %}
+    <div id="alertPanel">
+        <div id="alertPanelHeader">
+            <h3>System Notifications <span class="notification-dot" id="newAlertDot"></span></h3>
+            <span id="alertCounter">0</span>
+        </div>
+        <ul id="alertList"></ul>
+        <div id="alertControls">
+            <button class="alert-filter active" data-filter="all">All</button>
+            <button class="alert-filter" data-filter="active">Active</button>
+            <button class="alert-filter" data-filter="info">Info</button>
+            <button class="alert-filter" data-filter="warning">Warning</button>
+            <button class="alert-filter" data-filter="critical">Critical</button>
+        </div>
+    </div>
+    {% endblock %}
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Common Socket.IO and Alerts Setup -->
+    <script>
+        const socket = io();
+        
+        // Translations for the badge
+        const connectedText = "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}";
+        const disconnectedText = "{{ 'Getrennt von NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected from NetFang' }}";
+        
+        socket.on('connect', () => {
+            const badgeElement = document.getElementById('connectionBadge');
+            if (badgeElement) {
+                badgeElement.classList.remove("disconnected");
+                badgeElement.classList.add("connected");
+                badgeElement.textContent = connectedText;
+            }
+            
+            // Show "connected" notification
+            alertify.success('Connected to NetFang server', 3);
+        });
+
+        socket.on('disconnect', () => {
+            const badgeElement = document.getElementById('connectionBadge');
+            if (badgeElement) {
+                badgeElement.classList.remove("connected");
+                badgeElement.classList.add("disconnected");
+                badgeElement.textContent = disconnectedText;
+            }
+            
+            // Show "disconnected" notification
+            alertify.error('Disconnected from NetFang server', 3);
+        });
+        
+        // Alert System Implementation
+        (function () {
+            // Detect if alert panel exists in this template
+            const alertPanel = document.getElementById('alertPanel');
+            if (!alertPanel) return;
+            
+            // Initialize variables for alert management
+            const alerts = [];
+            let currentFilter = 'all';
+            let isPanelOpen = true;
+            let hasNewAlerts = false;
+
+            // Get DOM elements
+            const alertPanelHeader = document.getElementById('alertPanelHeader');
+            const alertList = document.getElementById('alertList');
+            const alertCounter = document.getElementById('alertCounter');
+            const newAlertDot = document.getElementById('newAlertDot');
+            const filterButtons = document.querySelectorAll('.alert-filter');
+
+            // Configure AlertifyJS
+            alertify.defaults.notifier.position = "bottom-right";
+            alertify.defaults.notifier.delay = 5;
+
+            // Toggle alert panel visibility
+            alertPanelHeader.addEventListener('click', () => {
+                isPanelOpen = !isPanelOpen;
+                alertList.style.display = isPanelOpen ? 'block' : 'none';
+                document.getElementById('alertControls').style.display = isPanelOpen ? 'flex' : 'none';
+
+                if (isPanelOpen && hasNewAlerts) {
+                    hasNewAlerts = false;
+                    newAlertDot.classList.remove('visible');
+                }
+            });
+
+            // Set up filter buttons
+            filterButtons.forEach(button => {
+                button.addEventListener('click', () => {
+                    // Remove active class from all buttons
+                    filterButtons.forEach(btn => btn.classList.remove('active'));
+
+                    // Add active class to clicked button
+                    button.classList.add('active');
+
+                    // Update filter and refresh list
+                    currentFilter = button.getAttribute('data-filter');
+                    renderAlertList();
+                });
+            });
+
+            // Format timestamp to local time
+            function formatTimestamp(timestamp) {
+                try {
+                    const date = new Date(timestamp);
+                    const pad = n => n < 10 ? '0' + n : n;
+                    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+                } catch (e) {
+                    return 'Invalid time';
+                }
+            }
+
+            // Render alert list based on current filter
+            function renderAlertList() {
+                // Clear current list
+                alertList.innerHTML = '';
+
+                // Filter alerts
+                let filteredAlerts = [...alerts];
+
+                if (currentFilter === 'active') {
+                    filteredAlerts = filteredAlerts.filter(alert => !alert.is_resolved);
+                } else if (['info', 'warning', 'critical'].includes(currentFilter)) {
+                    filteredAlerts = filteredAlerts.filter(alert => alert.level === currentFilter);
+                }
+
+                // Sort alerts by timestamp, newest first
+                filteredAlerts.sort((a, b) => {
+                    return new Date(b.timestamp) - new Date(a.timestamp);
+                });
+
+                // Update alert counter
+                const activeCount = alerts.filter(alert => !alert.is_resolved).length;
+                alertCounter.textContent = activeCount;
+
+                // Create alert items
+                filteredAlerts.forEach(alert => {
+                    const alertItem = document.createElement('li');
+                    alertItem.className = `alert-item ${alert.level} ${alert.is_resolved ? 'resolved' : ''}`;
+
+                    const alertHeader = document.createElement('div');
+                    alertHeader.className = 'alert-item-header';
+
+                    const category = document.createElement('span');
+                    category.className = 'alert-category';
+                    category.textContent = alert.category;
+
+                    if (alert.is_resolved) {
+                        const resolvedBadge = document.createElement('span');
+                        resolvedBadge.className = 'alert-resolved-badge';
+                        resolvedBadge.textContent = 'RESOLVED';
+                        category.appendChild(resolvedBadge);
+                    }
+
+                    const timestamp = document.createElement('span');
+                    timestamp.className = 'alert-timestamp';
+                    timestamp.textContent = formatTimestamp(alert.timestamp);
+
+                    alertHeader.appendChild(category);
+                    alertHeader.appendChild(timestamp);
+
+                    const message = document.createElement('div');
+                    message.className = 'alert-message';
+                    message.textContent = alert.message;
+
+                    alertItem.appendChild(alertHeader);
+                    alertItem.appendChild(message);
+
+                    alertList.appendChild(alertItem);
+                });
+
+                // Show message when no alerts match filter
+                if (filteredAlerts.length === 0) {
+                    const emptyItem = document.createElement('li');
+                    emptyItem.className = 'alert-item';
+                    emptyItem.textContent = 'No notifications to display';
+                    alertList.appendChild(emptyItem);
+                }
+            }
+
+            // Add a new alert
+            function addAlert(alert) {
+                // Check if alert already exists (by ID)
+                const existingIndex = alerts.findIndex(a => a.id === alert.id);
+
+                if (existingIndex !== -1) {
+                    // Update existing alert
+                    alerts[existingIndex] = alert;
+                } else {
+                    // Add new alert
+                    alerts.push(alert);
+
+                    // Show notification dot if panel is closed
+                    if (!isPanelOpen) {
+                        hasNewAlerts = true;
+                        newAlertDot.classList.add('visible');
+                    }
+
+                    // Show toast notification for new unresolved alerts
+                    if (!alert.is_resolved) {
+                        showToastNotification(alert);
+                    }
+                }
+
+                // Re-render the alert list
+                renderAlertList();
+            }
+
+            // Show toast notification
+            function showToastNotification(alert) {
+                let duration = alert.autodismisses_after || 5;
+
+                switch (alert.level) {
+                    case "critical":
+                        alertify.error(alert.message, duration);
+                        break;
+                    case "warning":
+                        alertify.warning(alert.message, duration);
+                        break;
+                    default: // info
+                        alertify.success(alert.message, duration);
+                }
+            }
+
+            // Socket.IO event handlers
+            socket.on("alert_sync", function (alert) {
+                console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, alert);
+                addAlert(alert);
+            });
+
+            socket.on("all_alerts", function (alertsData) {
+                console.log(`[${new Date().toLocaleTimeString()}] All alerts received:`, alertsData);
+
+                // Process all alerts
+                alertsData.forEach(alert => {
+                    addAlert(alert);
+                });
+            });
+
+            // Initialize alert panel
+            renderAlertList();
+        })();
+    </script>
+    
+    {% block additional_scripts %}{% endblock %}
+</body>
+</html>

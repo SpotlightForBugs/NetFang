@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta charset="UTF-8"/>
+    <title>{% block title %}NetFang Router{% endblock %}</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&family=Roboto+Mono&display=swap" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/router.css') }}"/>
+    
+    <link rel="icon" href="{{ url_for('static', filename='router_logo.png') }}" type="image/png">
+    
+    {% block additional_head %}{% endblock %}
+</head>
+<body>
+    <!-- Header with Bootstrap Navbar -->
+    <header>
+        <nav class="navbar navbar-dark netfang-header">
+            <div class="container">
+                <a class="navbar-brand" href="#">
+                    <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+                    <div class="router-info">
+                        <h1 class="fs-4 mb-0">NetFang Router</h1>
+                        <div class="router-model">AC1200 Dual-Band Gigabit</div>
+                    </div>
+                </a>
+                {% block header_extras %}{% endblock %}
+            </div>
+        </nav>
+    </header>
+
+    <!-- Status Bar with Font Awesome Icons -->
+    <div class="status-bar">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-auto">
+                    <div class="status-item">
+                        <i class="fa-solid fa-globe status-icon" id="internet-status-icon"></i>
+                        <span id="internet-status">Internet: Connected</span>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <div class="status-item">
+                        <i class="fa-solid fa-wifi status-icon"></i>
+                        <span>Wi-Fi: Active</span>
+                    </div>
+                </div>
+                <div class="col-auto">
+                    <div class="status-item">
+                        <i class="fa-solid fa-network-wired status-icon"></i>
+                        <span>Devices: 5</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <main>
+        <div class="container">
+            <div class="router-panel-container row">
+                <!-- Sidebar using Bootstrap layout -->
+                <div class="col-md-3 sidebar p-0">
+                    <div class="sidebar-item {% block nav_home_active %}{% endblock %}">
+                        <i class="fa-solid fa-house sidebar-icon"></i>
+                        <span>{{ 'Startseite' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Home' }}</span>
+                    </div>
+                    <div class="sidebar-item {% block nav_wifi_active %}{% endblock %}">
+                        <i class="fa-solid fa-wifi sidebar-icon"></i>
+                        <span>{{ 'WLAN' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Wi-Fi' }}</span>
+                    </div>
+                    <div class="sidebar-item {% block nav_devices_active %}{% endblock %}">
+                        <i class="fa-solid fa-laptop sidebar-icon"></i>
+                        <span>{{ 'Geräte' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Devices' }}</span>
+                    </div>
+                    <div class="sidebar-item {% block nav_security_active %}{% endblock %}">
+                        <i class="fa-solid fa-shield-halved sidebar-icon"></i>
+                        <span>{{ 'Sicherheit' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Security' }}</span>
+                    </div>
+                    <div class="sidebar-item {% block nav_settings_active %}{% endblock %}">
+                        <i class="fa-solid fa-gear sidebar-icon"></i>
+                        <span>{{ 'Einstellungen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Settings' }}</span>
+                    </div>
+                    {% block sidebar_extras %}{% endblock %}
+                </div>
+                
+                <!-- Main content area using Bootstrap layout -->
+                <div class="col-md-9 login-section">
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6 text-center text-md-start">
+                    <p class="mb-md-0">&copy; 2025 NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex justify-content-center justify-content-md-end">
+                        <a href="#" class="me-3"><i class="fa-solid fa-file-contract me-1"></i>{{ 'Nutzungsbedingungen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Terms of Use' }}</a>
+                        <a href="#" class="me-3"><i class="fa-solid fa-user-shield me-1"></i>{{ 'Datenschutz' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Privacy Policy' }}</a>
+                        <a href="#"><i class="fa-solid fa-headset me-1"></i>{{ 'Hilfe & Support' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Help & Support' }}</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS Bundle with Popper -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Common animations script -->
+    <script>
+        // Function to simulate router loading behavior with enhanced animations
+        document.addEventListener('DOMContentLoaded', function() {
+            // Animate sidebar items on load
+            const sidebarItems = document.querySelectorAll('.sidebar-item');
+            sidebarItems.forEach((item, index) => {
+                item.style.opacity = '0';
+                setTimeout(() => {
+                    item.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+                    item.style.opacity = '1';
+                    item.style.transform = 'translateX(0)';
+                }, 100 * (index + 1));
+            });
+            
+            // Simulate connection status updates with font awesome
+            const internetStatus = document.getElementById('internet-status');
+            const statusIcon = document.getElementById('internet-status-icon');
+            
+            if (internetStatus && statusIcon) {
+                // Simulate connection check
+                setTimeout(() => {
+                    internetStatus.textContent = "Internet: Checking...";
+                    statusIcon.className = 'fa-solid fa-globe status-icon warning fa-spin';
+                }, 1000);
+                
+                // Simulate successful connection after check
+                setTimeout(() => {
+                    statusIcon.className = 'fa-solid fa-globe status-icon';
+                    internetStatus.textContent = "Internet: Connected";
+                    
+                    // Add pulse animation to show it's active
+                    statusIcon.classList.add('animate-pulse');
+                }, 2500);
+            }
+            
+            // Add hover effects to interactive elements
+            const interactiveElements = document.querySelectorAll('.sidebar-item, .btn, .router-logo');
+            interactiveElements.forEach(element => {
+                element.addEventListener('mouseenter', () => {
+                    element.style.transform = 'scale(1.05)';
+                    element.style.transition = 'transform 0.2s ease';
+                });
+                
+                element.addEventListener('mouseleave', () => {
+                    element.style.transform = '';
+                });
+            });
+        });
+    </script>
+    
+    {% block additional_scripts %}{% endblock %}
+</body>
+</html>
