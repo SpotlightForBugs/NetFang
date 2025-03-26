@@ -2,7 +2,9 @@ import re
 import subprocess
 import time
 import logging
+import threading
 from typing import Any, Dict, List, Optional, Set, Tuple
+from concurrent.futures import ThreadPoolExecutor
 
 import netfang.db
 from netfang.db.database import add_plugin_log, add_or_update_device, add_or_update_network, get_network_by_mac
@@ -75,9 +77,17 @@ class ArpScanPlugin(BasePlugin):
         super().__init__(config)
         self.scan_in_progress = False
         self.logger = logging.getLogger(__name__)
-        self.interfaces = self._detect_interfaces()
+        self.thread_pool = ThreadPoolExecutor(max_workers=5)
+        self.interfaces = None
         self.last_scan_time = 0
         self.scan_throttle = 60  # Minimum seconds between scans
+        # Initialize interfaces in background
+        self.thread_pool.submit(self._init_interfaces)
+    
+    def _init_interfaces(self) -> None:
+        """Initialize interfaces in background"""
+        self.interfaces = self._detect_interfaces()
+        self.logger.info(f"[{self.name}] Detected interfaces: {', '.join(self.interfaces)}")
 
     def _detect_interfaces(self) -> List[str]:
         """Detect available ethernet network interfaces (never WiFi)"""
@@ -178,16 +188,16 @@ class ArpScanPlugin(BasePlugin):
         return interfaces
 
     def on_setup(self) -> None:
-        self.logger.info(f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces)}")
-        add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found ethernet interfaces: {', '.join(self.interfaces)}")
-        # Initial scan on setup
-        self.perform_action([self.name, "localnet", "all"])
+        self.logger.info(f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces or ['detecting...'])}")
+        add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found ethernet interfaces: {', '.join(self.interfaces or ['detecting...'])}")
+        # Initial scan on setup - run in background
+        self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
 
     def on_enable(self) -> None:
         self.logger.info(f"[{self.name}] Enabled.")
         add_plugin_log(self.config["database_path"], self.name, "ArpScan enabled")
-        # Scan when plugin is enabled
-        self.perform_action([self.name, "localnet", "all"])
+        # Scan when plugin is enabled - run in background
+        self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
 
     def on_disable(self) -> None:
         self.logger.info(f"[{self.name}] Disabled.")
@@ -201,20 +211,29 @@ class ArpScanPlugin(BasePlugin):
             self.scan_in_progress = True
             self.last_scan_time = current_time
             self.logger.info(f"[{self.name}] Network scanning state detected - initiating scan...")
-            # Schedule scan after a brief delay
-            time.sleep(1)
-            # Changed to scan all networks
-            self.perform_action([self.name, "localnet", "all"])
+            # Run scan in background
+            self.thread_pool.submit(self._run_scan_in_background)
         elif self.scan_in_progress:
             self.logger.debug(f"[{self.name}] Scan already in progress")
         else:
             self.logger.debug(f"[{self.name}] Scan throttled - last scan was {current_time - self.last_scan_time:.1f}s ago")
+    
+    def _run_scan_in_background(self) -> None:
+        """Run the scan in a background thread"""
+        try:
+            # Short delay to not immediately block
+            time.sleep(1)
+            # Run the scan
+            self.perform_action([self.name, "localnet", "all"])
+        except Exception as e:
+            self.logger.error(f"[{self.name}] Error in background scan: {str(e)}")
+            self.scan_in_progress = False
 
     def on_new_network_connected(self, mac: str) -> None:
         """Handle new network connection by scanning it"""
         self.logger.info(f"[{self.name}] New network connected with MAC {mac} - initiating scan...")
-        # Scan on new network connection
-        self.perform_action([self.name, "localnet", "all"])
+        # Scan on new network connection - run in background
+        self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
 
     def on_known_network_connected(self, mac: str) -> None:
         """Handle known network connection (not scanning the home network)"""
@@ -223,14 +242,14 @@ class ArpScanPlugin(BasePlugin):
     def on_home_network_connected(self) -> None:
         """Handle home network connection by scanning it"""
         self.logger.info(f"[{self.name}] Home network connected - initiating scan...")
-        # Scan on home network connection
-        self.perform_action([self.name, "localnet", "all"])
+        # Scan on home network connection - run in background
+        self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
 
     def on_connected_new(self) -> None:
         """Handle generic new connection by scanning"""
         self.logger.info(f"[{self.name}] New connection detected - initiating scan...")
-        # Scan on any new connection
-        self.perform_action([self.name, "localnet", "all"])
+        # Scan on any new connection - run in background
+        self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
 
     def on_scan_completed(self) -> None:
         """Reset scan flag when scan is complete"""
@@ -414,21 +433,38 @@ class ArpScanPlugin(BasePlugin):
                     all_ips = set()
                     all_devices = []
                     
-                    # Try scanning on all available ethernet interfaces
+                    # Make sure interfaces are detected
+                    if self.interfaces is None:
+                        self.logger.info(f"[{self.name}] Waiting for interface detection...")
+                        self.interfaces = self._detect_interfaces()
+                    
+                    # Check if we have interfaces to scan
                     if not self.interfaces:
                         self.logger.warning("No ethernet interfaces available for scanning")
                         add_plugin_log(db_path, self.name, "No ethernet interfaces available for scanning")
                         self.scan_in_progress = False
                         return
-                        
+                    
+                    # Run scans in parallel for each interface
+                    arp_scan_results = {}
+                    futures = {}
+                    
+                    # Start scans in parallel
                     for interface in self.interfaces:
-                        # Use arp-scan for detailed info
-                        arp_scan_results = self.run_arp_scan(interface)
-                        
-                        # Add devices from arp-scan
-                        for device in arp_scan_results.get("devices", []):
-                            all_ips.add(device["ip"])
-                            all_devices.append(device)
+                        self.logger.debug(f"[{self.name}] Starting scan on interface {interface}")
+                        futures[interface] = self.thread_pool.submit(self.run_arp_scan, interface)
+                    
+                    # Collect results
+                    for interface, future in futures.items():
+                        try:
+                            arp_scan_results[interface] = future.result()
+                            # Add devices from this interface
+                            for device in arp_scan_results[interface].get("devices", []):
+                                all_ips.add(device["ip"])
+                                all_devices.append(device)
+                        except Exception as e:
+                            self.logger.error(f"[{self.name}] Error scanning interface {interface}: {str(e)}")
+                            add_plugin_log(db_path, self.name, f"Error scanning interface {interface}: {str(e)}")
                     
                     self.logger.info(f"[{self.name}] Scan found {len(all_ips)} unique devices")
                     add_plugin_log(db_path, self.name, f"Found {len(all_ips)} unique devices across all ethernet interfaces")
@@ -437,9 +473,9 @@ class ArpScanPlugin(BasePlugin):
                     ip_to_device = {device["ip"]: device for device in all_devices}
                     
                     # Store router network info if we have it
-                    for result in arp_scan_results:
-                        router_mac = arp_scan_results.get("mac_address")
-                        router_ip = arp_scan_results.get("ipv4")
+                    for interface, result in arp_scan_results.items():
+                        router_mac = result.get("mac_address")
+                        router_ip = result.get("ipv4")
                         if router_mac and router_ip:
                             # Create or update the network for the router
                             router_network_id = self._get_or_create_network_id(db_path, router_mac)
@@ -458,7 +494,8 @@ class ArpScanPlugin(BasePlugin):
                             )
                             add_plugin_log(db_path, self.name, f"Stored router info: IP={router_ip}, MAC={router_mac}")
                     
-                    # Process and save all discovered devices
+                    # Process and save all discovered devices - parallelize fingerprinting
+                    fingerprint_futures = {}
                     for ip in all_ips:
                         device = ip_to_device.get(ip)
                         
@@ -477,37 +514,43 @@ class ArpScanPlugin(BasePlugin):
                             add_plugin_log(db_path, self.name, f"Skipping device with IP {ip} - could not determine MAC address")
                             continue
                         
-                        # Get fingerprint (try a few times with backoff)
-                        fingerprint = None
-                        retries = 3
-                        for attempt in range(retries):
-                            fingerprint = self.fingerprint_device(ip)
-                            if fingerprint:
-                                add_plugin_log(db_path, self.name, f"Successfully fingerprinted {ip} on attempt {attempt+1}")
-                                break
-                            if attempt < retries - 1:
-                                time.sleep(1)  # Wait before retry
-                        
-                        fingerprint_str = str(fingerprint) if fingerprint else None
-                        
-                        # Get or create a network ID for this MAC address
-                        network_id = self._get_or_create_network_id(db_path, mac)
-                        
-                        # Add device to database
-                        add_or_update_device(
-                            db_path, 
-                            ip, 
-                            mac, 
-                            hostname=None,
-                            services=None,
-                            network_id=network_id, 
-                            vendor=vendor,
-                            deviceclass=None,
-                            fingerprint=fingerprint_str
-                        )
-                        
-                        self.logger.debug(f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
-                        add_plugin_log(db_path, self.name, f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
+                        # Get fingerprint in parallel
+                        fingerprint_futures[ip] = {
+                            "future": self.thread_pool.submit(self.fingerprint_device, ip),
+                            "mac": mac,
+                            "vendor": vendor
+                        }
+                    
+                    # Process fingerprinting results and save devices
+                    for ip, data in fingerprint_futures.items():
+                        try:
+                            fingerprint = data["future"].result()
+                            mac = data["mac"]
+                            vendor = data["vendor"]
+                            
+                            fingerprint_str = str(fingerprint) if fingerprint else None
+                            
+                            # Get or create a network ID for this MAC address
+                            network_id = self._get_or_create_network_id(db_path, mac)
+                            
+                            # Add device to database
+                            add_or_update_device(
+                                db_path, 
+                                ip, 
+                                mac, 
+                                hostname=None,
+                                services=None,
+                                network_id=network_id, 
+                                vendor=vendor,
+                                deviceclass=None,
+                                fingerprint=fingerprint_str
+                            )
+                            
+                            self.logger.debug(f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
+                            add_plugin_log(db_path, self.name, f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
+                        except Exception as e:
+                            self.logger.error(f"[{self.name}] Error processing device {ip}: {str(e)}")
+                            add_plugin_log(db_path, self.name, f"Error processing device {ip}: {str(e)}")
                     
                     # Scan complete
                     self.scan_in_progress = False
