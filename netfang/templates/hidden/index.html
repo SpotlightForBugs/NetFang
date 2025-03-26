@@ -102,6 +102,14 @@
 
 {% block additional_scripts %}
 <script>
+    // Configure alertify defaults
+    alertify.defaults.notifier.position = 'top-right';
+    alertify.defaults.notifier.delay = 5;
+    alertify.defaults.transition = "slide";
+    alertify.defaults.theme.ok = "btn btn-primary";
+    alertify.defaults.theme.cancel = "btn btn-danger";
+    alertify.defaults.theme.input = "form-control";
+
     const stateElement = document.getElementById("state");
     const scanningIndicator = document.getElementById("scanningIndicator");
     const stateIndicator = document.querySelector(".state-indicator");
@@ -110,6 +118,7 @@
     const dashboardContainer = document.querySelector(".dashboard-container");
     let previousState = '{{ state }}';
     let currentIntervalID = null;
+    let scanCompletedTimeout = null;
 
     // Initialize state descriptions
     const stateDescriptions = {
@@ -117,12 +126,12 @@
         'DISCONNECTED': 'Network connection lost. NetFang will automatically try to reconnect when a network is available.',
         'RECONNECTING': 'Attempting to reconnect to the network...',
         'CONNECTING': 'Establishing connection to the network...',
-        'CONNECTED_KNOWN': 'Connected to a known network. Enhanced security features are active.',
-        'CONNECTED_HOME': 'Connected to your home network. Full security features are active.',
-        'CONNECTED_NEW': 'Connected to a new, unrecognized network. Scanning and security measures in progress.',
+        'CONNECTED_KNOWN': 'Connected to a known network. Network scan completed. Enhanced security features are active.',
+        'CONNECTED_HOME': 'Connected to your home network. Network scan completed. Full security features are active.',
+        'CONNECTED_NEW': 'Connected to a new, unrecognized network. Network scan completed with security measures in place.',
         'CONNECTED_BLACKLISTED': 'Warning: Connected to a blacklisted network! Enhanced protection measures activated.',
         'SCANNING_IN_PROGRESS': 'Network scan in progress. Discovering devices and potential threats...',
-        'SCAN_COMPLETED': 'Network scan completed. Results are being analyzed.',
+        'SCAN_COMPLETED': 'Network scan completed. Results have been analyzed and security measures are in place.',
         'PERFORM_ACTION': 'Executing security action...'
     };
 
@@ -139,23 +148,58 @@
         dashboardContainer.classList.add(`dashboard-state-${state}`);
         
         // Update progress bar visibility and animation based on state
-        if (state.includes("SCANNING") || state.includes("CONNECTING") || state === "RECONNECTING") {
+        if (state === "SCANNING_IN_PROGRESS" || state === "CONNECTING" || state === "RECONNECTING") {
             scanningIndicator.classList.add('active');
             stateStatusProgress.style.animation = "progressAnim 2s infinite";
+            
+            // For scanning state, show an alertify notification if not already shown
+            if (state === "SCANNING_IN_PROGRESS") {
+                alertify.notify('Network scan in progress...', 'info', 0, function(){});
+            }
         } else {
             scanningIndicator.classList.remove('active');
             stateStatusProgress.style.animation = "none";
             
+            // Clear any existing scan completed timeout
+            if (scanCompletedTimeout) {
+                clearTimeout(scanCompletedTimeout);
+                scanCompletedTimeout = null;
+            }
+            
+            // Dismiss any persistent notifications
+            alertify.dismissAll();
+            
             // Set fixed progress for complete states
-            if (state === "CONNECTED_HOME" || state === "CONNECTED_KNOWN") {
+            if (state === "CONNECTED_HOME" || state === "CONNECTED_KNOWN" || state === "SCAN_COMPLETED") {
                 stateStatusProgress.style.width = "100%";
+                
+                // If transition from scanning to completed, show a success notification
+                if (previousState === "SCANNING_IN_PROGRESS" && state === "SCAN_COMPLETED") {
+                    alertify.success('Network scan completed successfully!');
+                    
+                    // After scan completes, we'll stay on SCAN_COMPLETED temporarily then auto-transition back
+                    // to the appropriate connected state after a few seconds (this is cosmetic only)
+                    scanCompletedTimeout = setTimeout(() => {
+                        // This will be handled by the server but we'll update the UI proactively
+                        // for a smoother experience
+                        syncDashboard();
+                    }, 5000);
+                }
             } else if (state === "CONNECTED_NEW") {
                 stateStatusProgress.style.width = "75%";
             } else if (state === "CONNECTED_BLACKLISTED") {
                 stateStatusProgress.style.width = "100%";
                 stateStatusProgress.style.background = "linear-gradient(to right, #ef5350, #e57373)";
+                
+                // Show a warning notification for blacklisted networks
+                alertify.error('Warning: Connected to a blacklisted network!', 0);
             } else if (state === "DISCONNECTED" || state === "WAITING_FOR_NETWORK") {
                 stateStatusProgress.style.width = "25%";
+                
+                // Show a notification for disconnection
+                if (previousState !== "DISCONNECTED" && previousState !== "WAITING_FOR_NETWORK") {
+                    alertify.warning('Network connection lost.');
+                }
             } else {
                 stateStatusProgress.style.width = "50%";
             }
@@ -213,7 +257,7 @@
                 th.style.backgroundColor = '#ffebee';
                 th.style.borderBottomColor = '#ef5350';
             });
-        } else if (state === "CONNECTED_HOME") {
+        } else if (state === "CONNECTED_HOME" || state === "SCAN_COMPLETED") {
             tableHeaders.forEach(th => {
                 th.style.backgroundColor = '#e8f5e9';
                 th.style.borderBottomColor = '#43a047';
@@ -261,12 +305,12 @@
         const newState = data.state || 'Unknown';
 
         if (newState !== previousState) {
-            previousState = newState;
+            // Update state display
             typeText(stateElement, newState);
             updateStateIndicator(newState);
             
-            // Show state change notification
-            alertify.success(`State changed to: ${newState}`, 3);
+            // Record new state
+            previousState = newState;
         }
     });
 
@@ -351,8 +395,10 @@
                 `;
             });
             
-            // Populate Plugin Logs table
-            data.plugin_logs.forEach(log => {
+            // Populate Plugin Logs table - show most recent logs first
+            data.plugin_logs.sort((a, b) => {
+                return new Date(b.timestamp) - new Date(a.timestamp);
+            }).forEach(log => {
                 const row = pluginLogsTable.insertRow();
                 row.innerHTML = `
                     <td>${log.plugin_name}</td>
@@ -379,8 +425,8 @@
             updateDashboardData(data);
         });
         
-        // Handle manual sync button click
-        syncButton.addEventListener('click', () => {
+        // Sync dashboard function
+        function syncDashboard() {
             socket.emit('sync_dashboard');
             statusMessage.textContent = 'Syncing...';
             statusMessage.style.opacity = 1;
@@ -389,7 +435,10 @@
             setTimeout(() => {
                 syncButton.classList.remove('syncing');
             }, 1000);
-        });
+        }
+        
+        // Handle manual sync button click
+        syncButton.addEventListener('click', syncDashboard);
         
         // Handle service restart button
         restartServiceButton.addEventListener('click', async () => {
@@ -429,14 +478,15 @@
         });
         
         // Auto-refresh dashboard data every 30 seconds
-        setInterval(() => {
-            socket.emit('sync_dashboard');
-        }, 30000);
+        setInterval(syncDashboard, 30000);
+        
+        // Export sync function to global scope
+        window.syncDashboard = syncDashboard;
     })();
 
     // Request initial dashboard data when connected
     document.addEventListener('DOMContentLoaded', function() {
-        socket.emit('sync_dashboard');
+        syncDashboard();
     });
 </script>
 {% endblock %}

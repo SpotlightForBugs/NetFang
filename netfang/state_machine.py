@@ -2,6 +2,7 @@ import asyncio
 import threading
 import logging
 from typing import Dict, Any, Optional, Callable, Union, List
+import websockets
 
 from netfang.db.database import verify_network_id, add_plugin_log
 from netfang.plugin_manager import PluginManager
@@ -27,36 +28,46 @@ class StateMachine:
         self.scanning_plugins: List[str] = []
         self.current_scan_index: int = 0
         self.return_state_after_scan: Optional[State] = None
+        self.websocket_handler = None  # Will be set by the websocket module
         
-        # Initialize WebSocket handler
+    def set_websocket_handler(self, websocket_handler):
+        """Sets the WebSocket handler for broadcasting state updates."""
+        self.websocket_handler = websocket_handler
+        self.logger.info("WebSocket handler has been set in StateMachine")
 
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Sets the event loop for scheduling state update tasks."""
         self.loop = loop
+        self.logger.info("Event loop has been set in StateMachine")
         
-        # Start WebSocket server
-        if self.loop:
-            self.loop.create_task(self.start_websocket_server())
-
-    async def start_websocket_server(self) -> None:
-        """Start the WebSocket server."""
-        await self.websocket_handler.start(self.db_path)
+        # Start WebSocket server if handler is available
+        if self.loop and self.websocket_handler:
+            self.loop.create_task(self.websocket_handler.start())
+            self.logger.info("Started WebSocket server task")
 
     async def flow_loop(self) -> None:
         """
         Main loop that periodically notifies plugins about the current state.
         """
         while True:
-            async with self.state_lock:
-                await self.frontend_sync(self.current_state)
-                await self.notify_plugins(self.current_state)
-                
-                # Check if we're in scanning state and need to manage the scan sequence
-                if self.current_state == State.SCANNING_IN_PROGRESS and self.scanning_plugins:
-                    await self.manage_scan_sequence()
-                
-                # Regularly broadcast dashboard updates
-                await self.websocket_handler.broadcast_dashboard_update()
+            try:
+                async with self.state_lock:
+                    if self.websocket_handler:
+                        await self.websocket_handler.broadcast_state_change(self.current_state, self.state_context)
+                    
+                    await self.notify_plugins(self.current_state)
+                    
+                    # Check if we're in scanning state and need to manage the scan sequence
+                    if self.current_state == State.SCANNING_IN_PROGRESS and self.scanning_plugins:
+                        await self.manage_scan_sequence()
+                    
+                    # Regularly broadcast dashboard updates
+                    if self.websocket_handler:
+                        await self.websocket_handler.broadcast_dashboard_update()
+                        
+            except Exception as e:
+                self.logger.error(f"Error in state machine flow loop: {str(e)}")
+                add_plugin_log(self.db_path, "StateMachine", f"Error in flow loop: {str(e)}")
                     
             await asyncio.sleep(5)
 
@@ -108,17 +119,7 @@ class StateMachine:
         self.scanning_plugins = self.plugin_manager.get_scanning_plugin_names()
         self.logger.info(f"Registered scanning plugins: {', '.join(self.scanning_plugins)}")
 
-    async def frontend_sync(self, state: State) -> None:
-        """
-        Notifies the frontend about state changes via WebSocket.
-        """
-        if self.previous_state != self.current_state:
-            await self.websocket_handler.broadcast_state_change(self.current_state, self.state_context)
-            
-            if self.state_change_callback:
-                self.state_change_callback(self.current_state, self.state_context)
-
-    async def notify_plugins(self, state: State, state_context=Optional[Callable[[State, Dict[str, Any]], None]],
+    async def notify_plugins(self, state: State, state_context=None,
                              mac: str = "", message: str = "", alert_data: Optional[Dict[str, Any]] = None,
                              perform_action_data: list[Union[str, int]] = None, ) -> None:
 
@@ -127,63 +128,94 @@ class StateMachine:
         """
         if self.plugin_manager is None:
             raise RuntimeError("PluginManager for StateMachine is not set!")
-        if self.current_state == self.previous_state and state != state.PERFORM_ACTION and state:
-            self.logger.debug(f"State unchanged: {self.current_state.value}")
+        
+        # Use provided state_context or default to instance variable
+        if state_context is None:
+            state_context = self.state_context
+            
+        # Prepare default values for optional parameters
+        if alert_data is None:
+            alert_data = {}
+        if perform_action_data is None:
+            perform_action_data = []
+
+        # Handle new network connections by always starting a scan
+        if state == State.CONNECTED_NEW or state == State.CONNECTED_HOME or state == State.CONNECTED_KNOWN:
+            self.logger.info(f"Connection detected ({state}), initiating scan sequence...")
+            # Save the connection state to return to after scanning
+            self.start_scan_sequence(state)
             return
 
-        if state == "home_network_connected":
-            self.plugin_manager.on_home_network_connected()
-        elif state == "disconnected":
-            self.plugin_manager.on_disconnected()
-        elif state == "reconnecting":
-            self.plugin_manager.on_reconnecting()
-        elif state == "connected_blacklisted":
-            if not mac:
-                raise ValueError("on_connected_blacklisted expects a mac address in mac_address:str")
-            self.plugin_manager.on_connected_blacklisted(mac)
-        elif state == "connected_known":
-            self.plugin_manager.on_connected_known()
-        elif state == "waiting_for_network":
-            self.plugin_manager.on_waiting_for_network()
-        elif state == "connecting":
-            self.plugin_manager.on_connecting()
-        elif state == "scanning_in_progress":
-            self.plugin_manager.on_scanning_in_progress()
-        elif state == "scan_completed":
-            self.plugin_manager.on_scan_completed()
-            # If we have a return state after scan, transition to it
-            if self.return_state_after_scan:
-                self.logger.info(f"Scan completed, returning to {self.return_state_after_scan.value} state")
-                self.update_state(self.return_state_after_scan)
-                self.return_state_after_scan = None
-        elif state == "connected_new":
-            self.plugin_manager.on_connected_new()
-        elif state == "new_network_connected":
-            if not mac:
-                raise ValueError("on_new_network_connected expects a mac address in mac:str")
-            self.plugin_manager.on_new_network_connected(mac)
-        elif state == "known_network_connected":
-            if not mac:
-                raise ValueError("on_known_network_connected expects a mac address in mac:str")
-            self.plugin_manager.on_known_network_connected(mac)
-
-
-        elif state == "perform_action":
-            plugin = self.plugin_manager.get_plugin_by_name(perform_action_data[0])
-            if plugin and verify_network_id(self.db_path, perform_action_data[1]):
-                # Run the action in a background thread
-                thread = threading.Thread(target=self.plugin_manager.perform_action, args=perform_action_data)
-                thread.daemon = True  # Optional: set as daemon thread if appropriate
-                thread.start()
+        # Pass state to appropriate plugin callbacks
+        try:
+            if state == State.WAITING_FOR_NETWORK:
+                self.plugin_manager.on_waiting_for_network()
+            elif state == State.DISCONNECTED:
+                self.plugin_manager.on_disconnected()
+            elif state == State.RECONNECTING:
+                self.plugin_manager.on_reconnecting()
+            elif state == State.CONNECTING:
+                self.plugin_manager.on_connecting()
+            elif state == State.CONNECTED_KNOWN:
+                self.plugin_manager.on_connected_known()
+                
+                # Get MAC address from context if available
+                network_mac = mac or state_context.get('mac', '')
+                if network_mac:
+                    self.plugin_manager.on_known_network_connected(network_mac)
+                
+            elif state == State.CONNECTED_HOME:
+                self.plugin_manager.on_home_network_connected()
+            elif state == State.CONNECTED_NEW:
+                self.plugin_manager.on_connected_new()
+                
+                # Get MAC address from context if available
+                network_mac = mac or state_context.get('mac', '')
+                if network_mac:
+                    self.plugin_manager.on_new_network_connected(network_mac)
+                    
+            elif state == State.CONNECTED_BLACKLISTED:
+                network_mac = mac or state_context.get('mac', '')
+                if network_mac:
+                    self.plugin_manager.on_connected_blacklisted(network_mac)
+                else:
+                    self.logger.error("Cannot notify plugins about blacklisted network - MAC address missing")
+                    
+            elif state == State.SCANNING_IN_PROGRESS:
+                self.plugin_manager.on_scanning_in_progress()
+            elif state == State.SCAN_COMPLETED:
+                self.plugin_manager.on_scan_completed()
+                
+                # If we have a return state after scan, transition to it
+                if self.return_state_after_scan:
+                    self.logger.info(f"Scan completed, returning to {self.return_state_after_scan.value} state")
+                    # Schedule state transition after a short delay to ensure plugins process scan completion
+                    if self.loop:
+                        self.loop.call_later(2, lambda: self.update_state(self.return_state_after_scan))
+                        self.return_state_after_scan = None
+                        
+            elif state == State.PERFORM_ACTION:
+                if not perform_action_data or len(perform_action_data) < 2:
+                    self.logger.error("perform_action requires at least plugin_name and network_id")
+                    return
+                    
+                plugin = self.plugin_manager.get_plugin_by_name(perform_action_data[0])
+                if plugin and verify_network_id(self.db_path, perform_action_data[1]):
+                    # Run the action in a background thread
+                    thread = threading.Thread(target=self.plugin_manager.perform_action, args=perform_action_data)
+                    thread.daemon = True
+                    thread.start()
+                else:
+                    if not plugin:
+                        self.logger.error(f"Plugin not found: {perform_action_data[0]}")
+                    if not verify_network_id(self.db_path, perform_action_data[1]):
+                        self.logger.error(f"Invalid network ID: {perform_action_data[1]}")
             else:
-                if not plugin:
-                    raise ValueError(f"perform_action expects a plugin_name in args[0]: "
-                                     f"{perform_action_data[0]} as specified in the plugin's self.name")
-                if not verify_network_id(self.db_path, perform_action_data[1]):
-                    raise ValueError(f"perform_action expects a valid network_id in args[1]: "
-                                     f"{perform_action_data[1]} as specified in the database. (see database.py)\nYou can use database.verify_network_id(db_path, network_id) to check if the network_id exists.")
-        else:
-            self.logger.warning(f"Event not handled: {state}")
+                self.logger.warning(f"Unhandled state: {state}")
+                
+        except Exception as e:
+            self.logger.error(f"Error notifying plugins about state {state}: {str(e)}")
+            add_plugin_log(self.db_path, "StateMachine", f"Error in notify_plugins: {str(e)}")
 
     def start_scan_sequence(self, return_state: Optional[State] = None) -> None:
         """
@@ -213,6 +245,7 @@ class StateMachine:
             async with self.state_lock:
                 if self.current_state == new_state:
                     return
+                    
                 self.previous_state = self.current_state
                 self.current_state = new_state
                 self.state_context = {"mac": mac, "message": message, "alert_data": alert_data, }
@@ -225,11 +258,14 @@ class StateMachine:
                     self.state_change_callback(self.current_state, self.state_context)
                 
                 # Broadcast state change to WebSocket clients
-                await self.websocket_handler.broadcast_state_change(self.current_state, self.state_context)
+                if self.websocket_handler:
+                    await self.websocket_handler.broadcast_state_change(self.current_state, self.state_context)
                 
                 await self.notify_plugins(self.current_state, self.state_context, mac, message, alert_data,
                                           perform_action_data)
 
         if self.loop is None:
-            raise RuntimeError("Event loop for StateMachine is not set!")
+            self.logger.error("Event loop for StateMachine is not set!")
+            return
+            
         self.loop.create_task(update())
