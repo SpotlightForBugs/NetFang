@@ -2,10 +2,10 @@ import re
 import subprocess
 import time
 import logging
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional, Set, Tuple
 
 import netfang.db
-from netfang.db.database import add_plugin_log
+from netfang.db.database import add_plugin_log, add_or_update_device, add_or_update_network, get_network_by_mac
 from netfang.plugins.base_plugin import BasePlugin
 
 
@@ -73,27 +73,79 @@ class ArpScanPlugin(BasePlugin):
         self.scan_throttle = 60  # Minimum seconds between scans
 
     def _detect_interfaces(self) -> List[str]:
-        """Detect available network interfaces"""
+        """Detect available ethernet network interfaces (never WiFi)"""
         interfaces = []
         try:
+            # First get all interfaces
             result = subprocess.run(["ip", "-o", "link", "show"], 
                                    capture_output=True, text=True, timeout=5)
+            all_interfaces = []
             for line in result.stdout.split("\n"):
                 if line.strip():
                     # Extract interface name
                     match = re.match(r"\d+:\s+([^:@]+)[@:]", line)
                     if match and match.group(1) != "lo":  # Skip loopback
-                        interfaces.append(match.group(1))
+                        all_interfaces.append(match.group(1))
+            
+            # Filter out WiFi interfaces - improved approach
+            for interface in all_interfaces:
+                # Skip this interface if it's clearly a WiFi interface based on name
+                if (interface.startswith(("wlan", "wlp", "wifi", "wl")) or
+                    "wifi" in interface.lower() or 
+                    "wlan" in interface.lower() or
+                    "wireless" in interface.lower()):
+                    self.logger.info(f"Skipping WiFi interface: {interface}")
+                    continue
+                
+                # Additional check for wireless capability
+                try:
+                    # Check if interface is in /sys/class/net/{interface}/wireless/ directory
+                    wireless_check = subprocess.run(
+                        ["test", "-d", f"/sys/class/net/{interface}/wireless"],
+                        capture_output=True, text=True, timeout=2
+                    )
+                    
+                    if wireless_check.returncode == 0:
+                        self.logger.info(f"Skipping WiFi interface detected via sysfs: {interface}")
+                        continue
+                    
+                    # Try using iw to check if interface is wireless
+                    iw_check = subprocess.run(
+                        ["iw", "dev", interface, "info"],
+                        capture_output=True, text=True, timeout=2
+                    )
+                    
+                    if iw_check.returncode == 0:
+                        self.logger.info(f"Skipping WiFi interface detected via iw: {interface}")
+                        continue
+                        
+                    # Only add to our list if we're sure it's ethernet
+                    interfaces.append(interface)
+                    self.logger.info(f"Using ethernet interface: {interface}")
+                    
+                except Exception as e:
+                    # If we can't determine for sure, check if it looks like ethernet
+                    if (interface.startswith(("eth", "en", "em", "eno", "ens"))):
+                        interfaces.append(interface)
+                        self.logger.info(f"Using likely ethernet interface: {interface}")
+                    else:
+                        self.logger.info(f"Skipping interface of unknown type: {interface}")
+            
+            # If no ethernet interfaces found, log a warning
+            if not interfaces:
+                self.logger.warning("No ethernet interfaces found!")
+                
         except Exception as e:
             self.logger.error(f"Error detecting interfaces: {str(e)}")
-            # Fallback to common interface names
+            # Fallback to common ethernet interface names if detection fails
             interfaces = ["eth0"]
+            self.logger.info("Falling back to default ethernet interface: eth0")
         
         return interfaces
 
     def on_setup(self) -> None:
         self.logger.info(f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces)}")
-        add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found interfaces: {', '.join(self.interfaces)}")
+        add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found ethernet interfaces: {', '.join(self.interfaces)}")
         # Initial scan on setup
         self.perform_action([self.name, "localnet", "all"])
 
@@ -248,6 +300,32 @@ class ArpScanPlugin(BasePlugin):
             self.logger.error(f"Error getting MAC for {ip}: {str(e)}")
             return None
 
+    def _get_or_create_network_id(self, db_path: str, mac_address: str) -> Optional[int]:
+        """Get the network ID for a MAC address or create a new network entry
+        
+        Returns:
+            Network ID if available, otherwise None
+        """
+        try:
+            # First try to get existing network
+            network = get_network_by_mac(db_path, mac_address)
+            if network:
+                return network.get('id')
+                
+            # If not found, create a new network entry
+            add_or_update_network(db_path, mac_address)
+            
+            # Get the newly created network
+            network = get_network_by_mac(db_path, mac_address)
+            if network:
+                return network.get('id')
+            else:
+                self.logger.error(f"Failed to create or retrieve network for MAC: {mac_address}")
+                return None
+        except Exception as e:
+            self.logger.error(f"Error getting or creating network for MAC {mac_address}: {str(e)}")
+            return None
+
     def perform_action(self, args: list) -> None:
         """
         Run an arp-scan command.
@@ -267,7 +345,13 @@ class ArpScanPlugin(BasePlugin):
                     all_ips = set()
                     all_devices = []
                     
-                    # Try scanning on all available interfaces
+                    # Try scanning on all available ethernet interfaces
+                    if not self.interfaces:
+                        self.logger.warning("No ethernet interfaces available for scanning")
+                        add_plugin_log(db_path, self.name, "No ethernet interfaces available for scanning")
+                        self.scan_in_progress = False
+                        return
+                        
                     for interface in self.interfaces:
                         # First use arping for quick discovery
                         found_ips_arping = self.run_arping(interface)
@@ -282,10 +366,31 @@ class ArpScanPlugin(BasePlugin):
                             all_devices.append(device)
                     
                     self.logger.info(f"[{self.name}] Combined scan found {len(all_ips)} unique devices")
-                    add_plugin_log(db_path, self.name, f"Found {len(all_ips)} unique devices across all interfaces")
+                    add_plugin_log(db_path, self.name, f"Found {len(all_ips)} unique devices across all ethernet interfaces")
                     
                     # Create mapping of IP to devices for easy lookup
                     ip_to_device = {device["ip"]: device for device in all_devices}
+                    
+                    # Store router network info if we have it
+                    for result in arp_scan_results:
+                        router_mac = arp_scan_results.get("mac_address")
+                        router_ip = arp_scan_results.get("ipv4")
+                        if router_mac and router_ip:
+                            # Create or update the network for the router
+                            router_network_id = self._get_or_create_network_id(db_path, router_mac)
+                            
+                            # Add router as a device too
+                            add_or_update_device(
+                                db_path,
+                                router_ip,
+                                router_mac,
+                                hostname="Router",
+                                services=None,
+                                network_id=router_network_id,
+                                vendor="NetFang Router",
+                                deviceclass="Router",
+                                fingerprint=None
+                            )
                     
                     # Process and save all discovered devices
                     for ip in all_ips:
@@ -300,6 +405,11 @@ class ArpScanPlugin(BasePlugin):
                             mac = self.get_mac_for_ip(ip) or "Unknown"
                             vendor = "Discovered via arping"
                         
+                        # Skip if we couldn't determine a MAC address
+                        if mac == "Unknown":
+                            self.logger.warning(f"Skipping device with IP {ip} - could not determine MAC address")
+                            continue
+                        
                         # Get fingerprint (try a few times with backoff)
                         fingerprint = None
                         retries = 3
@@ -312,23 +422,28 @@ class ArpScanPlugin(BasePlugin):
                         
                         fingerprint_str = str(fingerprint) if fingerprint else None
                         
-                        # Save to database
-                        netfang.db.database.add_or_update_device(
+                        # Get or create a network ID for this MAC address
+                        network_id = self._get_or_create_network_id(db_path, mac)
+                        
+                        # Add device to database
+                        add_or_update_device(
                             db_path, 
                             ip, 
                             mac, 
                             hostname=None,
                             services=None,
-                            network_id=args[2], 
+                            network_id=network_id, 
                             vendor=vendor,
                             deviceclass=None,
                             fingerprint=fingerprint_str
                         )
+                        
+                        self.logger.debug(f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
                     
                     # Scan complete
                     self.scan_in_progress = False
-                    self.logger.info(f"[{self.name}] Network scan complete")
-                    add_plugin_log(db_path, self.name, f"Scan complete - stored {len(all_ips)} devices")
+                    self.logger.info(f"[{self.name}] Network scan complete - saved {len(all_ips)} devices to database")
+                    add_plugin_log(db_path, self.name, f"Scan complete - stored {len(all_ips)} devices in database")
                 
                 except Exception as e:
                     self.scan_in_progress = False

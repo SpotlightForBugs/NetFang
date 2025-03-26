@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8"/>
     <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-    <title>{% block title %}NetFang Secured Router{% endblock %}</title>
+    <title>{% block title %}NetFang Router{% endblock %}</title>
 
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     
     <!-- Bootstrap CSS (with custom styling overrides) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -35,8 +35,10 @@
     <header>
         <div class="header-content">
             <!-- Router Logo + Title left-aligned -->
-            <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
-            <h1>{% block header_title %}NetFang Secured Router{% endblock %}</h1>
+            <div class="d-flex align-items-center">
+                <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+                <h1>{% block header_title %}NetFang Router{% endblock %}</h1>
+            </div>
 
             <!-- Badge in top-right corner -->
             <span id="connectionBadge" class="badge disconnected">Unknown</span>
@@ -80,223 +82,95 @@
         
         // Translations for the badge
         const connectedText = "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}";
-        const disconnectedText = "{{ 'Getrennt von NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected from NetFang' }}";
+        const disconnectedText = "{{ 'Verbindung getrennt' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected' }}";
         
-        socket.on('connect', () => {
-            const badgeElement = document.getElementById('connectionBadge');
-            if (badgeElement) {
-                badgeElement.classList.remove("disconnected");
-                badgeElement.classList.add("connected");
-                badgeElement.textContent = connectedText;
-            }
-            
-            // Show "connected" notification
-            alertify.success('Connected to NetFang server', 3);
-        });
-
-        socket.on('disconnect', () => {
-            const badgeElement = document.getElementById('connectionBadge');
-            if (badgeElement) {
-                badgeElement.classList.remove("connected");
-                badgeElement.classList.add("disconnected");
-                badgeElement.textContent = disconnectedText;
-            }
-            
-            // Show "disconnected" notification
-            alertify.error('Disconnected from NetFang server', 3);
+        // Connect status badge
+        const connectionBadge = document.getElementById('connectionBadge');
+        
+        // Handle connection
+        socket.on('connect', function() {
+            connectionBadge.textContent = connectedText;
+            connectionBadge.className = 'badge connected';
         });
         
-        // Alert System Implementation
-        (function () {
-            // Detect if alert panel exists in this template
-            const alertPanel = document.getElementById('alertPanel');
-            if (!alertPanel) return;
+        // Handle disconnection
+        socket.on('disconnect', function() {
+            connectionBadge.textContent = disconnectedText;
+            connectionBadge.className = 'badge disconnected';
+        });
+        
+        // Handle alerts
+        const alertPanel = document.getElementById('alertPanel');
+        const alertList = document.getElementById('alertList');
+        const alertCounter = document.getElementById('alertCounter');
+        const newAlertDot = document.getElementById('newAlertDot');
+        let alertCount = 0;
+        
+        // Listen for alert events
+        socket.on('alert', function(data) {
+            // Increment counter
+            alertCount++;
+            alertCounter.textContent = alertCount;
             
-            // Initialize variables for alert management
-            const alerts = [];
-            let currentFilter = 'all';
-            let isPanelOpen = true;
-            let hasNewAlerts = false;
-
-            // Get DOM elements
-            const alertPanelHeader = document.getElementById('alertPanelHeader');
-            const alertList = document.getElementById('alertList');
-            const alertCounter = document.getElementById('alertCounter');
-            const newAlertDot = document.getElementById('newAlertDot');
-            const filterButtons = document.querySelectorAll('.alert-filter');
-
-            // Configure AlertifyJS
-            alertify.defaults.notifier.position = "bottom-right";
-            alertify.defaults.notifier.delay = 5;
-
-            // Toggle alert panel visibility
-            alertPanelHeader.addEventListener('click', () => {
-                isPanelOpen = !isPanelOpen;
-                alertList.style.display = isPanelOpen ? 'block' : 'none';
-                document.getElementById('alertControls').style.display = isPanelOpen ? 'flex' : 'none';
-
-                if (isPanelOpen && hasNewAlerts) {
-                    hasNewAlerts = false;
-                    newAlertDot.classList.remove('visible');
-                }
-            });
-
-            // Set up filter buttons
-            filterButtons.forEach(button => {
-                button.addEventListener('click', () => {
-                    // Remove active class from all buttons
-                    filterButtons.forEach(btn => btn.classList.remove('active'));
-
-                    // Add active class to clicked button
-                    button.classList.add('active');
-
-                    // Update filter and refresh list
-                    currentFilter = button.getAttribute('data-filter');
-                    renderAlertList();
-                });
-            });
-
-            // Format timestamp to local time
-            function formatTimestamp(timestamp) {
-                try {
-                    const date = new Date(timestamp);
-                    const pad = n => n < 10 ? '0' + n : n;
-                    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-                } catch (e) {
-                    return 'Invalid time';
-                }
+            // Show notification dot
+            newAlertDot.style.display = 'inline-block';
+            
+            // Create alert item
+            const alertItem = document.createElement('li');
+            alertItem.className = `alert-item alert-${data.level.toLowerCase()}`;
+            
+            // Format timestamp
+            const timestamp = new Date(data.timestamp);
+            const formattedTime = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            
+            // Set alert HTML
+            alertItem.innerHTML = `
+                <div class="alert-header">
+                    <span class="alert-title">${data.title}</span>
+                    <span class="alert-timestamp">${formattedTime}</span>
+                </div>
+                <div class="alert-content">${data.message}</div>
+            `;
+            
+            // Add to list
+            alertList.prepend(alertItem);
+            
+            // Show panel if this is first alert
+            if (alertCount === 1) {
+                setTimeout(() => {
+                    alertPanel.classList.add('active');
+                }, 500);
             }
-
-            // Render alert list based on current filter
-            function renderAlertList() {
-                // Clear current list
-                alertList.innerHTML = '';
-
-                // Filter alerts
-                let filteredAlerts = [...alerts];
-
-                if (currentFilter === 'active') {
-                    filteredAlerts = filteredAlerts.filter(alert => !alert.is_resolved);
-                } else if (['info', 'warning', 'critical'].includes(currentFilter)) {
-                    filteredAlerts = filteredAlerts.filter(alert => alert.level === currentFilter);
-                }
-
-                // Sort alerts by timestamp, newest first
-                filteredAlerts.sort((a, b) => {
-                    return new Date(b.timestamp) - new Date(a.timestamp);
+        });
+        
+        // Filter alerts
+        document.querySelectorAll('.alert-filter').forEach(button => {
+            button.addEventListener('click', function() {
+                // Remove active class from all buttons
+                document.querySelectorAll('.alert-filter').forEach(btn => {
+                    btn.classList.remove('active');
                 });
-
-                // Update alert counter
-                const activeCount = alerts.filter(alert => !alert.is_resolved).length;
-                alertCounter.textContent = activeCount;
-
-                // Create alert items
-                filteredAlerts.forEach(alert => {
-                    const alertItem = document.createElement('li');
-                    alertItem.className = `alert-item ${alert.level} ${alert.is_resolved ? 'resolved' : ''}`;
-
-                    const alertHeader = document.createElement('div');
-                    alertHeader.className = 'alert-item-header';
-
-                    const category = document.createElement('span');
-                    category.className = 'alert-category';
-                    category.textContent = alert.category;
-
-                    if (alert.is_resolved) {
-                        const resolvedBadge = document.createElement('span');
-                        resolvedBadge.className = 'alert-resolved-badge';
-                        resolvedBadge.textContent = 'RESOLVED';
-                        category.appendChild(resolvedBadge);
+                
+                // Add active class to clicked button
+                this.classList.add('active');
+                
+                // Get filter value
+                const filter = this.dataset.filter;
+                
+                // Apply filter
+                document.querySelectorAll('.alert-item').forEach(item => {
+                    if (filter === 'all') {
+                        item.style.display = 'block';
+                    } else if (filter === 'active') {
+                        const isInfo = item.classList.contains('alert-info');
+                        item.style.display = isInfo ? 'none' : 'block';
+                    } else {
+                        const hasClass = item.classList.contains(`alert-${filter}`);
+                        item.style.display = hasClass ? 'block' : 'none';
                     }
-
-                    const timestamp = document.createElement('span');
-                    timestamp.className = 'alert-timestamp';
-                    timestamp.textContent = formatTimestamp(alert.timestamp);
-
-                    alertHeader.appendChild(category);
-                    alertHeader.appendChild(timestamp);
-
-                    const message = document.createElement('div');
-                    message.className = 'alert-message';
-                    message.textContent = alert.message;
-
-                    alertItem.appendChild(alertHeader);
-                    alertItem.appendChild(message);
-
-                    alertList.appendChild(alertItem);
-                });
-
-                // Show message when no alerts match filter
-                if (filteredAlerts.length === 0) {
-                    const emptyItem = document.createElement('li');
-                    emptyItem.className = 'alert-item';
-                    emptyItem.textContent = 'No notifications to display';
-                    alertList.appendChild(emptyItem);
-                }
-            }
-
-            // Add a new alert
-            function addAlert(alert) {
-                // Check if alert already exists (by ID)
-                const existingIndex = alerts.findIndex(a => a.id === alert.id);
-
-                if (existingIndex !== -1) {
-                    // Update existing alert
-                    alerts[existingIndex] = alert;
-                } else {
-                    // Add new alert
-                    alerts.push(alert);
-
-                    // Show notification dot if panel is closed
-                    if (!isPanelOpen) {
-                        hasNewAlerts = true;
-                        newAlertDot.classList.add('visible');
-                    }
-
-                    // Show toast notification for new unresolved alerts
-                    if (!alert.is_resolved) {
-                        showToastNotification(alert);
-                    }
-                }
-
-                // Re-render the alert list
-                renderAlertList();
-            }
-
-            // Show toast notification
-            function showToastNotification(alert) {
-                let duration = alert.autodismisses_after || 5;
-
-                switch (alert.level) {
-                    case "critical":
-                        alertify.error(alert.message, duration);
-                        break;
-                    case "warning":
-                        alertify.warning(alert.message, duration);
-                        break;
-                    default: // info
-                        alertify.success(alert.message, duration);
-                }
-            }
-
-            // Socket.IO event handlers
-            socket.on("alert_sync", function (alert) {
-                console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, alert);
-                addAlert(alert);
-            });
-
-            socket.on("all_alerts", function (alertsData) {
-                console.log(`[${new Date().toLocaleTimeString()}] All alerts received:`, alertsData);
-
-                // Process all alerts
-                alertsData.forEach(alert => {
-                    addAlert(alert);
                 });
             });
-
-            // Initialize alert panel
-            renderAlertList();
-        })();
+        });
     </script>
     
     {% block additional_scripts %}{% endblock %}

@@ -58,11 +58,11 @@
     </div>
     <div class="info-group">
         <div class="info-label"><i class="fa-solid fa-network-wired me-2"></i>{{ 'MAC-Adresse' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'MAC Address' }}</div>
-        <div class="info-value">A4:3E:51:09:8F:22</div>
+        <div class="info-value">{{ mac_address }}</div>
     </div>
     <div class="info-group">
         <div class="info-label"><i class="fa-solid fa-globe me-2"></i>{{ 'IP-Adresse' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'IP Address' }}</div>
-        <div class="info-value">192.168.1.1</div>
+        <div class="info-value">{{ ip_address }}</div>
     </div>
 </div>
 {% endblock %}

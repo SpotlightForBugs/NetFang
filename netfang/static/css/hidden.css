@@ -1,22 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&family=Roboto+Mono:wght@400;500&display=swap');
 
 body {
     margin: 0;
     padding: 0;
-    font-family: 'Source Code Pro', monospace;
-    background-color: #121212;
-    color: #33FF33;
-    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+    font-family: 'Roboto', sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
     min-height: 100vh;
     display: flex;
     flex-direction: column;
 }
 
 header {
-    background-color: #000;
+    background: linear-gradient(to right, #0055a5, #0078c8);
     padding: 15px;
-    border-bottom: 2px solid #33FF33;
-    box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
+    border-bottom: 1px solid #e0e0e0;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .header-content {
@@ -27,84 +26,387 @@ header {
 
 .router-logo {
     height: 45px;
-    filter: brightness(0) invert(1);
     margin-right: 15px;
 }
 
 h1 {
-    font-weight: 400;
-    letter-spacing: 2px;
     margin: 0;
-    text-transform: uppercase;
+    font-size: 1.5rem;
+    color: #fff;
+    font-weight: 500;
 }
 
 main {
-    flex-grow: 1;
-    padding: 30px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
+    flex: 1;
+    padding: 20px;
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
 }
 
 footer {
+    background-color: #f0f0f0;
+    padding: 15px;
     text-align: center;
-    padding: 10px;
-    font-size: 0.8rem;
-    background-color: #000;
-    border-top: 1px solid #33FF33;
-    box-shadow: 0 0 15px rgba(51, 255, 51, 0.3);
+    font-size: 0.85rem;
+    color: #666;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* Dashboard Components */
+.state-indicator {
+    background-color: #fff;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    border: 1px solid #e0e0e0;
+}
+
+.state-indicator strong {
+    margin-right: 10px;
+    color: #0055a5;
 }
 
 #state {
-    font-size: 1.2rem;
     font-weight: 500;
-    margin-left: 5px;
-    border-right: 2px solid #33FF33;
-    padding-right: 5px;
-    animation: blink 1s infinite;
+    color: #333;
 }
 
-@keyframes blink {
-    0%, 100% {
-        border-color: transparent;
-    }
-    50% {
-        border-color: #33FF33;
-    }
+.scanning-indicator {
+    display: flex;
+    align-items: center;
+    margin-left: 15px;
+    color: #0055a5;
 }
 
-div {
-    font-size: 1.2rem;
-    padding: 10px 20px;
-    background-color: rgba(0, 0, 0, 0.5);
-    border: 1px solid #33FF33;
-    box-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
-    border-radius: 5px;
+.scanning-pulse {
+    width: 12px;
+    height: 12px;
+    background-color: #0078c8;
+    border-radius: 50%;
+    margin-right: 8px;
+    animation: pulse 1.5s infinite;
 }
 
-a:link, a:visited {
-    color: #33FF33;
-    text-decoration: none;
-    border-bottom: 1px solid #33FF33;
-    transition: border-color 0.3s;
+.state-status-bar {
+    flex-basis: 100%;
+    height: 6px;
+    background-color: #e0e0e0;
+    border-radius: 3px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.state-status-progress {
+    height: 100%;
+    width: 75%;
+    background: linear-gradient(to right, #0055a5, #0078c8);
+    border-radius: 3px;
+    animation: progressAnim 2s infinite;
+}
+
+.dashboard-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.dashboard-panel {
+    background-color: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    border: 1px solid #e0e0e0;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    background: linear-gradient(to right, #f8f8f8, #f0f0f0);
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.panel-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    color: #333;
+    font-weight: 500;
+}
+
+.panel-toggle {
+    cursor: pointer;
+    color: #0078c8;
+    transition: transform 0.3s;
+}
+
+.panel-content {
+    padding: 15px 20px;
+    overflow: auto;
+}
+
+.panel-content.collapsed {
+    display: none;
+}
+
+.table-container {
+    overflow-x: auto;
+}
+
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.data-table th {
+    text-align: left;
+    padding: 10px 15px;
+    background-color: #f5f5f5;
+    color: #555;
+    font-weight: 500;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.data-table td {
+    padding: 10px 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.data-table tr:hover {
+    background-color: #f9f9f9;
+}
+
+.dashboard-controls {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 15px;
 }
 
 button {
-    padding: 10px 20px;
-    margin-top: 20px;
-    background-color: #33FF33;
-    color: #000;
+    padding: 8px 16px;
+    border-radius: 4px;
     border: none;
-    border-radius: 5px;
     cursor: pointer;
-    transition: background-color 0.3s;
+    font-family: 'Roboto', sans-serif;
+    font-size: 0.9rem;
+    transition: background-color 0.2s, transform 0.1s;
 }
 
+button:hover {
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(1px);
+}
+
+.sync-button {
+    background-color: #0078c8;
+    color: white;
+}
+
+.sync-button:hover {
+    background-color: #0066aa;
+}
+
+.service-button {
+    background-color: #f0f0f0;
+    color: #333;
+    border: 1px solid #e0e0e0;
+}
+
+.service-button:hover {
+    background-color: #e5e5e5;
+}
+
+.status-message {
+    padding: 8px 15px;
+    border-radius: 4px;
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    font-size: 0.9rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+/* Device status styles */
+.network-home {
+    color: #2e7d32;
+    font-weight: 500;
+}
+
+.network-blacklisted {
+    color: #c62828;
+    font-weight: 500;
+}
+
+.fingerprint-data {
+    display: none;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 0.85rem;
+    padding: 10px;
+    margin-top: 5px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    white-space: pre-wrap;
+    color: #555;
+}
+
+.device-actions button {
+    margin-right: 5px;
+    padding: 3px 8px;
+    font-size: 0.8rem;
+}
+
+.show-fingerprint {
+    background-color: #e0e0e0;
+    color: #333;
+}
+
+.block-device {
+    background-color: #ffebee;
+    color: #c62828;
+}
+
+/* Alert Panel Styles */
+#alertPanel {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 320px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e0e0e0;
+    overflow: hidden;
+    z-index: 1000;
+    transform: translateY(100%);
+    transition: transform 0.3s;
+}
+
+#alertPanel.active {
+    transform: translateY(0);
+}
+
+#alertPanelHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background: linear-gradient(to right, #0055a5, #0078c8);
+    color: #fff;
+}
+
+#alertPanelHeader h3 {
+    margin: 0;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.notification-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #f44336;
+    border-radius: 50%;
+    margin-left: 8px;
+    display: none;
+}
+
+#alertCounter {
+    background-color: #f44336;
+    color: #fff;
+    border-radius: 12px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+}
+
+#alertList {
+    max-height: 300px;
+    overflow-y: auto;
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+}
+
+.alert-item {
+    padding: 10px 15px;
+    border-bottom: 1px solid #e0e0e0;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.alert-item:hover {
+    background-color: #f5f5f5;
+}
+
+.alert-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.alert-title {
+    font-weight: 500;
+    color: #333;
+}
+
+.alert-timestamp {
+    font-size: 0.75rem;
+    color: #757575;
+}
+
+.alert-content {
+    font-size: 0.85rem;
+    color: #555;
+}
+
+.alert-info {
+    border-left: 4px solid #2196f3;
+}
+
+.alert-warning {
+    border-left: 4px solid #ff9800;
+}
+
+.alert-critical {
+    border-left: 4px solid #f44336;
+}
+
+#alertControls {
+    display: flex;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-top: 1px solid #e0e0e0;
+}
+
+.alert-filter {
+    flex: 1;
+    padding: 6px;
+    font-size: 0.8rem;
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    margin: 0 2px;
+    text-align: center;
+}
+
+.alert-filter.active {
+    background-color: #0078c8;
+    color: #fff;
+    border-color: #0066aa;
+}
+
+/* Badge styling */
 .badge {
-    display: inline-block;
-    padding: 4px 8px;
-    font-weight: bold;
+    padding: 5px 10px;
+    font-size: 0.85rem;
     border-radius: 8px;
     margin-left: 8px;
 }
@@ -121,97 +423,94 @@ button {
 
 /* AlertifyJS custom styling */
 .alertify .ajs-header {
-    font-family: 'Source Code Pro', monospace;
-    background-color: #000;
-    color: #33FF33;
-    border-bottom: 1px solid #33FF33;
-    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+    font-family: 'Roboto', sans-serif;
+    background-color: #0055a5;
+    color: #fff;
+    border-bottom: 1px solid #e0e0e0;
 }
 
 .alertify .ajs-body {
-    font-family: 'Source Code Pro', monospace;
-    color: #33FF33;
-    background-color: #121212;
-    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+    font-family: 'Roboto', sans-serif;
+    color: #333;
+    background-color: #fff;
 }
 
 .alertify .ajs-footer {
-    background-color: #000;
-    border-top: 1px solid #33FF33;
+    background-color: #f5f5f5;
+    border-top: 1px solid #e0e0e0;
 }
 
 .alertify .ajs-dialog {
-    border: 2px solid #33FF33;
-    box-shadow: 0 0 15px rgba(51, 255, 51, 0.5);
-    background-color: #121212;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.alertify .ajs-commands {
+    margin-right: 5px;
 }
 
 .alertify .ajs-commands button {
-    background-color: #121212;
-    border: 1px solid #33FF33;
+    margin-left: 5px;
 }
 
-.alertify .ajs-commands button:hover {
-    background-color: #1a1a1a;
+.alertify .ajs-dimmer {
+    background-color: rgba(0, 0, 0, 0.4);
 }
 
-.alertify .ajs-footer .ajs-buttons .ajs-button {
-    background-color: #000;
-    color: #33FF33;
-    border: 1px solid #33FF33;
-    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
+.alertify .ajs-button {
+    color: #0078c8;
+    font-weight: 500;
 }
 
-.alertify .ajs-footer .ajs-buttons .ajs-button:hover {
-    background-color: #33FF33;
-    color: #000;
+.alertify .ajs-button.ajs-ok {
+    color: #fff;
+    background-color: #0078c8;
 }
 
-.alertify-notifier .ajs-message {
-    font-family: 'Source Code Pro', monospace;
-    background-color: rgba(0, 0, 0, 0.9);
-    color: #33FF33;
-    border: 1px solid #33FF33;
-    box-shadow: 0 0 10px rgba(51, 255, 51, 0.5);
-    text-shadow: 0 0 5px rgba(51, 255, 51, 0.7);
-    padding: 10px;
+/* Animations */
+@keyframes pulse {
+    0% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
+    50% {
+        transform: scale(1.05);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.95);
+        opacity: 0.7;
+    }
 }
 
-.alertify-notifier .ajs-message.ajs-success {
-    background-color: rgba(0, 0, 0, 0.9);
-    color: #33FF33;
-    border-color: #33FF33;
+@keyframes progressAnim {
+    0% {
+        width: 0%;
+    }
+    100% {
+        width: 100%;
+    }
 }
 
-.alertify-notifier .ajs-message.ajs-error {
-    background-color: rgba(0, 0, 0, 0.9);
-    color: #ff3333;
-    border-color: #ff3333;
-    text-shadow: 0 0 5px rgba(255, 51, 51, 0.7);
-}
-
-.alertify-notifier .ajs-message.ajs-warning {
-    background-color: rgba(0, 0, 0, 0.9);
-    color: #ffcc00;
-    border-color: #ffcc00;
-    text-shadow: 0 0 5px rgba(255, 204, 0, 0.7);
-}
-/* Add this to the <style> section to hide empty alertify container */
-.alertify-notifier.ajs-bottom.ajs-right:empty {
-    display: none !important;
-}
-
-/* Update these styles to position the notifications above the panel */
-#alertPanel {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 300px;
-    max-height: 400px;
-    /* Other styles remain the same */
-}
-
-/* Add this to style section to adjust alertify position */
-.alertify-notifier.ajs-bottom.ajs-right {
-    bottom: 440px !important; /* Ensures toasts appear above the alert panel */
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .dashboard-controls {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .panel-content {
+        padding: 10px;
+    }
+    
+    .data-table th,
+    .data-table td {
+        padding: 8px 10px;
+    }
+    
+    #alertPanel {
+        width: 90%;
+        bottom: 10px;
+        right: 5%;
+    }
 }

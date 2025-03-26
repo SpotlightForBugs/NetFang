@@ -3,6 +3,7 @@ import os
 import platform
 import subprocess
 import sys
+import socket
 from functools import wraps
 from platform import system
 
@@ -113,7 +114,49 @@ def admin_required(f):
 def frontpage():
     if session.get('logged_in'):
         return redirect(url_for('dashboard'))
-    return render_template("router_home.html")
+    
+    # Get real system information
+    data = {
+        "hostname": platform.node(),
+        "mac_address": "Unknown",
+        "ip_address": "192.168.1.1"  # Default fallback
+    }
+    
+    # Try to get the actual MAC address
+    try:
+        if pi_utils.is_pi():
+            # For Raspberry Pi, get the eth0 MAC address if available
+            result = subprocess.run(
+                ["cat", "/sys/class/net/eth0/address"], 
+                capture_output=True, text=True, check=False
+            )
+            if result.returncode == 0 and result.stdout.strip():
+                data["mac_address"] = result.stdout.strip().upper()
+        else:
+            # For non-Pi systems, try a more generic approach
+            import uuid
+            data["mac_address"] = ':'.join(['{:02x}'.format((uuid.getnode() >> elements) & 0xff) 
+                                         for elements in range(0, 48, 8)][::-1]).upper()
+    except Exception as e:
+        app.logger.error(f"Error getting MAC address: {str(e)}")
+    
+    # Try to get the actual IP address (preference for ethernet)
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        # Connect to a public address to determine which interface would be used
+        s.connect(("8.8.8.8", 80))
+        data["ip_address"] = s.getsockname()[0]
+        s.close()
+    except Exception as e:
+        app.logger.error(f"Error getting IP address: {str(e)}")
+        # Try alternative method to get IP
+        try:
+            hostname = socket.gethostname()
+            data["ip_address"] = socket.gethostbyname(hostname)
+        except Exception:
+            pass  # Keep the default IP
+    
+    return render_template("router_home.html", **data)
 
 
 @app.route("/login", methods=["GET", "POST"])
