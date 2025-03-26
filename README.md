@@ -1,6 +1,3 @@
-Below is a revised version of the README that cleans up the instructions, removes the development tags, and adds details on assembling the PoE/USB Hub HAT or UPS HAT for the Raspberry Pi Zero 2 W.
-
----
 
 # NetFang
 
