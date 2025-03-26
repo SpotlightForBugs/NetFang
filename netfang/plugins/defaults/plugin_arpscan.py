@@ -57,6 +57,13 @@ def parse_arp_fingerprint(output: str) -> Dict[str, str]:
         if "=" in line:
             key, value = line.split("=", 1)
             fingerprint[key.strip()] = value.strip()
+        else:
+            # Handle space-separated format like "192.168.178.1   01000000000     UNKNOWN"
+            parts = line.strip().split()
+            if len(parts) >= 3:
+                fingerprint["ip"] = parts[0]
+                fingerprint["fingerprint"] = parts[1]
+                fingerprint["type"] = parts[2] 
     
     return fingerprint
 
@@ -75,17 +82,28 @@ class ArpScanPlugin(BasePlugin):
     def _detect_interfaces(self) -> List[str]:
         """Detect available ethernet network interfaces (never WiFi)"""
         interfaces = []
+        db_path = self.config.get("database_path", "netfang.db")
+        
         try:
             # First get all interfaces
-            result = subprocess.run(["ip", "-o", "link", "show"], 
-                                   capture_output=True, text=True, timeout=5)
-            all_interfaces = []
-            for line in result.stdout.split("\n"):
-                if line.strip():
-                    # Extract interface name
-                    match = re.match(r"\d+:\s+([^:@]+)[@:]", line)
-                    if match and match.group(1) != "lo":  # Skip loopback
-                        all_interfaces.append(match.group(1))
+            try:
+                result = subprocess.run(["ip", "-o", "link", "show"], 
+                                       capture_output=True, text=True, timeout=5)
+                
+                # Log the command output to database
+                add_plugin_log(db_path, self.name, f"Command output [ip -o link show]: {result.stdout}")
+                
+                all_interfaces = []
+                for line in result.stdout.split("\n"):
+                    if line.strip():
+                        # Extract interface name
+                        match = re.match(r"\d+:\s+([^:@]+)[@:]", line)
+                        if match and match.group(1) != "lo":  # Skip loopback
+                            all_interfaces.append(match.group(1))
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                self.logger.error(f"Error running ip command: {str(e)}")
+                add_plugin_log(db_path, self.name, f"Error running ip command: {str(e)}")
+                all_interfaces = []
             
             # Filter out WiFi interfaces - improved approach
             for interface in all_interfaces:
@@ -100,24 +118,36 @@ class ArpScanPlugin(BasePlugin):
                 # Additional check for wireless capability
                 try:
                     # Check if interface is in /sys/class/net/{interface}/wireless/ directory
-                    wireless_check = subprocess.run(
-                        ["test", "-d", f"/sys/class/net/{interface}/wireless"],
-                        capture_output=True, text=True, timeout=2
-                    )
-                    
-                    if wireless_check.returncode == 0:
-                        self.logger.info(f"Skipping WiFi interface detected via sysfs: {interface}")
-                        continue
+                    try:
+                        wireless_check = subprocess.run(
+                            ["test", "-d", f"/sys/class/net/{interface}/wireless"],
+                            capture_output=True, text=True, timeout=2
+                        )
+                        
+                        # Log test command output
+                        add_plugin_log(db_path, self.name, f"Command [test -d /sys/class/net/{interface}/wireless] returned code: {wireless_check.returncode}")
+                        
+                        if wireless_check.returncode == 0:
+                            self.logger.info(f"Skipping WiFi interface detected via sysfs: {interface}")
+                            continue
+                    except (subprocess.SubprocessError, FileNotFoundError) as e:
+                        self.logger.debug(f"Error checking wireless via sysfs: {str(e)}")
                     
                     # Try using iw to check if interface is wireless
-                    iw_check = subprocess.run(
-                        ["iw", "dev", interface, "info"],
-                        capture_output=True, text=True, timeout=2
-                    )
-                    
-                    if iw_check.returncode == 0:
-                        self.logger.info(f"Skipping WiFi interface detected via iw: {interface}")
-                        continue
+                    try:
+                        iw_check = subprocess.run(
+                            ["iw", "dev", interface, "info"],
+                            capture_output=True, text=True, timeout=2
+                        )
+                        
+                        # Log iw command output
+                        add_plugin_log(db_path, self.name, f"Command output [iw dev {interface} info]: {iw_check.stdout}")
+                        
+                        if iw_check.returncode == 0:
+                            self.logger.info(f"Skipping WiFi interface detected via iw: {interface}")
+                            continue
+                    except (subprocess.SubprocessError, FileNotFoundError) as e:
+                        self.logger.debug(f"Error checking wireless via iw: {str(e)}")
                         
                     # Only add to our list if we're sure it's ethernet
                     interfaces.append(interface)
@@ -134,9 +164,13 @@ class ArpScanPlugin(BasePlugin):
             # If no ethernet interfaces found, log a warning
             if not interfaces:
                 self.logger.warning("No ethernet interfaces found!")
+                add_plugin_log(db_path, self.name, "No ethernet interfaces found during detection")
                 
         except Exception as e:
             self.logger.error(f"Error detecting interfaces: {str(e)}")
+            # Log the error to database
+            add_plugin_log(db_path, self.name, f"Error during interface detection: {str(e)}")
+            
             # Fallback to common ethernet interface names if detection fails
             interfaces = ["eth0"]
             self.logger.info("Falling back to default ethernet interface: eth0")
@@ -205,57 +239,46 @@ class ArpScanPlugin(BasePlugin):
 
     def fingerprint_device(self, ip_address: str) -> Optional[Dict[str, str]]:
         """Get the ARP fingerprint for a specific IP address"""
+        db_path = self.config.get("database_path", "netfang.db")
         try:
             # First check if arp-fingerprint tool exists
-            check_cmd = subprocess.run(["which", "arp-fingerprint"], 
-                                      capture_output=True, text=True)
-            if check_cmd.returncode != 0:
-                self.logger.warning("arp-fingerprint tool not found, skipping fingerprinting")
+            try:
+                check_cmd = subprocess.run(["which", "arp-fingerprint"], 
+                                          capture_output=True, text=True)
+                if check_cmd.returncode != 0:
+                    self.logger.warning("arp-fingerprint tool not found, skipping fingerprinting")
+                    add_plugin_log(db_path, self.name, "arp-fingerprint tool not found, skipping fingerprinting")
+                    return None
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                self.logger.warning(f"Error checking for arp-fingerprint: {str(e)}")
+                add_plugin_log(db_path, self.name, f"Error checking for arp-fingerprint: {str(e)}")
                 return None
                 
             # Run the fingerprinting with timeout
-            result = subprocess.run(["arp-fingerprint", ip_address], 
-                                   capture_output=True, text=True, timeout=10)
-            if result.returncode == 0 and result.stdout.strip():
-                fingerprint = parse_arp_fingerprint(result.stdout)
-                return fingerprint
-            else:
-                self.logger.debug(f"No fingerprint data for {ip_address}: {result.stderr}")
+            try:
+                result = subprocess.run(["arp-fingerprint", ip_address], 
+                                       capture_output=True, text=True, timeout=10)
+                
+                # Log the fingerprinting command output
+                output_log = result.stdout if result.stdout else "No output"
+                add_plugin_log(db_path, self.name, f"Command output [arp-fingerprint {ip_address}]: {output_log}")
+                
+                if result.returncode == 0 and result.stdout.strip():
+                    fingerprint = parse_arp_fingerprint(result.stdout)
+                    return fingerprint
+                else:
+                    error_log = result.stderr if result.stderr else "No error output"
+                    self.logger.debug(f"No fingerprint data for {ip_address}: {error_log}")
+                    add_plugin_log(db_path, self.name, f"No fingerprint data for {ip_address}: {error_log}")
+                    return None
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                self.logger.error(f"Error fingerprinting {ip_address}: {str(e)}")
+                add_plugin_log(db_path, self.name, f"Error fingerprinting {ip_address}: {str(e)}")
                 return None
-        except (subprocess.SubprocessError, FileNotFoundError) as e:
-            self.logger.error(f"Error fingerprinting {ip_address}: {str(e)}")
-            return None
-
-    def run_arping(self, interface: str, target: str = "-b") -> Set[str]:
-        """Run arping to discover hosts on the network
-        
-        Args:
-            interface: Network interface to use
-            target: Target to ping, default is broadcast (-b)
-            
-        Returns:
-            Set of IP addresses discovered
-        """
-        found_ips = set()
-        try:
-            cmd = ["arping", "-c", "3", "-I", interface, target]
-            self.logger.debug(f"Running arping command: {' '.join(cmd)}")
-            
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=15)
-            
-            if result.returncode == 0 or result.returncode == 1:  # arping returns 1 if any hosts respond
-                found_ips = self._parse_arping_output(result.stdout)
-                self.logger.info(f"arping found {len(found_ips)} devices on {interface}")
-            else:
-                self.logger.warning(f"arping error: {result.stderr}")
-        except FileNotFoundError:
-            self.logger.error("arping command not found. Please install arping package.")
-        except subprocess.TimeoutExpired:
-            self.logger.warning(f"arping timed out on interface {interface}")
         except Exception as e:
-            self.logger.error(f"Error running arping: {str(e)}")
-            
-        return found_ips
+            self.logger.error(f"Error in fingerprint_device for {ip_address}: {str(e)}")
+            add_plugin_log(db_path, self.name, f"Error in fingerprint_device for {ip_address}: {str(e)}")
+            return None
 
     def run_arp_scan(self, interface: str) -> Dict[str, Any]:
         """Run arp-scan on the specified interface
@@ -263,41 +286,84 @@ class ArpScanPlugin(BasePlugin):
         Returns:
             Parsed scan results
         """
+        db_path = self.config.get("database_path", "netfang.db")
+        
         try:
             cmd = ["arp-scan", "-l", f"--interface={interface}"]
-            self.logger.debug(f"Running arp-scan command: {' '.join(cmd)}")
+            cmd_str = " ".join(cmd)
+            self.logger.debug(f"Running arp-scan command: {cmd_str}")
+            add_plugin_log(db_path, self.name, f"Running command: {cmd_str}")
             
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            
-            if result.returncode == 0:
-                parsed_data = parse_arp_scan(result.stdout, mode="localnet")
-                self.logger.info(f"arp-scan found {len(parsed_data['devices'])} devices on {interface}")
-                return parsed_data
-            else:
-                self.logger.warning(f"arp-scan error: {result.stderr}")
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                
+                # Log the complete command output to database
+                output_log = result.stdout if result.stdout else "No output"
+                error_log = result.stderr if result.stderr else "No error output"
+                add_plugin_log(db_path, self.name, f"Command output [arp-scan]: {output_log}")
+                if error_log != "No error output":
+                    add_plugin_log(db_path, self.name, f"Command stderr [arp-scan]: {error_log}")
+                
+                if result.returncode == 0:
+                    parsed_data = parse_arp_scan(result.stdout, mode="localnet")
+                    self.logger.info(f"arp-scan found {len(parsed_data['devices'])} devices on {interface}")
+                    # Log the parsed data summary
+                    device_macs = [dev["mac"] for dev in parsed_data.get("devices", [])]
+                    add_plugin_log(db_path, self.name, f"arp-scan found {len(parsed_data['devices'])} devices on {interface}: {', '.join(device_macs)}")
+                    return parsed_data
+                else:
+                    self.logger.warning(f"arp-scan error: {result.stderr}")
+                    add_plugin_log(db_path, self.name, f"arp-scan error (return code {result.returncode}): {result.stderr}")
+                    return {"devices": []}
+            except subprocess.TimeoutExpired:
+                self.logger.warning(f"arp-scan timed out on interface {interface}")
+                add_plugin_log(db_path, self.name, f"arp-scan timed out on interface {interface}")
                 return {"devices": []}
-        except FileNotFoundError:
-            self.logger.error("arp-scan command not found. Please install arp-scan package.")
-            return {"devices": []}
-        except subprocess.TimeoutExpired:
-            self.logger.warning(f"arp-scan timed out on interface {interface}")
-            return {"devices": []}
+            except FileNotFoundError:
+                self.logger.error("arp-scan command not found. Please install arp-scan package.")
+                add_plugin_log(db_path, self.name, "arp-scan command not found. Please install arp-scan package.")
+                return {"devices": []}
+            except Exception as e:
+                self.logger.error(f"Error running arp-scan subprocess: {str(e)}")
+                add_plugin_log(db_path, self.name, f"Error running arp-scan subprocess: {str(e)}")
+                return {"devices": []}
         except Exception as e:
-            self.logger.error(f"Error running arp-scan: {str(e)}")
+            self.logger.error(f"Error in run_arp_scan: {str(e)}")
+            add_plugin_log(db_path, self.name, f"Error in run_arp_scan: {str(e)}")
             return {"devices": []}
 
     def get_mac_for_ip(self, ip: str) -> Optional[str]:
         """Get MAC address for an IP from the ARP cache"""
+        db_path = self.config.get("database_path", "netfang.db")
+        
         try:
-            result = subprocess.run(["arp", "-n", ip], 
-                                  capture_output=True, text=True, timeout=5)
-            mac_match = re.search(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})", result.stdout)
-            if mac_match:
-                return mac_match.group(1)
-            else:
+            cmd = ["arp", "-n", ip]
+            cmd_str = " ".join(cmd)
+            self.logger.debug(f"Running arp command: {cmd_str}")
+            add_plugin_log(db_path, self.name, f"Running command: {cmd_str}")
+            
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+                
+                # Log the complete command output to database
+                output_log = result.stdout if result.stdout else "No output"
+                add_plugin_log(db_path, self.name, f"Command output [arp -n {ip}]: {output_log}")
+                
+                mac_match = re.search(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})", result.stdout)
+                if mac_match:
+                    mac_address = mac_match.group(1)
+                    add_plugin_log(db_path, self.name, f"Found MAC {mac_address} for IP {ip}")
+                    return mac_address
+                else:
+                    add_plugin_log(db_path, self.name, f"No MAC address found for IP {ip}")
+                    return None
+            except (subprocess.SubprocessError, FileNotFoundError) as e:
+                self.logger.error(f"Error running arp command for {ip}: {str(e)}")
+                add_plugin_log(db_path, self.name, f"Error running arp command for {ip}: {str(e)}")
                 return None
         except Exception as e:
             self.logger.error(f"Error getting MAC for {ip}: {str(e)}")
+            add_plugin_log(db_path, self.name, f"Error getting MAC for {ip}: {str(e)}")
             return None
 
     def _get_or_create_network_id(self, db_path: str, mac_address: str) -> Optional[int]:
@@ -314,6 +380,7 @@ class ArpScanPlugin(BasePlugin):
                 
             # If not found, create a new network entry
             add_or_update_network(db_path, mac_address)
+            add_plugin_log(db_path, self.name, f"Created new network entry for MAC: {mac_address}")
             
             # Get the newly created network
             network = get_network_by_mac(db_path, mac_address)
@@ -321,9 +388,11 @@ class ArpScanPlugin(BasePlugin):
                 return network.get('id')
             else:
                 self.logger.error(f"Failed to create or retrieve network for MAC: {mac_address}")
+                add_plugin_log(db_path, self.name, f"Failed to create or retrieve network for MAC: {mac_address}")
                 return None
         except Exception as e:
             self.logger.error(f"Error getting or creating network for MAC {mac_address}: {str(e)}")
+            add_plugin_log(db_path, self.name, f"Error getting or creating network for MAC {mac_address}: {str(e)}")
             return None
 
     def perform_action(self, args: list) -> None:
@@ -338,7 +407,7 @@ class ArpScanPlugin(BasePlugin):
         if args[0] == self.name:
             self.logger.info(f"[{self.name}] Starting network scan...")
             db_path = self.config["database_path"]
-            add_plugin_log(db_path, self.name, "Starting comprehensive network scan")
+            add_plugin_log(db_path, self.name, "Starting network scan")
 
             if args[1] == "localnet":
                 try:
@@ -353,11 +422,7 @@ class ArpScanPlugin(BasePlugin):
                         return
                         
                     for interface in self.interfaces:
-                        # First use arping for quick discovery
-                        found_ips_arping = self.run_arping(interface)
-                        all_ips.update(found_ips_arping)
-                        
-                        # Then use arp-scan for more detailed info
+                        # Use arp-scan for detailed info
                         arp_scan_results = self.run_arp_scan(interface)
                         
                         # Add devices from arp-scan
@@ -365,7 +430,7 @@ class ArpScanPlugin(BasePlugin):
                             all_ips.add(device["ip"])
                             all_devices.append(device)
                     
-                    self.logger.info(f"[{self.name}] Combined scan found {len(all_ips)} unique devices")
+                    self.logger.info(f"[{self.name}] Scan found {len(all_ips)} unique devices")
                     add_plugin_log(db_path, self.name, f"Found {len(all_ips)} unique devices across all ethernet interfaces")
                     
                     # Create mapping of IP to devices for easy lookup
@@ -391,6 +456,7 @@ class ArpScanPlugin(BasePlugin):
                                 deviceclass="Router",
                                 fingerprint=None
                             )
+                            add_plugin_log(db_path, self.name, f"Stored router info: IP={router_ip}, MAC={router_mac}")
                     
                     # Process and save all discovered devices
                     for ip in all_ips:
@@ -401,13 +467,14 @@ class ArpScanPlugin(BasePlugin):
                             mac = device["mac"]
                             vendor = device["vendor"]
                         else:
-                            # We only have the IP from arping, get MAC from ARP cache
+                            # We only have the IP, get MAC from ARP cache
                             mac = self.get_mac_for_ip(ip) or "Unknown"
-                            vendor = "Discovered via arping"
+                            vendor = "Unknown vendor"
                         
                         # Skip if we couldn't determine a MAC address
                         if mac == "Unknown":
                             self.logger.warning(f"Skipping device with IP {ip} - could not determine MAC address")
+                            add_plugin_log(db_path, self.name, f"Skipping device with IP {ip} - could not determine MAC address")
                             continue
                         
                         # Get fingerprint (try a few times with backoff)
@@ -416,6 +483,7 @@ class ArpScanPlugin(BasePlugin):
                         for attempt in range(retries):
                             fingerprint = self.fingerprint_device(ip)
                             if fingerprint:
+                                add_plugin_log(db_path, self.name, f"Successfully fingerprinted {ip} on attempt {attempt+1}")
                                 break
                             if attempt < retries - 1:
                                 time.sleep(1)  # Wait before retry
@@ -439,6 +507,7 @@ class ArpScanPlugin(BasePlugin):
                         )
                         
                         self.logger.debug(f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
+                        add_plugin_log(db_path, self.name, f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
                     
                     # Scan complete
                     self.scan_in_progress = False
@@ -449,15 +518,3 @@ class ArpScanPlugin(BasePlugin):
                     self.scan_in_progress = False
                     self.logger.error(f"[{self.name}] Error during scan: {str(e)}")
                     add_plugin_log(db_path, self.name, f"Scan error: {str(e)}")
-
-    def _parse_arping_output(self, output: str) -> Set[str]:
-        """Parse the output of an arping command to extract IP addresses"""
-        ips = set()
-        lines = output.strip().split("\n")
-        for line in lines:
-            # Look for lines with an IP address responding to ping
-            if "bytes from" in line:
-                match = re.search(r"from (\d+\.\d+\.\d+\.\d+)", line)
-                if match:
-                    ips.add(match.group(1))
-        return ips

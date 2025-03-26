@@ -15,6 +15,7 @@
         <div class="state-status-bar">
             <div class="state-status-progress"></div>
         </div>
+        <div id="stateDescription" class="state-description mt-2"></div>
     </div>
     
     <div class="dashboard-container">
@@ -105,22 +106,123 @@
     const scanningIndicator = document.getElementById("scanningIndicator");
     const stateIndicator = document.querySelector(".state-indicator");
     const stateStatusProgress = document.querySelector(".state-status-progress");
+    const stateDescription = document.getElementById("stateDescription");
+    const dashboardContainer = document.querySelector(".dashboard-container");
     let previousState = '{{ state }}';
     let currentIntervalID = null;
 
-    // Update the state status progress based on current state
+    // Initialize state descriptions
+    const stateDescriptions = {
+        'WAITING_FOR_NETWORK': 'NetFang is waiting for a network connection. Please check your network cable or Wi-Fi connection.',
+        'DISCONNECTED': 'Network connection lost. NetFang will automatically try to reconnect when a network is available.',
+        'RECONNECTING': 'Attempting to reconnect to the network...',
+        'CONNECTING': 'Establishing connection to the network...',
+        'CONNECTED_KNOWN': 'Connected to a known network. Enhanced security features are active.',
+        'CONNECTED_HOME': 'Connected to your home network. Full security features are active.',
+        'CONNECTED_NEW': 'Connected to a new, unrecognized network. Scanning and security measures in progress.',
+        'CONNECTED_BLACKLISTED': 'Warning: Connected to a blacklisted network! Enhanced protection measures activated.',
+        'SCANNING_IN_PROGRESS': 'Network scan in progress. Discovering devices and potential threats...',
+        'SCAN_COMPLETED': 'Network scan completed. Results are being analyzed.',
+        'PERFORM_ACTION': 'Executing security action...'
+    };
+
+    // Update the state indicator, progress bar, and container styling based on current state
     function updateStateIndicator(state) {
         // Remove any existing state classes
         stateIndicator.className = "state-indicator";
         
         // Add the new state class
-        stateIndicator.classList.add(`state-${state.replace(/\s+/g, '_')}`);
+        stateIndicator.classList.add(`state-${state}`);
         
-        // Update progress bar visibility based on state
-        if (state.includes("SCANNING") || state.includes("CONNECTING")) {
+        // Add class to dashboard container for broader styling
+        dashboardContainer.className = "dashboard-container";
+        dashboardContainer.classList.add(`dashboard-state-${state}`);
+        
+        // Update progress bar visibility and animation based on state
+        if (state.includes("SCANNING") || state.includes("CONNECTING") || state === "RECONNECTING") {
             scanningIndicator.classList.add('active');
+            stateStatusProgress.style.animation = "progressAnim 2s infinite";
         } else {
             scanningIndicator.classList.remove('active');
+            stateStatusProgress.style.animation = "none";
+            
+            // Set fixed progress for complete states
+            if (state === "CONNECTED_HOME" || state === "CONNECTED_KNOWN") {
+                stateStatusProgress.style.width = "100%";
+            } else if (state === "CONNECTED_NEW") {
+                stateStatusProgress.style.width = "75%";
+            } else if (state === "CONNECTED_BLACKLISTED") {
+                stateStatusProgress.style.width = "100%";
+                stateStatusProgress.style.background = "linear-gradient(to right, #ef5350, #e57373)";
+            } else if (state === "DISCONNECTED" || state === "WAITING_FOR_NETWORK") {
+                stateStatusProgress.style.width = "25%";
+            } else {
+                stateStatusProgress.style.width = "50%";
+            }
+        }
+        
+        // Update state description
+        stateDescription.textContent = stateDescriptions[state] || '';
+        
+        // Update the buttons style based on state
+        updateButtonStyles(state);
+        
+        // Adjust table headers based on state
+        updateTableStyles(state);
+    }
+    
+    // Update button styles based on state
+    function updateButtonStyles(state) {
+        const syncButton = document.getElementById('syncButton');
+        const restartButton = document.getElementById('restartServiceButton');
+        
+        // Reset button classes
+        syncButton.className = 'sync-button';
+        restartButton.className = 'service-button';
+        
+        if (state === "CONNECTED_BLACKLISTED") {
+            restartButton.classList.add('warning-button');
+            restartButton.textContent = "Security Reset";
+        } else {
+            restartButton.textContent = "Restart Netfang Service";
+        }
+        
+        if (state === "SCANNING_IN_PROGRESS") {
+            syncButton.disabled = true;
+            syncButton.classList.add('disabled-button');
+        } else {
+            syncButton.disabled = false;
+            syncButton.classList.remove('disabled-button');
+        }
+    }
+    
+    // Update table styling based on state
+    function updateTableStyles(state) {
+        const tableHeaders = document.querySelectorAll('.data-table th');
+        
+        // Reset all table header styles
+        tableHeaders.forEach(th => {
+            th.style.backgroundColor = '';
+            th.style.color = '';
+            th.style.borderBottomColor = '';
+        });
+        
+        // Apply state-specific styles
+        if (state === "CONNECTED_BLACKLISTED") {
+            tableHeaders.forEach(th => {
+                th.style.backgroundColor = '#ffebee';
+                th.style.borderBottomColor = '#ef5350';
+            });
+        } else if (state === "CONNECTED_HOME") {
+            tableHeaders.forEach(th => {
+                th.style.backgroundColor = '#e8f5e9';
+                th.style.borderBottomColor = '#43a047';
+            });
+        } else if (state === "SCANNING_IN_PROGRESS") {
+            tableHeaders.forEach(th => {
+                th.style.backgroundColor = '#e0f7fa';
+                th.style.borderBottomColor = '#26c6da';
+            });
         }
     }
 

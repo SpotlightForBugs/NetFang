@@ -64,6 +64,7 @@ footer {
     flex-wrap: wrap;
     align-items: center;
     border: 1px solid #e0e0e0;
+    transition: all 0.3s ease-in-out;
 }
 
 .state-indicator strong {
@@ -76,11 +77,152 @@ footer {
     color: #333;
 }
 
+/* State-specific styles */
+.state-WAITING_FOR_NETWORK {
+    background-color: #fffde7;
+    border-color: #fbc02d;
+    border-width: 2px;
+}
+
+.state-WAITING_FOR_NETWORK #state {
+    color: #f57f17;
+}
+
+.state-DISCONNECTED {
+    background-color: #ffebee;
+    border-color: #ef5350;
+    border-width: 2px;
+}
+
+.state-DISCONNECTED #state {
+    color: #c62828;
+}
+
+.state-RECONNECTING {
+    background-color: #e8f5e9;
+    border-color: #66bb6a;
+    animation: pulse 2s infinite;
+}
+
+.state-RECONNECTING #state {
+    color: #2e7d32;
+}
+
+.state-CONNECTING {
+    background-color: #e3f2fd;
+    border-color: #42a5f5;
+    animation: pulse 1.5s infinite;
+}
+
+.state-CONNECTING #state {
+    color: #1565c0;
+}
+
+.state-CONNECTED_KNOWN {
+    background-color: #e8f5e9;
+    border-color: #66bb6a;
+}
+
+.state-CONNECTED_KNOWN #state {
+    color: #2e7d32;
+}
+
+.state-CONNECTED_HOME {
+    background-color: #e8f5e9;
+    border-color: #43a047;
+    box-shadow: 0 4px 8px rgba(76, 175, 80, 0.2);
+}
+
+.state-CONNECTED_HOME #state {
+    color: #1b5e20;
+    font-weight: bold;
+}
+
+.state-CONNECTED_NEW {
+    background-color: #fff8e1;
+    border-color: #ffca28;
+}
+
+.state-CONNECTED_NEW #state {
+    color: #ff8f00;
+}
+
+.state-CONNECTED_BLACKLISTED {
+    background-color: #ffebee;
+    border-color: #ef5350;
+    border-width: 2px;
+    box-shadow: 0 4px 12px rgba(239, 83, 80, 0.3);
+}
+
+.state-CONNECTED_BLACKLISTED #state {
+    color: #b71c1c;
+    font-weight: bold;
+}
+
+.state-SCANNING_IN_PROGRESS {
+    background-color: #e0f7fa;
+    border-color: #26c6da;
+    animation: pulse 1.2s infinite;
+}
+
+.state-SCANNING_IN_PROGRESS #state {
+    color: #00838f;
+}
+
+.state-SCAN_COMPLETED {
+    background-color: #e8f5e9;
+    border-color: #66bb6a;
+}
+
+.state-SCAN_COMPLETED #state {
+    color: #2e7d32;
+}
+
+.state-PERFORM_ACTION {
+    background-color: #ede7f6;
+    border-color: #7e57c2;
+}
+
+.state-PERFORM_ACTION #state {
+    color: #4527a0;
+}
+
+/* Dashboard panels with state-specific styling */
+.state-CONNECTED_HOME .dashboard-panel {
+    border-color: #43a047;
+}
+
+.state-CONNECTED_HOME .panel-header {
+    background: linear-gradient(to right, #e8f5e9, #c8e6c9);
+}
+
+.state-CONNECTED_BLACKLISTED .dashboard-panel {
+    border-color: #ef5350;
+}
+
+.state-CONNECTED_BLACKLISTED .panel-header {
+    background: linear-gradient(to right, #ffebee, #ffcdd2);
+}
+
+.state-SCANNING_IN_PROGRESS .dashboard-panel {
+    border-color: #26c6da;
+}
+
+.state-SCANNING_IN_PROGRESS .panel-header {
+    background: linear-gradient(to right, #e0f7fa, #b2ebf2);
+}
+
 .scanning-indicator {
     display: flex;
     align-items: center;
     margin-left: 15px;
     color: #0055a5;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.scanning-indicator.active {
+    opacity: 1;
 }
 
 .scanning-pulse {
@@ -121,6 +263,7 @@ footer {
     overflow: hidden;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
     border: 1px solid #e0e0e0;
+    transition: all 0.3s ease;
 }
 
 .panel-header {

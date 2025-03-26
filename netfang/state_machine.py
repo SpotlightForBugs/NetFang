@@ -3,7 +3,6 @@ import threading
 import logging
 from typing import Dict, Any, Optional, Callable, Union, List
 
-from netfang.api.websocket_handler import WebSocketHandler
 from netfang.db.database import verify_network_id, add_plugin_log
 from netfang.plugin_manager import PluginManager
 from netfang.states.state import State
@@ -30,7 +29,6 @@ class StateMachine:
         self.return_state_after_scan: Optional[State] = None
         
         # Initialize WebSocket handler
-        self.websocket_handler = WebSocketHandler()
 
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Sets the event loop for scheduling state update tasks."""
