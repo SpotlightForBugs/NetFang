@@ -467,6 +467,33 @@ button:active {
     background-color: #0078c8;
 }
 
+/* Fix for alertify notifications appearing under footer */
+.alertify-notifier {
+    z-index: 2000 !important; 
+    position: fixed;
+}
+
+.alertify-notifier .ajs-message {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.alertify-notifier .ajs-message.ajs-success {
+    background-color: #4CAF50;
+    color: white;
+}
+
+.alertify-notifier .ajs-message.ajs-error {
+    background-color: #f44336;
+    color: white;
+}
+
+.alertify-notifier .ajs-message.ajs-warning {
+    background-color: #ff9800;
+    color: white;
+}
+
 /* Animations */
 @keyframes pulse {
     0% {

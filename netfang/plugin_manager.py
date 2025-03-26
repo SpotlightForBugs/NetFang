@@ -3,6 +3,7 @@
 import importlib
 import json
 import os
+import logging
 from typing import Any, Dict, List, Optional
 
 from netfang.alert_manager import AlertManager, Alert
@@ -29,6 +30,7 @@ class PluginManager:
         self.config_path: str = config_path
         self.config: Dict[str, Any] = {}
         self.plugins: Dict[str, BasePlugin] = {}
+        self.logger = logging.getLogger(__name__)
 
     def load_config(self) -> None:
         with open(self.config_path, 'r') as f:
@@ -115,6 +117,60 @@ class PluginManager:
             if k.lower() == plugin_name.lower():
                 return v
         return None
+
+    def get_scanning_plugin_names(self) -> List[str]:
+        """
+        Returns a list of names of plugins that have scanning capabilities.
+        
+        Currently identifies plugins that have an on_scanning_in_progress method
+        that is not inherited from BasePlugin.
+        """
+        scanning_plugins = []
+        for name, plugin in self.plugins.items():
+            if hasattr(plugin, 'on_scanning_in_progress'):
+                # Check if method is overridden (not the base class implementation)
+                base_method = getattr(BasePlugin, 'on_scanning_in_progress', None)
+                plugin_method = getattr(plugin, 'on_scanning_in_progress')
+                
+                if plugin_method.__func__ is not base_method.__func__:
+                    scanning_plugins.append(name)
+                    self.logger.debug(f"Identified scanning plugin: {name}")
+        
+        self.logger.info(f"Found {len(scanning_plugins)} scanning plugins: {', '.join(scanning_plugins)}")
+        return scanning_plugins
+        
+    def perform_plugin_scan(self, plugin_name: str) -> bool:
+        """
+        Execute a scan using the specified plugin.
+        
+        Returns:
+            True if scan was initiated, False otherwise
+        """
+        plugin = self.get_plugin_by_name(plugin_name)
+        if not plugin:
+            self.logger.warning(f"Plugin {plugin_name} not found for scanning")
+            return False
+            
+        try:
+            # Get database path
+            db_path = self.config.get("database_path", "netfang.db")
+            
+            # Execute the plugin's scan action
+            self.logger.info(f"Initiating scan with plugin {plugin_name}")
+            
+            # Standard approach for plugins like ArpScan
+            if plugin_name.lower() == "arpscan":
+                self.perform_action([plugin_name, "localnet", "all"])
+            elif plugin_name.lower() == "rustscan":
+                self.perform_action([plugin_name, "scan", "all"])
+            else:
+                # Generic approach for any plugin
+                self.perform_action([plugin_name, "scan", "all"])
+                
+            return True
+        except Exception as e:
+            self.logger.error(f"Error executing scan with plugin {plugin_name}: {str(e)}")
+            return False
 
     def enable_plugin(self, plugin_name: str) -> bool:
         plugin_obj = self.get_plugin_by_name(plugin_name)
