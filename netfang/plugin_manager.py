@@ -4,6 +4,7 @@ import importlib
 import json
 import os
 import logging
+import inspect
 from typing import Any, Dict, List, Optional
 
 from netfang.alert_manager import AlertManager, Alert
@@ -129,12 +130,30 @@ class PluginManager:
         for name, plugin in self.plugins.items():
             if hasattr(plugin, 'on_scanning_in_progress'):
                 # Check if method is overridden (not the base class implementation)
-                base_method = getattr(BasePlugin, 'on_scanning_in_progress', None)
-                plugin_method = getattr(plugin, 'on_scanning_in_progress')
-                
-                if plugin_method.__func__ is not base_method.__func__:
-                    scanning_plugins.append(name)
-                    self.logger.debug(f"Identified scanning plugin: {name}")
+                # Use a safer approach to determine if method is overridden
+                base_method_code = inspect.getsource(BasePlugin.on_scanning_in_progress)
+                try:
+                    # Get the source code of the plugin's method
+                    plugin_method = getattr(plugin, 'on_scanning_in_progress')
+                    plugin_method_code = inspect.getsource(plugin_method)
+                    
+                    # If the method code is different from base class, it's overridden
+                    if plugin_method_code != base_method_code:
+                        scanning_plugins.append(name)
+                        self.logger.debug(f"Identified scanning plugin: {name}")
+                except (TypeError, OSError):
+                    # If we can't get the source (e.g., for built-in or C methods),
+                    # try another approach: check if method implementation is non-empty
+                    try:
+                        # Check if method does more than just pass
+                        if plugin_method.__code__.co_code != BasePlugin.on_scanning_in_progress.__code__.co_code:
+                            scanning_plugins.append(name)
+                            self.logger.debug(f"Identified scanning plugin via bytecode: {name}")
+                    except (AttributeError, TypeError):
+                        # As a fallback, assume it's a scanning plugin if it has the method
+                        # This is less precise but won't cause crashes
+                        self.logger.debug(f"Assuming {name} is a scanning plugin (fallback detection)")
+                        scanning_plugins.append(name)
         
         self.logger.info(f"Found {len(scanning_plugins)} scanning plugins: {', '.join(scanning_plugins)}")
         return scanning_plugins

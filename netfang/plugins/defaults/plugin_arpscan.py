@@ -87,11 +87,11 @@ class ArpScanPlugin(BasePlugin):
         try:
             # First get all interfaces
             try:
-                result = subprocess.run(["ip", "-o", "link", "show"], 
+                result = subprocess.run(["sudo", "ip", "-o", "link", "show"], 
                                        capture_output=True, text=True, timeout=5)
                 
                 # Log the command output to database
-                add_plugin_log(db_path, self.name, f"Command output [ip -o link show]: {result.stdout}")
+                add_plugin_log(db_path, self.name, f"Command output [sudo ip -o link show]: {result.stdout}")
                 
                 all_interfaces = []
                 for line in result.stdout.split("\n"):
@@ -120,12 +120,12 @@ class ArpScanPlugin(BasePlugin):
                     # Check if interface is in /sys/class/net/{interface}/wireless/ directory
                     try:
                         wireless_check = subprocess.run(
-                            ["test", "-d", f"/sys/class/net/{interface}/wireless"],
+                            ["sudo", "test", "-d", f"/sys/class/net/{interface}/wireless"],
                             capture_output=True, text=True, timeout=2
                         )
                         
                         # Log test command output
-                        add_plugin_log(db_path, self.name, f"Command [test -d /sys/class/net/{interface}/wireless] returned code: {wireless_check.returncode}")
+                        add_plugin_log(db_path, self.name, f"Command [sudo test -d /sys/class/net/{interface}/wireless] returned code: {wireless_check.returncode}")
                         
                         if wireless_check.returncode == 0:
                             self.logger.info(f"Skipping WiFi interface detected via sysfs: {interface}")
@@ -136,12 +136,12 @@ class ArpScanPlugin(BasePlugin):
                     # Try using iw to check if interface is wireless
                     try:
                         iw_check = subprocess.run(
-                            ["iw", "dev", interface, "info"],
+                            ["sudo", "iw", "dev", interface, "info"],
                             capture_output=True, text=True, timeout=2
                         )
                         
                         # Log iw command output
-                        add_plugin_log(db_path, self.name, f"Command output [iw dev {interface} info]: {iw_check.stdout}")
+                        add_plugin_log(db_path, self.name, f"Command output [sudo iw dev {interface} info]: {iw_check.stdout}")
                         
                         if iw_check.returncode == 0:
                             self.logger.info(f"Skipping WiFi interface detected via iw: {interface}")
@@ -243,7 +243,7 @@ class ArpScanPlugin(BasePlugin):
         try:
             # First check if arp-fingerprint tool exists
             try:
-                check_cmd = subprocess.run(["which", "arp-fingerprint"], 
+                check_cmd = subprocess.run(["sudo", "which", "arp-fingerprint"], 
                                           capture_output=True, text=True)
                 if check_cmd.returncode != 0:
                     self.logger.warning("arp-fingerprint tool not found, skipping fingerprinting")
@@ -256,12 +256,12 @@ class ArpScanPlugin(BasePlugin):
                 
             # Run the fingerprinting with timeout
             try:
-                result = subprocess.run(["arp-fingerprint", ip_address], 
+                result = subprocess.run(["sudo", "arp-fingerprint", ip_address], 
                                        capture_output=True, text=True, timeout=10)
                 
                 # Log the fingerprinting command output
                 output_log = result.stdout if result.stdout else "No output"
-                add_plugin_log(db_path, self.name, f"Command output [arp-fingerprint {ip_address}]: {output_log}")
+                add_plugin_log(db_path, self.name, f"Command output [sudo arp-fingerprint {ip_address}]: {output_log}")
                 
                 if result.returncode == 0 and result.stdout.strip():
                     fingerprint = parse_arp_fingerprint(result.stdout)
@@ -289,7 +289,7 @@ class ArpScanPlugin(BasePlugin):
         db_path = self.config.get("database_path", "netfang.db")
         
         try:
-            cmd = ["arp-scan", "-l", f"--interface={interface}"]
+            cmd = ["sudo", "arp-scan", "-l", f"--interface={interface}"]
             cmd_str = " ".join(cmd)
             self.logger.debug(f"Running arp-scan command: {cmd_str}")
             add_plugin_log(db_path, self.name, f"Running command: {cmd_str}")
@@ -300,9 +300,9 @@ class ArpScanPlugin(BasePlugin):
                 # Log the complete command output to database
                 output_log = result.stdout if result.stdout else "No output"
                 error_log = result.stderr if result.stderr else "No error output"
-                add_plugin_log(db_path, self.name, f"Command output [arp-scan]: {output_log}")
+                add_plugin_log(db_path, self.name, f"Command output [sudo arp-scan]: {output_log}")
                 if error_log != "No error output":
-                    add_plugin_log(db_path, self.name, f"Command stderr [arp-scan]: {error_log}")
+                    add_plugin_log(db_path, self.name, f"Command stderr [sudo arp-scan]: {error_log}")
                 
                 if result.returncode == 0:
                     parsed_data = parse_arp_scan(result.stdout, mode="localnet")
@@ -337,7 +337,7 @@ class ArpScanPlugin(BasePlugin):
         db_path = self.config.get("database_path", "netfang.db")
         
         try:
-            cmd = ["arp", "-n", ip]
+            cmd = ["sudo", "arp", "-n", ip]
             cmd_str = " ".join(cmd)
             self.logger.debug(f"Running arp command: {cmd_str}")
             add_plugin_log(db_path, self.name, f"Running command: {cmd_str}")
@@ -347,7 +347,7 @@ class ArpScanPlugin(BasePlugin):
                 
                 # Log the complete command output to database
                 output_log = result.stdout if result.stdout else "No output"
-                add_plugin_log(db_path, self.name, f"Command output [arp -n {ip}]: {output_log}")
+                add_plugin_log(db_path, self.name, f"Command output [sudo arp -n {ip}]: {output_log}")
                 
                 mac_match = re.search(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})", result.stdout)
                 if mac_match:
