@@ -102,6 +102,39 @@
 
 {% block additional_scripts %}
 <script>
+    // Initialize Socket.IO connection
+    const socket = io();
+    
+    // Connection status handling
+    socket.on('connect', function() {
+        console.log('Connected to server via Socket.IO');
+        document.getElementById('statusMessage').textContent = 'Connected to server';
+        document.getElementById('statusMessage').style.opacity = 1;
+        setTimeout(() => {
+            document.getElementById('statusMessage').style.opacity = 0;
+        }, 2000);
+    });
+    
+    socket.on('connect_error', function(error) {
+        console.error('Socket.IO connection error:', error);
+        document.getElementById('statusMessage').textContent = 'Connection error! Trying to reconnect...';
+        document.getElementById('statusMessage').style.opacity = 1;
+        alertify.error('Connection to server lost. Trying to reconnect...', 0);
+    });
+    
+    socket.on('reconnect', function(attemptNumber) {
+        console.log('Reconnected to server after ' + attemptNumber + ' attempts');
+        document.getElementById('statusMessage').textContent = 'Reconnected to server';
+        document.getElementById('statusMessage').style.opacity = 1;
+        setTimeout(() => {
+            document.getElementById('statusMessage').style.opacity = 0;
+        }, 2000);
+        alertify.dismissAll();
+        alertify.success('Reconnected to server');
+        // Refresh dashboard data after reconnect
+        syncDashboard();
+    });
+
     // Configure alertify defaults
     alertify.defaults.notifier.position = 'top-right';
     alertify.defaults.notifier.delay = 5;
@@ -425,8 +458,22 @@
             updateDashboardData(data);
         });
         
+        // Listen for alert notifications from the server
+        socket.on('alert_sync', (data) => {
+            console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, data);
+            if (data.level === 'ERROR' || data.level === 'CRITICAL') {
+                alertify.error(data.message, 0);  // 0 means it stays until dismissed
+            } else if (data.level === 'WARNING') {
+                alertify.warning(data.message, 10);
+            } else if (data.level === 'INFO') {
+                alertify.info(data.message, 5);
+            } else if (data.level === 'SUCCESS') {
+                alertify.success(data.message, 5);
+            }
+        });
+        
         // Sync dashboard function
-        function syncDashboard() {
+        window.syncDashboard = function() {
             socket.emit('sync_dashboard');
             statusMessage.textContent = 'Syncing...';
             statusMessage.style.opacity = 1;
@@ -435,10 +482,10 @@
             setTimeout(() => {
                 syncButton.classList.remove('syncing');
             }, 1000);
-        }
+        };
         
         // Handle manual sync button click
-        syncButton.addEventListener('click', syncDashboard);
+        syncButton.addEventListener('click', window.syncDashboard);
         
         // Handle service restart button
         restartServiceButton.addEventListener('click', async () => {
@@ -478,15 +525,14 @@
         });
         
         // Auto-refresh dashboard data every 30 seconds
-        setInterval(syncDashboard, 30000);
-        
-        // Export sync function to global scope
-        window.syncDashboard = syncDashboard;
+        setInterval(window.syncDashboard, 30000);
     })();
 
     // Request initial dashboard data when connected
     document.addEventListener('DOMContentLoaded', function() {
-        syncDashboard();
+        if (socket.connected) {
+            window.syncDashboard();
+        }
     });
 </script>
 {% endblock %}

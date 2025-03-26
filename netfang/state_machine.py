@@ -2,8 +2,9 @@ import asyncio
 import threading
 import logging
 from typing import Dict, Any, Optional, Callable, Union, List
-import websockets
 
+# Remove the websockets import and use our SocketIO handler instead
+from netfang.socketio_handler import handler as socketio_handler
 from netfang.db.database import verify_network_id, add_plugin_log
 from netfang.plugin_manager import PluginManager
 from netfang.states.state import State
@@ -28,22 +29,11 @@ class StateMachine:
         self.scanning_plugins: List[str] = []
         self.current_scan_index: int = 0
         self.return_state_after_scan: Optional[State] = None
-        self.websocket_handler = None  # Will be set by the websocket module
         
-    def set_websocket_handler(self, websocket_handler):
-        """Sets the WebSocket handler for broadcasting state updates."""
-        self.websocket_handler = websocket_handler
-        self.logger.info("WebSocket handler has been set in StateMachine")
-
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Sets the event loop for scheduling state update tasks."""
         self.loop = loop
         self.logger.info("Event loop has been set in StateMachine")
-        
-        # Start WebSocket server if handler is available
-        if self.loop and self.websocket_handler:
-            self.loop.create_task(self.websocket_handler.start())
-            self.logger.info("Started WebSocket server task")
 
     async def flow_loop(self) -> None:
         """
@@ -52,8 +42,8 @@ class StateMachine:
         while True:
             try:
                 async with self.state_lock:
-                    if self.websocket_handler:
-                        await self.websocket_handler.broadcast_state_change(self.current_state, self.state_context)
+                    # Use the SocketIO handler for broadcasting state changes
+                    await socketio_handler.broadcast_state_change(self.current_state, self.state_context)
                     
                     await self.notify_plugins(self.current_state)
                     
@@ -62,8 +52,7 @@ class StateMachine:
                         await self.manage_scan_sequence()
                     
                     # Regularly broadcast dashboard updates
-                    if self.websocket_handler:
-                        await self.websocket_handler.broadcast_dashboard_update()
+                    await socketio_handler.broadcast_dashboard_update()
                         
             except Exception as e:
                 self.logger.error(f"Error in state machine flow loop: {str(e)}")
@@ -257,9 +246,8 @@ class StateMachine:
                 if self.state_change_callback:
                     self.state_change_callback(self.current_state, self.state_context)
                 
-                # Broadcast state change to WebSocket clients
-                if self.websocket_handler:
-                    await self.websocket_handler.broadcast_state_change(self.current_state, self.state_context)
+                # Broadcast state change using SocketIO
+                await socketio_handler.broadcast_state_change(self.current_state, self.state_context)
                 
                 await self.notify_plugins(self.current_state, self.state_context, mac, message, alert_data,
                                           perform_action_data)

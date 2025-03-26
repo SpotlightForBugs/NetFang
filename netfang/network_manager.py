@@ -88,7 +88,8 @@ class NetworkManager:
         self.running = True
 
         # Schedule the state machine's flow loop and the triggers loop.
-        # self.flow_task = self._loop.create_task(self.state_machine.flow_loop())
+        # Enable the flow_task to ensure regular dashboard updates
+        self.flow_task = self._loop.create_task(self.state_machine.flow_loop())
         self.trigger_task = self._loop.create_task(self.trigger_loop())
 
         print("[NetworkManager] Event loop started in background thread")

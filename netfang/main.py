@@ -17,6 +17,7 @@ from netfang.api import pi_utils
 from netfang.db.database import init_db, get_dashboard_data
 from netfang.network_manager import NetworkManager
 from netfang.plugin_manager import PluginManager
+from netfang.socketio_handler import handler as socketio_handler
 from netfang.states.state import State
 
 try:
@@ -35,6 +36,9 @@ except ImportError as e:
 
 app = Flask(__name__)
 socketio = SocketIO(app)
+# Set the SocketIO instance in our handler
+socketio_handler.set_socketio(socketio)
+
 if pi_utils.is_pi():
     # TODO: EVALUATE SAFETY OF THIS SECRET KEY GENERATION METHOD
     app.secret_key = pi_utils.get_pi_serial()
@@ -67,10 +71,15 @@ PluginManager = PluginManager(CONFIG_PATH)
 PluginManager.load_config()
 NetworkManager = NetworkManager(PluginManager, PluginManager.config, state_change_callback)
 
-init_db(PluginManager.config.get("database_path", "netfang.db"))
+# Get the database path from config
+db_path = PluginManager.config.get("database_path", "netfang.db")
+# Set the database path in the SocketIO handler
+socketio_handler.set_db_path(db_path)
+
+init_db(db_path)
 PluginManager.load_plugins()
 
-AlertManager = AlertManager(PluginManager, PluginManager.config.get("database_path", "netfang.db"), alert_callback)
+AlertManager = AlertManager(PluginManager, db_path, alert_callback)
 
 # Register plugin routes (for plugins that provide blueprints) immediately
 for plugin in PluginManager.plugins.values():
