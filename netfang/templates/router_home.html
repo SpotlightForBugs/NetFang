@@ -4,40 +4,148 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <meta charset="UTF-8"/>
-    <title>NetFang Secured Router</title>
+    <title>NetFang Router Setup</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/router.css') }}"/>
+    <link rel="icon" href="{{ url_for('static', filename='router_logo.png') }}" type="image/png">
 </head>
 <body>
 <header>
     <div class="header-content">
         <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
-        <h1>NetFang Secured Router</h1>
+        <div class="router-info">
+            <h1>NetFang Router</h1>
+            <div class="router-model">AC1200 Dual-Band Gigabit</div>
+        </div>
     </div>
 </header>
+
+<div class="status-bar">
+    <div class="status-item">
+        <div class="status-icon internet"></div>
+        <span>Internet: Connected</span>
+    </div>
+    <div class="status-item">
+        <div class="status-icon wifi"></div>
+        <span>Wi-Fi: Active</span>
+    </div>
+    <div class="status-item">
+        <div class="status-icon devices"></div>
+        <span>Devices: 5</span>
+    </div>
+</div>
+
 <main>
-    <section class="login-section">
-        <h2>{{ 'Anmeldung' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Login' }}</h2>
-        <p class="status">
-            {{ 'Bitte melden Sie sich an, um auf die Router-Einstellungen zuzugreifen.'
-           if request.accept_languages.best_match(['de', 'en']) == 'de' else
-           'Please log in to access the router settings.' }}
-        </p>
-        <form method="POST" action="/login">
-            <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
-            <input type="text" id="username" name="username" autocomplete="username" required/>
+    <div class="router-panel-container">
+        <div class="sidebar">
+            <div class="sidebar-item active">
+                <div class="sidebar-icon home"></div>
+                <span>{{ 'Startseite' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Home' }}</span>
+            </div>
+            <div class="sidebar-item">
+                <div class="sidebar-icon wifi-settings"></div>
+                <span>{{ 'WLAN' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Wi-Fi' }}</span>
+            </div>
+            <div class="sidebar-item">
+                <div class="sidebar-icon devices"></div>
+                <span>{{ 'Geräte' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Devices' }}</span>
+            </div>
+            <div class="sidebar-item">
+                <div class="sidebar-icon security"></div>
+                <span>{{ 'Sicherheit' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Security' }}</span>
+            </div>
+            <div class="sidebar-item">
+                <div class="sidebar-icon settings"></div>
+                <span>{{ 'Einstellungen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Settings' }}</span>
+            </div>
+        </div>
+        
+        <section class="login-section">
+            <div class="admin-access-panel">
+                <h2>{{ 'Administrator-Zugang' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Administrator Access' }}</h2>
+                <div class="security-notification">
+                    <div class="security-icon"></div>
+                    <span>{{ 'Gesicherte Verbindung' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Secure Connection' }}</span>
+                </div>
+                <p class="status">
+                    {{ 'Bitte melden Sie sich an, um auf die Router-Konfiguration zuzugreifen.'
+                    if request.accept_languages.best_match(['de', 'en']) == 'de' else
+                    'Please log in to access the router configuration.' }}
+                </p>
+                <form method="POST" action="/login">
+                    <div class="input-group">
+                        <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
+                        <input type="text" id="username" name="username" autocomplete="username" required placeholder="admin"/>
+                    </div>
 
-            <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
-            <input type="password" id="password" name="password" autocomplete="current-password" required/>
+                    <div class="input-group">
+                        <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
+                        <input type="password" id="password" name="password" autocomplete="current-password" required/>
+                    </div>
 
-            <button type="submit">
-                {{ 'Anmelden' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Log In' }}
-            </button>
-        </form>
-    </section>
+                    <div class="form-actions">
+                        <label class="remember-me">
+                            <input type="checkbox" name="remember"/> 
+                            {{ 'Angemeldet bleiben' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Stay logged in' }}
+                        </label>
+                        <button type="submit">
+                            {{ 'Anmelden' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Log In' }}
+                        </button>
+                    </div>
+                </form>
+                <div class="login-help">
+                    <a href="#">{{ 'Passwort vergessen?' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Forgot password?' }}</a>
+                </div>
+            </div>
+            
+            <div class="router-info-panel">
+                <div class="info-group">
+                    <div class="info-label">{{ 'Firmware-Version' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Firmware Version' }}</div>
+                    <div class="info-value">v2.5.1_build20250601</div>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">{{ 'MAC-Adresse' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'MAC Address' }}</div>
+                    <div class="info-value">A4:3E:51:09:8F:22</div>
+                </div>
+                <div class="info-group">
+                    <div class="info-label">{{ 'IP-Adresse' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'IP Address' }}</div>
+                    <div class="info-value">192.168.1.1</div>
+                </div>
+            </div>
+        </section>
+    </div>
 </main>
+
 <footer>
-    <p>&copy; 2025
-        NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
+    <div class="footer-content">
+        <p>&copy; 2025 NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
+        <div class="footer-links">
+            <a href="#">{{ 'Nutzungsbedingungen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Terms of Use' }}</a>
+            <a href="#">{{ 'Datenschutz' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Privacy Policy' }}</a>
+            <a href="#">{{ 'Hilfe & Support' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Help & Support' }}</a>
+        </div>
+    </div>
 </footer>
+
+<script>
+    // Function to simulate router loading behavior
+    document.addEventListener('DOMContentLoaded', function() {
+        // Simulate connection status updates
+        const internetStatus = document.querySelector('.status-item:nth-child(1) span');
+        const statusIcon = document.querySelector('.status-icon.internet');
+        
+        // Simulate connection check
+        setTimeout(() => {
+            internetStatus.textContent = "Internet: Checking...";
+            statusIcon.classList.add('checking');
+        }, 1000);
+        
+        // Simulate successful connection after check
+        setTimeout(() => {
+            internetStatus.textContent = "Internet: Connected";
+            statusIcon.classList.remove('checking');
+            statusIcon.classList.add('connected');
+        }, 2500);
+    });
+</script>
 </body>
 </html>

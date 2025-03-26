@@ -2,8 +2,130 @@
 <html lang="{{ 'de' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'en' }}">
 <head>
   <meta charset="UTF-8" />
-  <title>NetFang Router Admin - {{ 'Fehler' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Error' }}</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/router.css') }}"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>NetFang Router - {{ 'Anmeldefehler' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Login Error' }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/router.css') }}"/>
+  <link rel="icon" href="{{ url_for('static', filename='router_logo.png') }}" type="image/png">
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo" />
+      <div class="router-info">
+        <h1>NetFang Router</h1>
+        <div class="router-model">AC1200 Dual-Band Gigabit</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="status-bar">
+    <div class="status-item">
+      <div class="status-icon internet"></div>
+      <span>Internet: Connected</span>
+    </div>
+    <div class="status-item">
+      <div class="status-icon wifi"></div>
+      <span>Wi-Fi: Active</span>
+    </div>
+    <div class="status-item">
+      <div class="status-icon devices"></div>
+      <span>Devices: 5</span>
+    </div>
+  </div>
+
+  <main>
+    <div class="router-panel-container">
+      <div class="sidebar">
+        <div class="sidebar-item active">
+          <div class="sidebar-icon home"></div>
+          <span>{{ 'Startseite' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Home' }}</span>
+        </div>
+        <div class="sidebar-item">
+          <div class="sidebar-icon wifi-settings"></div>
+          <span>{{ 'WLAN' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Wi-Fi' }}</span>
+        </div>
+        <div class="sidebar-item">
+          <div class="sidebar-icon devices"></div>
+          <span>{{ 'Geräte' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Devices' }}</span>
+        </div>
+        <div class="sidebar-item">
+          <div class="sidebar-icon security"></div>
+          <span>{{ 'Sicherheit' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Security' }}</span>
+        </div>
+        <div class="sidebar-item">
+          <div class="sidebar-icon settings"></div>
+          <span>{{ 'Einstellungen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Settings' }}</span>
+        </div>
+      </div>
+      
+      <section class="login-section">
+        <div class="admin-access-panel">
+          <div class="login-error-container">
+            <div class="login-error-icon"></div>
+            <h2>{{ 'Anmeldung fehlgeschlagen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Login Failed' }}</h2>
+          </div>
+          
+          <div class="error-message">
+            <p>
+              {{ 'Benutzername oder Passwort falsch. Bitte versuchen Sie es erneut.'
+                 if request.accept_languages.best_match(['de', 'en']) == 'de' else
+                 'Incorrect username or password. Please try again.' }}
+            </p>
+          </div>
+          
+          <div class="security-warning">
+            <div class="security-warning-icon"></div>
+            <div>
+              <p>
+                {{ 'Sicherheitshinweis: Dieser Anmeldeversuch wurde protokolliert.'
+                   if request.accept_languages.best_match(['de', 'en']) == 'de' else
+                   'Security Notice: This login attempt has been logged.' }}
+              </p>
+              <div id="ip-section" style="display: none;">
+                <p class="ip-info">
+                  {{ 'Ihre IP-Adresse: ' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Your IP Address: ' }}
+                  <strong id="user-ip"></strong>
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <form method="POST" action="/login">
+            <div class="input-group">
+              <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
+              <input type="text" id="username" name="username" autocomplete="username" required placeholder="admin"/>
+            </div>
+
+            <div class="input-group">
+              <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
+              <input type="password" id="password" name="password" autocomplete="current-password" required/>
+            </div>
+
+            <div class="form-actions">
+              <a href="/" class="cancel-button">
+                {{ 'Abbrechen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Cancel' }}
+              </a>
+              <button type="submit" class="retry-button">
+                {{ 'Erneut versuchen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Try Again' }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-content">
+      <p>&copy; 2025 NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
+      <div class="footer-links">
+        <a href="#">{{ 'Nutzungsbedingungen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Terms of Use' }}</a>
+        <a href="#">{{ 'Datenschutz' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Privacy Policy' }}</a>
+        <a href="#">{{ 'Hilfe & Support' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Help & Support' }}</a>
+      </div>
+    </div>
+  </footer>
+
   <script>
     // Fetch the user's IP address and display it
     async function fetchIP() {
@@ -16,109 +138,141 @@
         console.error('Failed to fetch IP address:', error);
       }
     }
-    window.onload = fetchIP;
+    
+    // Function to simulate router loading behavior
+    document.addEventListener('DOMContentLoaded', function() {
+      // Get IP
+      fetchIP();
+      
+      // Simulate connection status updates
+      const internetStatus = document.querySelector('.status-item:nth-child(1) span');
+      const statusIcon = document.querySelector('.status-icon.internet');
+      
+      // Simulate connection check
+      setTimeout(() => {
+        internetStatus.textContent = "Internet: Checking...";
+        statusIcon.classList.add('checking');
+      }, 1000);
+      
+      // Simulate successful connection after check
+      setTimeout(() => {
+        internetStatus.textContent = "Internet: Connected";
+        statusIcon.classList.remove('checking');
+        statusIcon.classList.add('connected');
+      }, 2500);
+    });
   </script>
-</head>
-<body>
-  <header>
-    <div class="header-content">
-      <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo" />
-      <h1>NetFang Router Admin</h1>
-    </div>
-  </header>
-  <main>
-    <section class="login-section">
-      <div class="error-banner">
-        <h2>{{ 'Anmeldung fehlgeschlagen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Login Failed' }}</h2>
-        <p>
-          {{ 'Benutzername oder Passwort falsch. Bitte versuchen Sie es erneut.'
-             if request.accept_languages.best_match(['de', 'en']) == 'de' else
-             'Incorrect username or password. Please try again.' }}
-        </p>
-      </div>
-      <div class="incident-report">
-        <p>
-          {{ 'Dieser Vorfall wurde protokolliert.'
-             if request.accept_languages.best_match(['de', 'en']) == 'de' else
-             'This incident has been reported.' }}
-        </p>
-        <div id="ip-section" style="display: none;">
-          <p>
-            {{ 'Ihre IP-Adresse: ' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Your IP Address: ' }}
-            <strong id="user-ip"></strong>
-          </p>
-        </div>
-      </div>
-      <form method="POST" action="/login">
-        <label for="username">{{ 'Benutzername' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Username' }}</label>
-        <input type="text" id="username" name="username" autocomplete="username" required />
-
-        <label for="password">{{ 'Passwort' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Password' }}</label>
-        <input type="password" id="password" name="password" autocomplete="current-password" required />
-
-        <button type="submit">
-          {{ 'Erneut versuchen' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'Try Again' }}
-        </button>
-      </form>
-    </section>
-  </main>
-  <footer>
-    <p>&copy; 2025 NetFang. {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de', 'en']) == 'de' else 'All rights reserved.' }}</p>
-  </footer>
+  
+  <style>
+    /* Additional login failed specific styles */
+    .login-error-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #ffcdd2;
+    }
+    
+    .login-error-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: 1rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23f44336'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 11c-.55 0-1-.45-1-1V8c0-.55.45-1 1-1s1 .45 1 1v4c0 .55-.45 1-1 1zm1 4h-2v-2h2v2z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+    
+    .login-error-container h2 {
+      color: #d32f2f;
+      margin: 0;
+    }
+    
+    .error-message {
+      background-color: #ffebee;
+      border-left: 4px solid #d32f2f;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+    }
+    
+    .error-message p {
+      margin: 0;
+      color: #d32f2f;
+    }
+    
+    .security-warning {
+      display: flex;
+      align-items: flex-start;
+      background-color: #fffde7;
+      border-left: 4px solid #fbc02d;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+    }
+    
+    .security-warning-icon {
+      flex-shrink: 0;
+      width: 20px;
+      height: 20px;
+      margin-right: 1rem;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23fbc02d'%3E%3Cpath d='M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3zm1 13h-2v-2h2v2zm0-4h-2V7h2v4z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-size: contain;
+    }
+    
+    .security-warning p {
+      margin: 0 0 0.5rem 0;
+      color: #6d4c41;
+    }
+    
+    .ip-info {
+      font-family: monospace;
+      font-size: 0.9rem;
+    }
+    
+    .retry-button {
+      background-color: #d32f2f;
+    }
+    
+    .retry-button:hover {
+      background-color: #b71c1c;
+    }
+    
+    .cancel-button {
+      color: #616161;
+      text-decoration: none;
+      padding: 0.7rem 1.5rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+    
+    .cancel-button:hover {
+      background-color: #f5f5f5;
+    }
+    
+    input[type="text"],
+    input[type="password"] {
+      border-color: #ffcdd2;
+    }
+    
+    input[type="text"]:focus,
+    input[type="password"]:focus {
+      border-color: #ef5350;
+      box-shadow: 0 0 0 2px rgba(239, 83, 80, 0.2);
+    }
+    
+    @media (max-width: 768px) {
+      .form-actions {
+        flex-direction: column-reverse;
+      }
+      
+      .cancel-button {
+        width: 100%;
+        margin-top: 0.5rem;
+      }
+    }
+  </style>
 </body>
 </html>
-
-
-<style>
-   .error-banner {
-  background-color: #ffcccc;
-  border: 1px solid #cc0000;
-  border-radius: 5px;
-  padding: 1rem;
-  margin-bottom: 1rem;
-  text-align: center;
-  color: #cc0000;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15);
-}
-
-.error-banner h2 {
-  margin: 0 0 0.5rem 0;
-}
-
-.error-banner p {
-  margin: 0;
-}
-
-.incident-report {
-  background-color: #fff6f6;
-  border: 1px dashed #cc0000;
-  border-radius: 5px;
-  padding: 0.5rem;
-  margin-bottom: 1rem;
-  text-align: center;
-  color: #990000;
-}
-
-.incident-report p {
-  margin: 0.25rem 0;
-}
-
-form input[type="text"],
-form input[type="password"] {
-  border: 1px solid #cc0000;
-}
-
-form input[type="text"]:focus,
-form input[type="password"]:focus {
-  outline-color: #cc0000;
-}
-
-button {
-  background-color: #cc0000;
-}
-
-button:hover {
-  background-color: #990000;
-}
-
-</style>

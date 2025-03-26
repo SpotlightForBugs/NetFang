@@ -58,6 +58,7 @@ def init_db(db_path: str) -> None:
             services TEXT,
             vendor TEXT,
             deviceclass TEXT,
+            fingerprint TEXT,
             network_id INTEGER,
             FOREIGN KEY(network_id) REFERENCES networks(id)
         )
@@ -120,6 +121,7 @@ def init_db(db_path: str) -> None:
             "services": "TEXT",
             "vendor": "TEXT",
             "deviceclass": "TEXT",
+            "fingerprint": "TEXT",
             "network_id": "INTEGER",
         },
     )
@@ -541,3 +543,54 @@ def get_dashboard_data(db_path: str) -> Dict[str, Any]:
         "alerts": get_alerts(db_path, limit=50),
         "plugin_logs": get_plugin_logs(db_path, limit=20)
     }
+
+
+def add_or_update_device(
+        db_path: str,
+        ip_address: str,
+        mac_address: str,
+        hostname: Optional[str] = None,
+        services: Optional[str] = None,
+        network_id: Optional[int] = None,
+        vendor: Optional[str] = None,
+        deviceclass: Optional[str] = None,
+        fingerprint: Optional[str] = None
+) -> None:
+    """
+    Insert a new device or update an existing one by IP address.
+
+    :param db_path: Path to the database file.
+    :param ip_address: IP address of the device.
+    :param mac_address: MAC address of the device.
+    :param hostname: Optional hostname.
+    :param services: Optional services information.
+    :param network_id: Optional associated network ID.
+    :param vendor: Optional vendor information.
+    :param deviceclass: Optional device class/type.
+    :param fingerprint: Optional ARP fingerprint data.
+    """
+    _ensure_db_initialized(db_path)
+
+    conn: sqlite3.Connection = sqlite3.connect(db_path)
+    cursor: sqlite3.Cursor = conn.cursor()
+    cursor.execute("SELECT id FROM devices WHERE ip_address = ? AND mac_address = ?", 
+                  (ip_address, mac_address))
+    row: Optional[Tuple[Any, ...]] = cursor.fetchone()
+    if row is None:
+        cursor.execute("""
+            INSERT INTO devices (ip_address, mac_address, hostname, services, network_id, vendor, deviceclass, fingerprint)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (ip_address, mac_address, hostname, services, network_id, vendor, deviceclass, fingerprint))
+    else:
+        cursor.execute("""
+            UPDATE devices
+            SET hostname = COALESCE(?, hostname),
+                services = COALESCE(?, services),
+                network_id = COALESCE(?, network_id),
+                vendor = COALESCE(?, vendor),
+                deviceclass = COALESCE(?, deviceclass),
+                fingerprint = COALESCE(?, fingerprint)
+            WHERE ip_address = ? AND mac_address = ?
+        """, (hostname, services, network_id, vendor, deviceclass, fingerprint, ip_address, mac_address))
+    conn.commit()
+    conn.close()
