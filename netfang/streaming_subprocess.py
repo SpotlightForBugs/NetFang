@@ -6,6 +6,7 @@ from collections import deque
 from datetime import datetime
 
 from netfang.socketio_handler import handler
+from netfang.plugin_manager import PluginManager
 
 
 class StreamingSubprocess:
@@ -70,7 +71,9 @@ class StreamingSubprocess:
         """Check if all processes are complete and notify clients if so."""
         if cls.are_all_processes_complete() and cls._active_processes:
             # All processes are complete, notify state change
-            await handler.notify_scanning_complete()
+            # This functionality should now be in the plugin manager
+            if PluginManager.instance:
+                PluginManager.instance.notify_scan_complete("all")
             # Clear the active processes tracking
             cls._active_processes = {}
 
@@ -107,7 +110,7 @@ class StreamingSubprocess:
         try:
             # Set the current process info in the dashboard
             await handler.set_current_process(
-                self.plugin_name, self.cmd_str, process_id=self.process_id
+                self.plugin_name, self.cmd_str, pid=None, process_id=self.process_id
             )
 
             # Create process with pipes for stdout and stderr

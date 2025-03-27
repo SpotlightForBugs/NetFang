@@ -5,6 +5,7 @@ import json
 import os
 import logging
 import inspect
+import asyncio
 from typing import Any, Dict, List, Optional
 
 from netfang.alert_manager import AlertManager, Alert
@@ -34,6 +35,7 @@ class PluginManager:
         self.config: Dict[str, Any] = {}
         self.plugins: Dict[str, BasePlugin] = {}
         self.logger = logging.getLogger(__name__)
+        self.scanning_plugins: Dict[str, bool] = {}  # track completion status
         
         # Set the class instance
         PluginManager.instance = self
@@ -183,6 +185,9 @@ class PluginManager:
             # Execute the plugin's scan action
             self.logger.info(f"Initiating scan with plugin {plugin_name}")
             
+            # Mark this plugin as scanning
+            self.scanning_plugins[plugin_name] = False
+            
             # Standard approach for plugins like ArpScan
             if plugin_name.lower() == "arpscan":
                 self.perform_action([plugin_name, "localnet", "all"])
@@ -195,6 +200,9 @@ class PluginManager:
             return True
         except Exception as e:
             self.logger.error(f"Error executing scan with plugin {plugin_name}: {str(e)}")
+            # Remove from scanning plugins
+            if plugin_name in self.scanning_plugins:
+                del self.scanning_plugins[plugin_name]
             return False
 
     def enable_plugin(self, plugin_name: str) -> bool:
@@ -290,10 +298,23 @@ class PluginManager:
             p.on_connecting()
 
     def on_scanning_in_progress(self):
+        # Initialize the scanning plugins tracking
+        self.scanning_plugins = {}
+        # Get active scanning plugins
+        scanning_plugin_names = self.get_scanning_plugin_names()
+        for name in scanning_plugin_names:
+            plugin = self.get_plugin_by_name(name)
+            if plugin:
+                self.scanning_plugins[name] = False
+                
+        # Now call the actual method on each plugin
         for p in self.plugins.values():
             p.on_scanning_in_progress()
 
     def on_scan_completed(self):
+        # Reset scan tracking
+        self.scanning_plugins = {}
+        # Notify plugins
         for p in self.plugins.values():
             p.on_scan_completed()
 
@@ -311,19 +332,82 @@ class PluginManager:
 
     def notify_scan_complete(self, plugin_name: str) -> None:
         """
-        Notify the state machine that a scan has completed.
+        Notify the system that a scan has completed.
         This should be called by plugins when they finish scanning.
         
         Args:
-            plugin_name: Name of the plugin that completed scanning
+            plugin_name: Name of the plugin that completed scanning or "all" for a collective completion
         """
         try:
-            # Get the StateMachine instance from NetworkManager instead
-            from netfang.network_manager import NetworkManager
-            
-            if NetworkManager.instance and NetworkManager.instance.state_machine:
-                NetworkManager.instance.state_machine.mark_scan_complete(plugin_name)
+            # Mark the specific plugin as complete
+            if plugin_name == "all":
+                # All processes completed notification from streaming subprocess
+                if not self.scanning_plugins:
+                    # No plugins were actively scanning
+                    return
+                
+                # Mark all plugins as complete
+                for name in self.scanning_plugins:
+                    self.scanning_plugins[name] = True
+            elif plugin_name in self.scanning_plugins:
+                # Mark this specific plugin as complete
+                self.scanning_plugins[plugin_name] = True
             else:
-                self.logger.warning(f"Cannot notify scan completion: NetworkManager instance not available")
+                # Unknown plugin or not being tracked
+                self.logger.warning(f"Received scan completion for unknown plugin: {plugin_name}")
+                return
+                
+            # Check if all tracked plugins have completed
+            if all(self.scanning_plugins.values()) and self.scanning_plugins:
+                self.logger.info("All scanning plugins have completed their scans")
+                
+                # Get the StateMachine instance from NetworkManager
+                from netfang.network_manager import NetworkManager
+                
+                if NetworkManager.instance and NetworkManager.instance.state_machine:
+                    # Get the current state
+                    current_state = NetworkManager.instance.state_machine.current_state
+                    
+                    # Only transition if we're in the SCANNING_IN_PROGRESS state
+                    if current_state and current_state.name == "SCANNING_IN_PROGRESS":
+                        # Use asyncio to run the state update
+                        from netfang.state_machine import State
+                        
+                        # Schedule the state transition in the event loop
+                        async def update_state():
+                            await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
+                        
+                        # Get or create a new event loop and run the state update
+                        try:
+                            loop = asyncio.get_event_loop()
+                        except RuntimeError:
+                            # Create a new event loop if none exists
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                        
+                        loop.run_until_complete(update_state())
+                        
+                        self.logger.info("Transitioned to SCAN_COMPLETED state")
+                        
+                        # Reset scan tracking after transition
+                        self.scanning_plugins = {}
+                else:
+                    self.logger.warning("Cannot transition state: NetworkManager instance not available")
         except Exception as e:
-            self.logger.error(f"Error notifying scan completion: {str(e)}")
+            self.logger.error(f"Error in notify_scan_complete: {str(e)}")
+            
+    def mark_scan_complete(self, plugin_name: str) -> None:
+        """
+        Mark a scan as complete. This is used by the state machine to track which scanning plugins
+        have completed their work.
+        
+        Args:
+            plugin_name: The name of the plugin that completed scanning
+        """
+        if plugin_name in self.scanning_plugins:
+            self.scanning_plugins[plugin_name] = True
+            self.logger.info(f"Marked scan complete for plugin: {plugin_name}")
+            
+            # Check if all plugins are complete
+            if all(self.scanning_plugins.values()):
+                self.notify_scan_complete("all")
