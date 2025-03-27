@@ -272,6 +272,80 @@ def update_service():
         }), 500
 
 
+@app.route("/reinit", methods=["POST"])
+@admin_required
+def reinit_netfang():
+    """
+    Delete the database and restart the NetFang service.
+    This completely resets NetFang to its initial state.
+    Requires admin privileges.
+    """
+    try:
+        # Get the database path from config
+        db_path = PluginManager.config.get("database_path", "netfang.db")
+        
+        # Ensure the path exists and is a file
+        if os.path.isfile(db_path):
+            # Delete the database file
+            if pi_utils.is_pi():
+                # On Raspberry Pi, use sudo to ensure we have permissions
+                result = subprocess.run(
+                    ["sudo", "rm", db_path], 
+                    capture_output=True, 
+                    text=True, 
+                    check=False
+                )
+                if result.returncode == 0:
+                    app.logger.info(f"Database file deleted via sudo: {db_path}")
+                else:
+                    app.logger.error(f"Failed to delete database: {result.stderr}")
+            else:
+                # On other systems, use regular os.remove
+                os.remove(db_path)
+                app.logger.info(f"Database file deleted: {db_path}")
+            
+            # Re-initialize the database with empty tables
+            init_db(db_path)
+            app.logger.info(f"Database recreated: {db_path}")
+        else:
+            app.logger.warning(f"Database file not found at {db_path}, creating new one")
+            init_db(db_path)
+        
+        # Check if running in a Linux environment for service restart
+        if pi_utils.is_linux():
+            # Execute the systemctl restart command
+            result = subprocess.run(
+                ["sudo", "systemctl", "restart", "netfang.service"], 
+                capture_output=True, 
+                text=True, 
+                check=False
+            )
+            
+            if result.returncode == 0:
+                return jsonify({
+                    "status": "success",
+                    "message": "NetFang database deleted and service restarted successfully"
+                })
+            else:
+                return jsonify({
+                    "status": "partial",
+                    "message": f"Database reset but service restart failed: {result.stderr}"
+                }), 500
+        else:
+            # For non-Linux systems, just return success for the database reset
+            return jsonify({
+                "status": "success",
+                "message": "NetFang database reset successfully. Please restart the application manually."
+            })
+            
+    except Exception as e:
+        app.logger.error(f"Error during NetFang reinitialization: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"An error occurred: {str(e)}"
+        }), 500
+
+
 @app.route("/plugins", methods=["GET"])
 def list_plugins():
     response = []

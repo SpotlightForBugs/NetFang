@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: refine CSS styles for improved layout, responsiveness, and state indicators">
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/plugin_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugin_manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/templates/hidden/hidden_structure.html" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/templates/hidden/hidden_structure.html" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/netfang/templates/hidden/index.html" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/templates/hidden/index.html" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -382,14 +381,21 @@
       <option name="project" value="LOCAL" />
       <updated>1743098312315</updated>
     </task>
-    <option name="localTasksCounter" value="32" />
+    <task id="LOCAL-00032" summary="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling">
+      <option name="closed" value="true" />
+      <created>1743099052141</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1743099052141</updated>
+    </task>
+    <option name="localTasksCounter" value="33" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: Enhance index.html and main.py to display dynamic hostname and state information in the dashboard" />
     <MESSAGE value="feat: Implement INITIAL alert system with custom styling and notification panel in index.html and hidden.css" />
     <MESSAGE value="feat: Add battery and power connection alert actions and conditions in actions.py and conditions.py" />
     <MESSAGE value="feat: Remove debug print statement from LED control subprocess in plugin_waveshare_rgb_led_hat.py" />
@@ -414,7 +420,8 @@
     <MESSAGE value="feat: improve socket connection error handling and prevent duplicate alerts" />
     <MESSAGE value="feat: merge and refine styles for improved layout and responsiveness" />
     <MESSAGE value="feat: refine CSS styles for improved layout, responsiveness, and state indicators" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: refine CSS styles for improved layout, responsiveness, and state indicators" />
+    <MESSAGE value="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$NetFang.coverage" NAME="NetFang Coverage Results" MODIFIED="1742590330433" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />

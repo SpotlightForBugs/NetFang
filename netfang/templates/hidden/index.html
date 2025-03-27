@@ -133,6 +133,9 @@
         <button id="restartServiceButton" class="service-button btn btn-warning" data-bs-toggle="tooltip" title="Restart the core NetFang service.">
             <i class="fas fa-power-off"></i> Restart Netfang Service
         </button>
+        <button id="reInitNetfangButton" class="service-button btn btn-danger" data-bs-toggle="tooltip" title="Delete the database and restart the NetFang service.">
+            <i class="fas fa-exclamation-triangle"></i> Delete Database and restart
+        </button>
         <div id="statusMessage" class="status-message"></div>
     </div>
 {% endblock %}
@@ -190,6 +193,7 @@
     const pluginActionsContainer = document.getElementById('pluginActionsContainer');
     const syncButton = document.getElementById('syncButton');
     const restartServiceButton = document.getElementById('restartServiceButton');
+    const reInitNetfangButton = document.getElementById('reInitNetfangButton');
     const statusMessage = document.getElementById('statusMessage');
 
     // --- Utility Functions ---
@@ -865,6 +869,51 @@
                 alertify.message('Restart cancelled.');
             }
         ).set('labels', {ok:'Confirm', cancel:'Cancel'});
+    });
+
+    // Add event listener for reInitNetfangButton
+    reInitNetfangButton.addEventListener('click', () => {
+        // Show a confirmation dialog with warning about data loss
+        alertify.confirm(
+            'Confirm Database Reset',
+            'WARNING: This will delete the entire NetFang database and restart the service. All network history, device information, and configuration will be lost. Are you sure you want to proceed?',
+            async () => { // On Confirm
+                showStatusMessage('Resetting NetFang database...', 3000, 'info');
+                reInitNetfangButton.disabled = true;
+                reInitNetfangButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Resetting...';
+
+                try {
+                    const response = await fetch('/reinit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const data = await response.json();
+
+                    if (response.ok && (data.status === 'success' || data.status === 'partial')) {
+                        showStatusMessage(data.message || 'NetFang database reset successfully.', 5000, 'success');
+                        alertify.success(data.message || 'NetFang database reset successfully.');
+                        
+                        // Force sync dashboard after a delay to get fresh data
+                        setTimeout(window.syncDashboard, 3000);
+                    } else {
+                        showStatusMessage(data.message || 'Failed to reset NetFang database.', 5000, 'error');
+                        alertify.error(data.message || 'Failed to reset NetFang database.');
+                        reInitNetfangButton.disabled = false;
+                        reInitNetfangButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Delete Database and restart';
+                    }
+                } catch (error) {
+                    console.error("Error resetting NetFang:", error);
+                    showStatusMessage(`Error: ${error.message}`, 5000, 'error');
+                    alertify.error(`Error resetting NetFang: ${error.message}`);
+                    reInitNetfangButton.disabled = false;
+                    reInitNetfangButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Delete Database and restart';
+                }
+            },
+            () => { // On Cancel
+                alertify.message('Database reset cancelled.');
+            }
+        ).set('labels', {ok:'Reset Database', cancel:'Cancel'})
+        .set('closable', false); // Prevent clicking outside to dismiss
     });
 
     // Panel Collapse Toggle (Using Bootstrap's built-in JS via data attributes is often easier)
