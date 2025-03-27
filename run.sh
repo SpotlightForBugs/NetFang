@@ -12,11 +12,13 @@ if [ ! -f "$VENV_DIR/bin/activate" ]; then
   source "$VENV_DIR/bin/activate"
   echo "Virtual environment activated."
   pip install -r requirements.txt
+  pip install eventlet>=0.33.1  # Ensure eventlet is installed
   echo "Requirements installed."
 else
   # Activate the virtual environment and install requirements
   source "$VENV_DIR/bin/activate"
   pip install -r requirements.txt
+  pip install eventlet>=0.33.1  # Ensure eventlet is installed
 fi
 
 update_repo=false

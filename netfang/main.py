@@ -13,6 +13,14 @@ from typing import Dict, Any, Optional, Callable, Union, Tuple, List
 import json # For plugin action handling
 import logging # Use standard logging
 
+try:
+    import eventlet
+    eventlet.monkey_patch()  # Patch standard library for eventlet compatibility
+    print("Eventlet initialized and monkey patching applied.")
+except ImportError:
+    print("ERROR: Eventlet is required. Please install with: pip install eventlet")
+    sys.exit(1)
+
 from flask import (
     request, jsonify, render_template, session, redirect, url_for, abort,
     Flask, Response, send_from_directory, flash
@@ -77,7 +85,7 @@ app.logger.setLevel(logging.INFO) # Use Flask's logger
 
 # --- SocketIO Initialization ---
 # Ensure async_mode is set for asyncio compatibility
-socketio = SocketIO(app, async_mode='asyncio', cors_allowed_origins="*") # Allow all origins for now, restrict in production
+socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*") # Allow all origins for now, restrict in production
 
 # --- Initialize Core Managers & Handler ---
 try:
