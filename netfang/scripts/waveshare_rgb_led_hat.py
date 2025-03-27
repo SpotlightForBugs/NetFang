@@ -8,710 +8,526 @@ import math
 from typing import Optional, List, Tuple, Dict, Type, Union, Any, cast
 
 try:
-    from rpi_ws281x import PixelStrip, Color
+    # Use Adafruit_NeoPixel as it works for the target HAT
+    from rpi_ws281x import Adafruit_NeoPixel, Color
+
     LED_AVAILABLE = True
 except ImportError:
-    print("Warning: rpi_ws281x library not available - running in simulation mode")
+    print(
+        "Warning: rpi_ws281x library not available - running in simulation mode"
+    )
+    LED_AVAILABLE = False
+except RuntimeError as e:
+    # Catch RuntimeError during import, often related to GPIO permissions
+    print(f"Error importing rpi_ws281x: {e}", file=sys.stderr)
+    print("This might be a permissions issue. Try running with 'sudo'.", file=sys.stderr)
     LED_AVAILABLE = False
 
-# LED matrix configuration:
-LED_ROWS: int = 4           # Number of rows in the LED matrix
-LED_COLS: int = 8           # Number of columns in the LED matrix
-LED_COUNT: int = LED_ROWS * LED_COLS  # Total number of LEDs
-LED_PIN: int = 18           # GPIO pin connected to the pixels (18 uses PWM!)
-LED_FREQ_HZ: int = 800000   # LED signal frequency in hertz (usually 800khz)
-LED_DMA: int = 10           # DMA channel to use for generating signal (try 10)
-LED_BRIGHTNESS: int = 255   # Set to 0 for darkest and 255 for brightest
-LED_INVERT: bool = False    # True to invert the signal (when using NPN transistor level shift)
-LED_CHANNEL: int = 0        # set to '1' for GPIOs 13, 19, 41, 45 or 53
 
-# Type alias for Color
-ColorType = int
+# --- Configuration ---
+LED_ROWS: int = 4
+LED_COLS: int = 8
+LED_COUNT: int = LED_ROWS * LED_COLS
+LED_PIN: int = 18
+LED_FREQ_HZ: int = 800000
+LED_DMA: int = 10
+LED_BRIGHTNESS: int = 50 # Default initial brightness (0-255)
+LED_INVERT: bool = False
+LED_CHANNEL: int = 0
+MAX_BRIGHTNESS_VALUE: int = 20 # Cap the final brightness value (0-255)
 
-# Color values
-COLORS: Dict[str, ColorType] = {
-    "red": Color(255, 0, 0),
-    "green": Color(0, 255, 0),
-    "blue": Color(0, 0, 255),
-    "white": Color(255, 255, 255),
-    "yellow": Color(255, 255, 0),
-    "purple": Color(128, 0, 128),
-    "magenta": Color(255, 0, 255),
-    "cyan": Color(0, 255, 255),
-    "orange": Color(255, 165, 0),
-    "off": Color(0, 0, 0)
-}
 
+
+
+
+# Color definitions
+if LED_AVAILABLE:
+    # Use the actual Color object from the library
+    COLORS: Dict[str, Union[Color,int]] = {
+        "red": Color(255, 0, 0),
+        "green": Color(0, 255, 0),
+        "blue": Color(0, 0, 255),
+        "white": Color(255, 255, 255),
+        "yellow": Color(255, 255, 0),
+        "purple": Color(128, 0, 128),
+        "magenta": Color(255, 0, 255),
+        "cyan": Color(0, 255, 255),
+        "orange": Color(255, 165, 0),
+        "off": Color(0, 0, 0),
+    }
+else:
+    # Simulation mode: Use integers
+    Union[Color,int] = int
+    COLORS: Dict[str, Union[Color,int]] = {
+        "red": 0xFF0000,
+        "green": 0x00FF00,
+        "blue": 0x0000FF,
+        "white": 0xFFFFFF,
+        "yellow": 0xFFFF00,
+        "purple": 0x800080,
+        "magenta": 0xFF00FF,
+        "cyan": 0x00FFFF,
+        "orange": 0xFFA500,
+        "off": 0x000000,
+    }
+
+    # Dummy Color function for simulation
+    def Color(r, g, b):
+        r = max(0, min(255, r))
+        g = max(0, min(255, g))
+        b = max(0, min(255, b))
+        return (r << 16) | (g << 8) | b
+
+
+# --- Matrix Interface and Implementations ---
 class MatrixInterface:
-    """Interface for LED matrix operations to standardize between real and simulated matrix"""
-    def numPixels(self) -> int:
-        """Return the number of pixels in the matrix"""
-        raise NotImplementedError
-    
-    def numRows(self) -> int:
-        """Return the number of rows in the matrix"""
-        raise NotImplementedError
-    
-    def numCols(self) -> int:
-        """Return the number of columns in the matrix"""
-        raise NotImplementedError
-        
-    def setPixelColor(self, pos: int, color: ColorType) -> None:
-        """Set the color of a pixel at a linear position"""
-        raise NotImplementedError
-        
-    def setPixelColorRC(self, row: int, col: int, color: ColorType) -> None:
-        """Set the color of a pixel at a specific row and column"""
-        raise NotImplementedError
-        
-    def show(self) -> None:
-        """Update the display with all pixel changes"""
-        raise NotImplementedError
-        
-    def begin(self) -> None:
-        """Initialize the matrix"""
-        raise NotImplementedError
-        
-    def setBrightness(self, brightness: int) -> None:
-        """Set the brightness of the matrix"""
-        raise NotImplementedError
-        
-    @property
-    def brightness(self) -> int:
-        """Get the current brightness level"""
-        raise NotImplementedError
+    """Interface for LED matrix operations"""
 
-# Animation definitions
-class Animation:
-    """Base class for all animations"""
-    def __init__(self, 
-                 matrix: MatrixInterface, 
-                 color: str, 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-        """
-        Base animation class
-        
-        Args:
-            matrix: The LED matrix instance
-            color: Primary color for the animation
-            alt_color: Secondary color for animations that use two colors
-            speed: Animation speed (1-10, where 10 is fastest)
-        """
-        self.matrix = matrix
-        self.color: ColorType = COLORS.get(color, COLORS["white"])
-        self.alt_color: ColorType = COLORS.get(alt_color or "", COLORS["blue"]) if alt_color else COLORS["off"]
-        self.speed: int = min(max(speed, 1), 10)  # Constrain between 1-10
-        self.frame_delay: float = 0.1 * (11 - self.speed)  # Convert speed to delay (faster = lower delay)
-        
-    def setup(self) -> None:
-        """Initialize the animation (called once before running)"""
+    def numPixels(self) -> int:
+        raise NotImplementedError("numPixels must be implemented")
+
+    def numRows(self) -> int:
+        raise NotImplementedError("numRows must be implemented")
+
+    def numCols(self) -> int:
+        raise NotImplementedError("numCols must be implemented")
+
+    def setPixelColor(self, pos: int, color: Union[Color,int]) -> None:
+        raise NotImplementedError("setPixelColor must be implemented")
+
+    def setPixelColorRC(self, row: int, col: int, color: Union[Color,int]) -> None:
+        # Default implementation using xy_to_index, relies on subclass setPixelColor
+        idx = self.xy_to_index(row, col)
+        self.setPixelColor(idx, color)
+
+    def show(self) -> None:
+        raise NotImplementedError("show must be implemented")
+
+    def begin(self) -> None:
+        # Optional initialization step
         pass
-        
-    def update(self) -> None:
-        """Update animation frame (called repeatedly while running)"""
-        pass
-        
-    def cleanup(self) -> None:
-        """Clean up after animation (called once when animation is done)"""
-        pass
-        
-    def clear(self) -> None:
-        """Clear all LEDs"""
-        for i in range(self.matrix.numPixels()):
-            self.matrix.setPixelColor(i, COLORS["off"])
-        self.matrix.show()
-        
+
+    def setBrightness(self, brightness: int) -> None:
+        raise NotImplementedError("setBrightness must be implemented")
+
+    def getBrightness(self) -> int:
+        raise NotImplementedError("getBrightness must be implemented")
+
     def xy_to_index(self, row: int, col: int) -> int:
-        """Convert row/column coordinates to linear index"""
-        rows = self.matrix.numRows()
-        cols = self.matrix.numCols()
-        
-        # Ensure coordinates are in bounds
+        """Convert row/column coordinates to linear index (serpentine layout)"""
+        rows = self.numRows()
+        cols = self.numCols()
         row = max(0, min(row, rows - 1))
         col = max(0, min(col, cols - 1))
-        
-        # Map coordinates to index based on serpentine layout
-        # (each row alternates direction to match common matrix wiring)
-        if row % 2 == 0:  # Even rows go left to right
+        if row % 2 == 0: # Even rows (0, 2, ...) go left to right
             return (row * cols) + col
-        else:  # Odd rows go right to left
+        else: # Odd rows (1, 3, ...) go right to left
             return (row * cols) + (cols - 1 - col)
-        
-class SolidAnimation(Animation):
-    """Display a static solid color on all LEDs"""
-    def update(self) -> None:
-        for i in range(self.matrix.numPixels()):
-            self.matrix.setPixelColor(i, self.color)
-        self.matrix.show()
-        time.sleep(0.1)  # Small delay to avoid CPU hogging
 
-class PulseAnimation(Animation):
-    """Pulse the LEDs by varying the brightness"""
-    def __init__(self, 
-                 matrix: MatrixInterface, 
-                 color: str, 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-        super().__init__(matrix, color, alt_color, speed)
-        self.brightness_multiplier: float = 0.0
-        self.increasing: bool = True
-        self.step: float = 0.05 * self.speed  # Speed affects step size
-        
-    def update(self) -> None:
-        # Calculate brightness multiplier (0.0 to 1.0)
-        if self.increasing:
-            self.brightness_multiplier += self.step
-            if self.brightness_multiplier >= 1.0:
-                self.brightness_multiplier = 1.0
-                self.increasing = False
-        else:
-            self.brightness_multiplier -= self.step
-            if self.brightness_multiplier <= 0.1:  # Don't go completely dark
-                self.brightness_multiplier = 0.1
-                self.increasing = True
-                
-        # Create a dimmed version of the color
-        r = int(((self.color >> 16) & 0xFF) * self.brightness_multiplier)
-        g = int(((self.color >> 8) & 0xFF) * self.brightness_multiplier)
-        b = int((self.color & 0xFF) * self.brightness_multiplier)
-        dimmed_color = Color(r, g, b)
-        
-        # Apply to all LEDs
-        for i in range(self.matrix.numPixels()):
-            self.matrix.setPixelColor(i, dimmed_color)
-        
-        self.matrix.show()
-        time.sleep(self.frame_delay)
-
-class BlinkAnimation(Animation):
-    """Blink between the color and off"""
-    def __init__(self, 
-                 matrix: MatrixInterface, 
-                 color: str, 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-        super().__init__(matrix, color, alt_color, speed)
-        self.state: bool = True
-        
-    def update(self) -> None:
-        # Toggle state
-        self.state = not self.state
-        
-        # Set all LEDs to either the color or off
-        for i in range(self.matrix.numPixels()):
-            self.matrix.setPixelColor(i, self.color if self.state else COLORS["off"])
-            
-        self.matrix.show()
-        time.sleep(self.frame_delay * 2)  # Longer delay for blink
-
-class RainbowAnimation(Animation):
-    """Cycle through all colors of the rainbow"""
-    def __init__(self, 
-                 matrix: MatrixInterface, 
-                 color: str, 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-        super().__init__(matrix, color, alt_color, speed)
-        self.position: int = 0
-        
-    def wheel(self, pos: int) -> ColorType:
-        """Generate rainbow colors across 0-255 positions"""
-        pos = pos % 256
-        if pos < 85:
-            return Color(pos * 3, 255 - pos * 3, 0)
-        elif pos < 170:
-            pos -= 85
-            return Color(255 - pos * 3, 0, pos * 3)
-        else:
-            pos -= 170
-            return Color(0, pos * 3, 255 - pos * 3)
-    
-    def update(self) -> None:
-        # Set all LEDs to current rainbow position
-        for row in range(self.matrix.numRows()):
-            for col in range(self.matrix.numCols()):
-                idx = self.xy_to_index(row, col)
-                self.matrix.setPixelColor(idx, self.wheel((idx + self.position) & 255))
-            
-        self.matrix.show()
-        
-        # Advance position for next frame
-        self.position = (self.position + 1) % 256
-        
-        time.sleep(self.frame_delay)
-
-class ChaseAnimation(Animation):
-    """Running light animation across the matrix"""
-    def __init__(self, 
-                 matrix: MatrixInterface, 
-                 color: str, 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-        super().__init__(matrix, color, alt_color, speed)
-        self.row: int = 0
-        self.col: int = 0
-        self.direction: int = 0  # 0:right, 1:down, 2:left, 3:up
-        
-    def update(self) -> None:
-        # Clear all and then set just the current position
-        self.clear()
-        
-        # Set the current pixel
-        idx = self.xy_to_index(self.row, self.col)
-        self.matrix.setPixelColor(idx, self.color)
-        self.matrix.show()
-        
-        # Move to next position in spiral pattern
-        if self.direction == 0:  # Moving right
-            self.col += 1
-            if self.col >= self.matrix.numCols() - 1 or self.matrix.setPixelColor(self.xy_to_index(self.row, self.col + 1), COLORS["off"]):
-                self.direction = 1
-        elif self.direction == 1:  # Moving down
-            self.row += 1
-            if self.row >= self.matrix.numRows() - 1 or self.matrix.setPixelColor(self.xy_to_index(self.row + 1, self.col), COLORS["off"]):
-                self.direction = 2
-        elif self.direction == 2:  # Moving left
-            self.col -= 1
-            if self.col <= 0 or self.matrix.setPixelColor(self.xy_to_index(self.row, self.col - 1), COLORS["off"]):
-                self.direction = 3
-        else:  # Moving up
-            self.row -= 1
-            if self.row <= 0 or self.matrix.setPixelColor(self.xy_to_index(self.row - 1, self.col), COLORS["off"]):
-                self.direction = 0
-        
-        # If we've gone out of bounds, reset
-        if (self.row < 0 or self.row >= self.matrix.numRows() or 
-            self.col < 0 or self.col >= self.matrix.numCols()):
-            self.row = 0
-            self.col = 0
-            self.direction = 0
-        
-        time.sleep(self.frame_delay)
-
-class AlternatingAnimation(Animation):
-    """Alternating between two colors"""
-    def __init__(self, 
-                 matrix: MatrixInterface, 
-                 color: str, 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-        super().__init__(matrix, color, alt_color, speed)
-        if alt_color is None:
-            self.alt_color = COLORS["blue"]  # Default to blue if not specified
-        self.state: bool = True
-        
-    def update(self) -> None:
-        # Toggle state
-        self.state = not self.state
-        
-        # Set all LEDs to current color
-        for i in range(self.matrix.numPixels()):
-            self.matrix.setPixelColor(i, self.color if self.state else self.alt_color)
-            
-        self.matrix.show()
-        time.sleep(self.frame_delay * 2)  # Longer delay for alternating
-
-class AlertAnimation(Animation):
-    """Alert pattern (rapid blinks)"""
-    def __init__(self, 
-                 matrix: MatrixInterface, 
-                 color: str, 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-        super().__init__(matrix, color, alt_color, speed)
-        self.state: bool = True
-        self.blinks: int = 0
-        self.max_blinks: int = 3  # Number of blinks per cycle
-        
-    def update(self) -> None:
-        # Toggle state
-        self.state = not self.state
-        
-        # Set all LEDs to color or off
-        for i in range(self.matrix.numPixels()):
-            self.matrix.setPixelColor(i, self.color if self.state else COLORS["off"])
-            
-        self.matrix.show()
-        
-        # Count blinks and pause between cycles
-        if not self.state:
-            self.blinks += 1
-            if self.blinks >= self.max_blinks:
-                self.blinks = 0
-                time.sleep(self.frame_delay * 5)  # Longer pause between blink sequences
-                self.state = not self.state  # Ensure we start the next cycle with lights on
-            else:
-                time.sleep(self.frame_delay * 0.5)  # Quick blink
-        else:
-            time.sleep(self.frame_delay * 0.5)  # Quick blink
-
-class ScanningAnimation(Animation):
-    """Scanning animation - sweeping line across the matrix"""
-    def __init__(self, 
-                 matrix: MatrixInterface, 
-                 color: str, 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-        super().__init__(matrix, color, alt_color, speed)
-        self.position: int = 0
-        self.horizontal: bool = True  # True for horizontal scanning, False for vertical
-        self.direction: int = 1  # 1 for forward, -1 for reverse
-        self.scan_count: int = 0
-        
-    def update(self) -> None:
-        # Clear all
-        self.clear()
-        
-        # Calculate brightness falloff for trail effect
-        r = (self.color >> 16) & 0xFF
-        g = (self.color >> 8) & 0xFF
-        b = self.color & 0xFF
-        
-        # Create dimmer colors for trail effect
-        dim_color = Color(r // 3, g // 3, b // 3)
-        super_dim_color = Color(r // 8, g // 8, b // 8)
-        
-        if self.horizontal:
-            # Horizontal scanning (a line moving up and down)
-            for col in range(self.matrix.numCols()):
-                # Main scanning line
-                idx = self.xy_to_index(self.position, col)
-                self.matrix.setPixelColor(idx, self.color)
-                
-                # Add trail effect (dimmer pixels)
-                if 0 <= (self.position - self.direction) < self.matrix.numRows():
-                    trail_idx = self.xy_to_index(self.position - self.direction, col)
-                    self.matrix.setPixelColor(trail_idx, dim_color)
-                
-                if 0 <= (self.position - (2 * self.direction)) < self.matrix.numRows():
-                    far_trail_idx = self.xy_to_index(self.position - (2 * self.direction), col)
-                    self.matrix.setPixelColor(far_trail_idx, super_dim_color)
-        else:
-            # Vertical scanning (a line moving left and right)
-            for row in range(self.matrix.numRows()):
-                # Main scanning line
-                idx = self.xy_to_index(row, self.position)
-                self.matrix.setPixelColor(idx, self.color)
-                
-                # Add trail effect (dimmer pixels)
-                if 0 <= (self.position - self.direction) < self.matrix.numCols():
-                    trail_idx = self.xy_to_index(row, self.position - self.direction)
-                    self.matrix.setPixelColor(trail_idx, dim_color)
-                
-                if 0 <= (self.position - (2 * self.direction)) < self.matrix.numCols():
-                    far_trail_idx = self.xy_to_index(row, self.position - (2 * self.direction))
-                    self.matrix.setPixelColor(far_trail_idx, super_dim_color)
-        
-        self.matrix.show()
-        
-        # Update position
-        self.position += self.direction
-        
-        # Change direction when reaching edge
-        if self.horizontal:
-            if self.position >= self.matrix.numRows():
-                self.position = self.matrix.numRows() - 1
-                self.direction = -1
-                self.scan_count += 1
-            elif self.position < 0:
-                self.position = 0
-                self.direction = 1
-                self.scan_count += 1
-                # After completing a full scan cycle, switch to vertical
-                if self.scan_count >= 2:
-                    self.horizontal = False
-                    self.scan_count = 0
-        else:
-            if self.position >= self.matrix.numCols():
-                self.position = self.matrix.numCols() - 1
-                self.direction = -1
-                self.scan_count += 1
-            elif self.position < 0:
-                self.position = 0
-                self.direction = 1
-                self.scan_count += 1
-                # After completing a full scan cycle, switch to horizontal
-                if self.scan_count >= 2:
-                    self.horizontal = True
-                    self.scan_count = 0
-        
-        time.sleep(self.frame_delay)
-
-# Animation factory
-def create_animation(name: str, 
-                    matrix: MatrixInterface, 
-                    color: str, 
-                    alt_color: Optional[str] = None, 
-                    speed: int = 5) -> Animation:
-    """Create an animation instance by name"""
-    animations: Dict[str, Type[Animation]] = {
-        "solid": SolidAnimation,
-        "pulse": PulseAnimation,
-        "blink": BlinkAnimation,
-        "rainbow": RainbowAnimation,
-        "chase": ChaseAnimation,
-        "alternate": AlternatingAnimation,
-        "alert": AlertAnimation,
-        "scanning": ScanningAnimation
-    }
-    
-    animation_class = animations.get(name, SolidAnimation)
-    return animation_class(matrix, color, alt_color, speed)
 
 class MatrixAdapter(MatrixInterface):
-    """Adapter class to provide matrix functionality using PixelStrip"""
-    def __init__(self, strip: Union[PixelStrip, Any], rows: int, cols: int) -> None:
+    """Adapter class using Adafruit_NeoPixel"""
+
+    def __init__(
+        self, strip: Union[Adafruit_NeoPixel, Any], rows: int, cols: int
+    ) -> None:
+        if not LED_AVAILABLE or not isinstance(strip, Adafruit_NeoPixel):
+             raise TypeError("MatrixAdapter requires a valid Adafruit_NeoPixel strip instance.")
         self.strip = strip
         self._rows = rows
         self._cols = cols
-        self._brightness = LED_BRIGHTNESS
-        
+        self._brightness = self.strip.getBrightness() # Get initial value
+
     def numPixels(self) -> int:
         return self.strip.numPixels()
-    
+
     def numRows(self) -> int:
         return self._rows
-    
+
     def numCols(self) -> int:
         return self._cols
-        
-    def setPixelColor(self, pos: int, color: ColorType) -> None:
+
+    def setPixelColor(self, pos: int, color: Union[Color,int]) -> None:
         if 0 <= pos < self.numPixels():
-            self.strip.setPixelColor(pos, color)
-    
-    def setPixelColorRC(self, row: int, col: int, color: ColorType) -> None:
-        """Set pixel color by row and column coordinates"""
-        if 0 <= row < self._rows and 0 <= col < self._cols:
-            # Determine the pixel's position in the serpentine layout
-            if row % 2 == 0:  # Even rows go left to right
-                pos = (row * self._cols) + col
-            else:  # Odd rows go right to left
-                pos = (row * self._cols) + (self._cols - 1 - col)
-            
-            self.strip.setPixelColor(pos, color)
-    
+            # Adafruit_NeoPixel.setPixelColor expects an integer color value
+            self.strip.setPixelColor(pos, cast(int, color))
+
+    def setPixelColorRC(self, row: int, col: int, color: Union[Color,int]) -> None:
+        # Explicitly override to use the base class logic
+        super().setPixelColorRC(row, col, color)
+
     def show(self) -> None:
         self.strip.show()
-        
+
     def begin(self) -> None:
-        self.strip.begin()
-        
+        # Adafruit_NeoPixel is begun during init_matrix, so nothing needed here
+        pass
+
     def setBrightness(self, brightness: int) -> None:
-        if hasattr(self.strip, 'setBrightness'):
-            self.strip.setBrightness(brightness)
-        self._brightness = brightness
-            
-    @property
-    def brightness(self) -> int:
+        # Clamp brightness to the allowed range (0-255 for the library)
+        brightness = max(0, min(255, brightness))
+        self.strip.setBrightness(brightness)
+        self._brightness = brightness # Update local store
+
+    def getBrightness(self) -> int:
+        # Return locally stored brightness (more reliable than querying strip again)
         return self._brightness
+
 
 class MatrixSimulation(MatrixInterface):
     """Simulation of an LED matrix for development without hardware"""
+
     def __init__(self, rows: int, cols: int) -> None:
         self._rows = rows
         self._cols = cols
-        self._pixels = [0] * (rows * cols)
-        self._brightness = LED_BRIGHTNESS
-        
+        self._pixels: List[Union[Color,int]] = [COLORS["off"]] * (rows * cols)
+        self._brightness = LED_BRIGHTNESS # Use the default initial
+
     def numPixels(self) -> int:
         return len(self._pixels)
-    
+
     def numRows(self) -> int:
         return self._rows
-    
+
     def numCols(self) -> int:
         return self._cols
-        
-    def setPixelColor(self, pos: int, color: ColorType) -> None:
+
+    def setPixelColor(self, pos: int, color: Union[Color,int]) -> None:
         if 0 <= pos < len(self._pixels):
             self._pixels[pos] = color
-    
-    def setPixelColorRC(self, row: int, col: int, color: ColorType) -> None:
-        """Set pixel color by row and column coordinates"""
-        if 0 <= row < self._rows and 0 <= col < self._cols:
-            # Determine the pixel's position in the serpentine layout
-            if row % 2 == 0:  # Even rows go left to right
-                pos = (row * self._cols) + col
-            else:  # Odd rows go right to left
-                pos = (row * self._cols) + (self._cols - 1 - col)
-            
-            self._pixels[pos] = color
-    
+
+    def setPixelColorRC(self, row: int, col: int, color: Union[Color,int]) -> None:
+        # Explicitly override to use the base class logic
+        super().setPixelColorRC(row, col, color)
+
     def show(self) -> None:
         """Display the matrix in a text-based grid layout"""
-        display = [['◯' for _ in range(self._cols)] for _ in range(self._rows)]
-        
-        # Convert linear array to 2D grid for display
-        for i, pixel in enumerate(self._pixels):
-            # Determine row and column from linear index
+        display = [["⚫" for _ in range(self._cols)] for _ in range(self._rows)]
+        # Apply brightness factor for simulation display
+        # Use the capped max brightness for scaling the display effect
+        brightness_factor = self._brightness / 255.0
+
+        for i, pixel_color in enumerate(self._pixels):
             row = i // self._cols
-            if row % 2 == 0:  # Even rows go left to right
+            if row % 2 == 0: # Even rows
                 col = i % self._cols
-            else:  # Odd rows go right to left
+            else: # Odd rows
                 col = self._cols - 1 - (i % self._cols)
-                
-            if pixel == 0:
-                display[row][col] = '◯'  # Empty circle for off
-            else:
-                r = (pixel >> 16) & 0xFF
-                g = (pixel >> 8) & 0xFF
-                b = pixel & 0xFF
-                
-                if r > g and r > b:
-                    display[row][col] = '🔴'  # Red
-                elif g > r and g > b:
-                    display[row][col] = '🟢'  # Green
-                elif b > r and b > g:
-                    display[row][col] = '🔵'  # Blue
-                elif r > 0 and g > 0 and b == 0:
-                    display[row][col] = '🟡'  # Yellow
-                elif r > 0 and b > 0 and g == 0:
-                    display[row][col] = '🟣'  # Purple/Magenta
-                elif g > 0 and b > 0 and r == 0:
-                    display[row][col] = '🔷'  # Cyan
-                elif r > 0 and g > 0 and b > 0:
-                    display[row][col] = '⚪'  # White
-                else:
-                    display[row][col] = '◯'  # Off
-        
-        # Print the matrix
-        print("\033[H\033[J", end="")  # Clear screen
-        print("LED Matrix Simulation (4x8):")
-        print("┌" + "─" * (self._cols * 2) + "┐")
-        for row in display:
-            print("│" + "".join(row) + "│")
-        print("└" + "─" * (self._cols * 2) + "┘")
-        
+
+            pixel_int = cast(int, pixel_color)
+            r = int(((pixel_int >> 16) & 0xFF) * brightness_factor)
+            g = int(((pixel_int >> 8) & 0xFF) * brightness_factor)
+            b = int((pixel_int & 0xFF) * brightness_factor)
+
+            threshold = 30 * brightness_factor # Threshold for visibility
+            if r < threshold and g < threshold and b < threshold:
+                 display[row][col] = "⚫"
+            elif r > g and r > b: display[row][col] = "🔴"
+            elif g > r and g > b: display[row][col] = "🟢"
+            elif b > r and b > g: display[row][col] = "🔵"
+            elif r > threshold and g > threshold and b < threshold: display[row][col] = "🟡"
+            elif r > threshold and b > threshold and g < threshold: display[row][col] = "🟣"
+            elif g > threshold and b > threshold and r < threshold: display[row][col] = "🔷"
+            elif r > threshold and g > threshold and b > threshold: display[row][col] = "⚪"
+            else: display[row][col] = "⚫"
+
+        print("\033[H\033[J", end="") # Clear screen
+        print(f"LED Matrix Simulation ({self._rows}x{self._cols}): Brightness {self._brightness}/{MAX_BRIGHTNESS_VALUE}")
+        print("┌" + "──" * self._cols + "┐")
+        for row_display in display:
+            print("│" + "".join(row_display) + "│")
+        print("└" + "──" * self._cols + "┘")
+
     def begin(self) -> None:
-        print("LED Matrix Simulation mode active - LEDs will be printed as a grid")
-        
+        # Simulation specific initialization message
+        print("LED Matrix Simulation mode active.")
+
     def setBrightness(self, brightness: int) -> None:
-        self._brightness = brightness
-            
-    @property
-    def brightness(self) -> int:
+        # Clamp brightness to the allowed range (0-255 internally)
+        self._brightness = max(0, min(255, brightness))
+
+    def getBrightness(self) -> int:
         return self._brightness
 
-def init_matrix() -> MatrixInterface:
-    """Initialize the LED matrix or a simulation"""
+
+# --- Animation Definitions (Unchanged from previous version) ---
+# Base Animation class and all specific animation classes (Solid, Pulse, etc.)
+# remain the same as in the previous corrected version.
+# Ensure all specific animation classes correctly override update().
+class Animation:
+    """Base class for all animations"""
+    def __init__(
+        self, matrix: MatrixInterface, color: str,
+        alt_color: Optional[str] = None, speed: int = 5
+    ) -> None:
+        self.matrix = matrix
+        self.color: Union[Color,int] = COLORS.get(color, COLORS["white"])
+        self.alt_color: Union[Color,int] = (
+            COLORS.get(alt_color, COLORS["blue"])
+            if alt_color else COLORS["off"]
+        )
+        self.speed: int = min(max(speed, 1), 10)
+        self.frame_delay: float = 0.1 * (11 - self.speed)
+    def setup(self) -> None: pass
+    def update(self) -> None: raise NotImplementedError("Animation subclass must implement update()")
+    def cleanup(self) -> None: pass
+    def clear(self) -> None:
+        for i in range(self.matrix.numPixels()):
+            self.matrix.setPixelColor(i, COLORS["off"])
+    def _get_rgb(self, color: Union[Color,int]) -> Tuple[int, int, int]:
+        color_int = cast(int, color)
+        return ((color_int >> 16) & 0xFF, (color_int >> 8) & 0xFF, color_int & 0xFF)
+    def _make_color(self, r: int, g: int, b: int) -> Union[Color,int]:
+         r, g, b = max(0, min(255, r)), max(0, min(255, g)), max(0, min(255, b))
+         return Color(r, g, b)
+
+class SolidAnimation(Animation):
+    def update(self) -> None:
+        for i in range(self.matrix.numPixels()): self.matrix.setPixelColor(i, self.color)
+        self.matrix.show(); time.sleep(0.1)
+class PulseAnimation(Animation):
+    def __init__(self, matrix: MatrixInterface, color: str, alt_color: Optional[str] = None, speed: int = 5) -> None:
+        super().__init__(matrix, color, alt_color, speed); self.brightness_multiplier, self.increasing, self.step = 0.0, True, 0.02 * self.speed
+    def update(self) -> None:
+        if self.increasing: self.brightness_multiplier += self.step; self.increasing = self.brightness_multiplier < 1.0
+        else: self.brightness_multiplier -= self.step; self.increasing = self.brightness_multiplier <= 0.05
+        if self.brightness_multiplier > 1.0: self.brightness_multiplier = 1.0
+        if self.brightness_multiplier < 0.05: self.brightness_multiplier = 0.05
+        r, g, b = self._get_rgb(self.color); dimmed_color = self._make_color(int(r * self.brightness_multiplier), int(g * self.brightness_multiplier), int(b * self.brightness_multiplier))
+        for i in range(self.matrix.numPixels()): self.matrix.setPixelColor(i, dimmed_color)
+        self.matrix.show(); time.sleep(self.frame_delay * 0.5)
+class BlinkAnimation(Animation):
+    def __init__(self, matrix: MatrixInterface, color: str, alt_color: Optional[str] = None, speed: int = 5) -> None:
+        super().__init__(matrix, color, alt_color, speed); self.state = True
+    def update(self) -> None:
+        self.state = not self.state; current_color = self.color if self.state else COLORS["off"]
+        for i in range(self.matrix.numPixels()): self.matrix.setPixelColor(i, current_color)
+        self.matrix.show(); time.sleep(self.frame_delay * 1.5)
+class RainbowAnimation(Animation):
+    def __init__(self, matrix: MatrixInterface, color: str, alt_color: Optional[str] = None, speed: int = 5) -> None:
+        super().__init__(matrix, "white", alt_color, speed); self.position = 0
+    def wheel(self, pos: int) -> Union[Color,int]:
+        pos %= 256; r, g, b = (0,0,0)
+        if pos < 85: r, g, b = pos * 3, 255 - pos * 3, 0
+        elif pos < 170: pos -= 85; r, g, b = 255 - pos * 3, 0, pos * 3
+        else: pos -= 170; r, g, b = 0, pos * 3, 255 - pos * 3
+        return self._make_color(r, g, b)
+    def update(self) -> None:
+        num_pixels = self.matrix.numPixels()
+        for i in range(num_pixels): self.matrix.setPixelColor(i, self.wheel((i * (256 // num_pixels) + self.position) & 255))
+        self.matrix.show(); self.position = (self.position + self.speed // 2 + 1) % 256; time.sleep(self.frame_delay * 0.2)
+class ChaseAnimation(Animation):
+    def __init__(self, matrix: MatrixInterface, color: str, alt_color: Optional[str] = None, speed: int = 5) -> None:
+        super().__init__(matrix, color, alt_color, speed); self.current_pixel, self.pixel_count = 0, matrix.numPixels()
+    def update(self) -> None:
+        self.clear(); pixel_index = self.current_pixel % self.pixel_count
+        self.matrix.setPixelColor(pixel_index, self.color); self.matrix.show()
+        self.current_pixel += 1; time.sleep(self.frame_delay)
+class AlternatingAnimation(Animation):
+    def __init__(self, matrix: MatrixInterface, color: str, alt_color: Optional[str] = None, speed: int = 5) -> None:
+        alt_color = alt_color or "blue"; super().__init__(matrix, color, alt_color, speed)
+        if isinstance(self.alt_color, str): self.alt_color = COLORS.get(self.alt_color, COLORS["blue"])
+        self.state = True
+    def update(self) -> None:
+        self.state = not self.state; current_color = self.color if self.state else self.alt_color
+        for i in range(self.matrix.numPixels()): self.matrix.setPixelColor(i, current_color)
+        self.matrix.show(); time.sleep(self.frame_delay * 2)
+class AlertAnimation(Animation):
+    def __init__(self, matrix: MatrixInterface, color: str, alt_color: Optional[str] = None, speed: int = 5) -> None:
+        base_speed = max(7, speed); super().__init__(matrix, color, alt_color, base_speed)
+        self.state, self.blinks, self.max_blinks, self.pause_state = True, 0, 3, False
+        self.blink_delay, self.pause_delay = self.frame_delay * 0.5, self.frame_delay * 4
+    def update(self) -> None:
+        current_color = COLORS["off"] # Default
+        if self.pause_state:
+            if self.state: self.clear(); self.matrix.show(); self.state = False
+            time.sleep(self.pause_delay); self.pause_state, self.blinks, self.state = False, 0, True
+            current_color = self.color # Set color for next frame after pause
+        else:
+            self.state = not self.state; current_color = self.color if self.state else COLORS["off"]
+            if not self.state: self.blinks += 1
+            if self.blinks >= self.max_blinks and not self.state: self.pause_state = True
+        if not (self.pause_state and not self.state): # Don't show if pausing and already off
+            for i in range(self.matrix.numPixels()): self.matrix.setPixelColor(i, current_color)
+            self.matrix.show()
+        time.sleep(self.blink_delay if not self.pause_state else 0) # Only sleep during blinking
+class ScanningAnimation(Animation):
+    def __init__(self, matrix: MatrixInterface, color: str, alt_color: Optional[str] = None, speed: int = 5) -> None:
+        super().__init__(matrix, color, alt_color, speed); self.position, self.horizontal, self.direction, self.scan_count = 0, True, 1, 0
+    def update(self) -> None:
+        self.clear(); r, g, b = self._get_rgb(self.color)
+        dim_color, super_dim_color = self._make_color(r // 4, g // 4, b // 4), self._make_color(r // 10, g // 10, b // 10)
+        rows, cols = self.matrix.numRows(), self.matrix.numCols()
+        limit = rows if self.horizontal else cols
+        if self.horizontal:
+            for c in range(cols):
+                idx = self.matrix.xy_to_index(self.position, c); self.matrix.setPixelColor(idx, self.color)
+                if 0 <= self.position - self.direction < limit: self.matrix.setPixelColor(self.matrix.xy_to_index(self.position - self.direction, c), dim_color)
+                if 0 <= self.position - 2 * self.direction < limit: self.matrix.setPixelColor(self.matrix.xy_to_index(self.position - 2 * self.direction, c), super_dim_color)
+        else:
+            for r in range(rows):
+                idx = self.matrix.xy_to_index(r, self.position); self.matrix.setPixelColor(idx, self.color)
+                if 0 <= self.position - self.direction < limit: self.matrix.setPixelColor(self.matrix.xy_to_index(r, self.position - self.direction), dim_color)
+                if 0 <= self.position - 2 * self.direction < limit: self.matrix.setPixelColor(self.matrix.xy_to_index(r, self.position - 2 * self.direction), super_dim_color)
+        self.matrix.show(); self.position += self.direction
+        if self.position >= limit: self.position, self.direction, self.scan_count = limit - 1, -1, self.scan_count + 1
+        elif self.position < 0: self.position, self.direction, self.scan_count = 0, 1, self.scan_count + 1
+        if self.scan_count >= 2: self.horizontal, self.scan_count, self.position, self.direction = not self.horizontal, 0, 0, 1
+        time.sleep(self.frame_delay)
+# --- End of Animation Definitions ---
+
+
+# --- Animation Factory ---
+def create_animation(
+    name: str, matrix: MatrixInterface, color: str,
+    alt_color: Optional[str] = None, speed: int = 5
+) -> Animation:
+    """Create an animation instance by name"""
+    animations: Dict[str, Type[Animation]] = {
+        "solid": SolidAnimation, "pulse": PulseAnimation, "blink": BlinkAnimation,
+        "rainbow": RainbowAnimation, "chase": ChaseAnimation, "alternate": AlternatingAnimation,
+        "alert": AlertAnimation, "scanning": ScanningAnimation,
+    }
+    animation_class = animations.get(name.lower(), SolidAnimation)
+    # print(f"Creating animation: {animation_class.__name__} for '{name}'") # Debug
+    try:
+        instance = animation_class(matrix, color, alt_color, speed)
+        # Verify the instance has an update method (should always be true if class structure is correct)
+        if not hasattr(instance, 'update') or not callable(instance.update):
+             raise TypeError(f"Animation class {animation_class.__name__} does not have a callable update method.")
+        return instance
+    except Exception as e:
+        print(f"Error creating animation '{name}': {e}", file=sys.stderr)
+        # Fallback safely to SolidAnimation if creation fails
+        return SolidAnimation(matrix, color, alt_color, speed)
+
+
+# --- Initialization and Control ---
+def init_matrix() -> Optional[MatrixInterface]:
+    """Initialize the LED matrix or a simulation. Returns None on failure."""
     global LED_AVAILABLE
-    
     if LED_AVAILABLE:
         try:
-            # Create and initialize NeoPixel object
-            strip = PixelStrip(
-                LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL
-            )
+            strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL)
             strip.begin()
+            # print(f"Real LED Matrix ({LED_ROWS}x{LED_COLS}) Initialized.")
             return MatrixAdapter(strip, LED_ROWS, LED_COLS)
-        except Exception as e:
-            print(f"Error initializing LED matrix: {e}")
+        except RuntimeError as e:
+            print(f"Error initializing LED matrix: {e}", file=sys.stderr)
+            print("Try running with 'sudo'. Falling back to simulation.", file=sys.stderr)
             LED_AVAILABLE = False
-    
-    # If not available, create a matrix simulation
-    return MatrixSimulation(LED_ROWS, LED_COLS)
+        except Exception as e:
+            print(f"Unexpected error initializing LED matrix: {e}", file=sys.stderr)
+            LED_AVAILABLE = False
+    # Fallback to simulation
+    if not LED_AVAILABLE:
+        # print("Initializing LED Matrix Simulation.")
+        return MatrixSimulation(LED_ROWS, LED_COLS)
+    return None # Should not be reached
 
-def run_animation(matrix: MatrixInterface, 
-                 color: str, 
-                 timeout: int, 
-                 brightness: int, 
-                 animation: str = "solid", 
-                 alt_color: Optional[str] = None, 
-                 speed: int = 5) -> None:
-    """Run the specified animation for the given timeout"""
-    # Set brightness
-    # Store current brightness safely - use getBrightness method if available
-    if hasattr(matrix.strip, 'getBrightness'):
-        orig_brightness = matrix.strip.getBrightness()
-    else:
-        orig_brightness = matrix.brightness
-    
-    new_brightness = int((brightness / 10.0) * 255)
-    
-    matrix.setBrightness(new_brightness)
-    
-    # Create the animation
-    anim = create_animation(animation, matrix, color, alt_color, speed)
-    
-    # Run the animation loop
-    start_time = time.time()
+
+def run_animation_loop(
+    matrix: MatrixInterface, color: str, timeout: int,
+    brightness_level: int, animation_name: str = "solid",
+    alt_color: Optional[str] = None, speed: int = 5
+) -> None:
+    """Run the specified animation, respecting timeout and brightness cap."""
+
+    # --- Brightness Setup ---
+    # Convert 1-10 level from plugin to 0-MAX_BRIGHTNESS_VALUE scale
+    brightness_val = int((brightness_level / 10.0) * MAX_BRIGHTNESS_VALUE)
+    # Clamp to 0-MAX_BRIGHTNESS_VALUE and ensure it's an int
+    brightness_val = max(0, min(MAX_BRIGHTNESS_VALUE, brightness_val))
+
+    matrix.setBrightness(brightness_val)
+    # print(f"Setting brightness to {brightness_val}/{MAX_BRIGHTNESS_VALUE} (Level {brightness_level})")
+
+    # --- Animation Setup ---
+    anim = create_animation(animation_name, matrix, color, alt_color, speed)
     anim.setup()
-    
+
+    # --- Main Loop ---
+    start_time = time.time()
     try:
-        while True:
-            anim.update()
-            
-            # Check if timeout has been reached
-            if timeout > 0 and time.time() - start_time >= timeout:
-                break
-    
+        if timeout > 0:
+            while time.time() - start_time < timeout:
+                anim.update()
+        else: # timeout == 0
+            while True:
+                anim.update()
     except KeyboardInterrupt:
-        print("Animation interrupted")
+        print("\nAnimation interrupted by user (Ctrl+C)")
     finally:
-        # Clean up
+        # --- Cleanup ---
         anim.cleanup()
-        matrix.setBrightness(orig_brightness)
-        clear_matrix(matrix)
+        clear_matrix(matrix) # Ensure matrix is cleared on exit
+
 
 def clear_matrix(matrix: MatrixInterface) -> None:
-    """Clear all LEDs in the matrix"""
-    for i in range(matrix.numPixels()):
-        matrix.setPixelColor(i, Color(0, 0, 0))
-    matrix.show()
+    """Clear all LEDs in the matrix."""
+    # print("Clearing matrix...")
+    try:
+        # Set brightness to 0 before clearing for a potentially smoother off effect
+        matrix.setBrightness(0)
+        for i in range(matrix.numPixels()):
+            matrix.setPixelColor(i, COLORS["off"])
+        matrix.show()
+        time.sleep(0.05) # Allow time for show command
+    except Exception as e:
+        print(f"Error during matrix clear: {e}", file=sys.stderr)
+
+
+# Global reference for cleanup in signal handler
+_matrix_instance: Optional[MatrixInterface] = None
 
 def signal_handler(sig, frame) -> None:
-    """Handle Ctrl+C"""
-    print("\nExiting gracefully")
+    """Handle termination signals gracefully (SIGINT, SIGTERM)."""
+    print(f"\nSignal {sig} received, exiting gracefully...", file=sys.stderr)
+    if _matrix_instance:
+        # Attempt to clear the matrix on signal
+        clear_matrix(_matrix_instance)
     sys.exit(0)
 
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Control Waveshare RGB LED HAT 4x8 Matrix')
-    parser.add_argument('--color', default='green', 
-                        choices=list(COLORS.keys()),
-                        help='Color to display (default: green)')
-    parser.add_argument('--timeout', type=int, default=5,
-                        help='Time in seconds to display the color (default: 5, 0 for indefinite)')
-    parser.add_argument('--brightness', type=int, default=5,
-                        help='Brightness level 1-10 (default: 5)')
-    parser.add_argument('--animation', default='solid',
-                        choices=['solid', 'pulse', 'blink', 'rainbow', 'chase', 'alternate', 'alert', 'scanning'],
-                        help='Animation pattern (default: solid)')
-    parser.add_argument('--alt-color', default=None,
-                        choices=list(COLORS.keys()),
-                        help='Secondary color for animations that use two colors')
-    parser.add_argument('--speed', type=int, default=5,
-                        help='Animation speed 1-10 (default: 5)')
-    
+    global _matrix_instance
+    parser = argparse.ArgumentParser(description="Control Waveshare RGB LED HAT (4x8) via CLI.")
+    parser.add_argument("--color", default="green", choices=list(COLORS.keys()), help="Primary color (or 'off'). Default: green")
+    parser.add_argument("--timeout", type=int, default=0, help="Time in seconds to run (0 for indefinite). Default: 0")
+    parser.add_argument("--brightness", type=int, default=5, help="Brightness level 1-10. Default: 5")
+    parser.add_argument("--animation", default="solid", choices=["solid", "pulse", "blink", "rainbow", "chase", "alternate", "alert", "scanning"], help="Animation pattern. Default: solid")
+    parser.add_argument("--alt-color", default=None, choices=list(COLORS.keys()), help="Secondary color for animations")
+    parser.add_argument("--speed", type=int, default=5, help="Animation speed 1-10 (1=slowest, 10=fastest). Default: 5")
     args = parser.parse_args()
-    
-    # Register signal handler for Ctrl+C
+
+    _matrix_instance = init_matrix()
+    if _matrix_instance is None:
+        print("Failed to initialize LED matrix or simulation. Exiting.", file=sys.stderr)
+        sys.exit(1)
+
     signal.signal(signal.SIGINT, signal_handler)
-    
-    # Initialize the LED matrix
-    matrix = init_matrix()
-    
-    # Validate brightness
+    signal.signal(signal.SIGTERM, signal_handler)
+
+    if args.color.lower() == "off":
+        clear_matrix(_matrix_instance)
+        sys.exit(0)
+
     brightness = max(1, min(10, args.brightness))
-    
-    # Validate speed
     speed = max(1, min(10, args.speed))
-    
+
     try:
-        # Run the animation
-        run_animation(
-            matrix, 
-            args.color, 
-            args.timeout, 
-            brightness, 
-            args.animation,
-            args.alt_color,
-            speed
+        run_animation_loop(
+            _matrix_instance, args.color, args.timeout, brightness,
+            args.animation, args.alt_color, speed
         )
-    finally:
-        # Always make sure LEDs are off when script exits
-        clear_matrix(matrix)
-        print("\nLEDs turned off")
+    except Exception as e:
+         print(f"An error occurred during animation loop: {e}", file=sys.stderr)
+         if _matrix_instance: clear_matrix(_matrix_instance) # Attempt cleanup
+         sys.exit(1)
+
+    # Normal exit (likely after timeout)
+    sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

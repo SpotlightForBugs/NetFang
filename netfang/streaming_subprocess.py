@@ -166,7 +166,7 @@ class StreamingSubprocess:
             line_str = line.decode('utf-8', errors='replace').rstrip()
             output_lines.append(line_str)
             
-            # Stream output to dashboard
+            # Stream output to dashboard using the async method since we're in an async context
             await handler.stream_command_output(
                 self.plugin_name,
                 self.cmd_str,

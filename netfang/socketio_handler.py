@@ -138,6 +138,27 @@ class SocketIOHandler:
             self.logger.debug(f"Streamed plugin log: {plugin_name} - {event}")
         except Exception as e:
             self.logger.error(f"Error streaming plugin log: {str(e)}")
+    
+    # Add non-async version for synchronous contexts
+    def sync_stream_plugin_log(self, plugin_name: str, event: str) -> None:
+        """
+        Synchronous version of stream_plugin_log for use in non-async contexts.
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot stream plugin log: SocketIO instance not set")
+            return
+            
+        try:
+            from datetime import datetime
+            log_data = {
+                "plugin_name": plugin_name,
+                "event": event,
+                "timestamp": datetime.now().isoformat()
+            }
+            self.socketio.emit("plugin_log", log_data)
+            self.logger.debug(f"Streamed plugin log (sync): {plugin_name} - {event}")
+        except Exception as e:
+            self.logger.error(f"Error streaming plugin log (sync): {str(e)}")
             
     async def stream_command_output(self, plugin_name: str, command: str, output: str, is_complete: bool = False) -> None:
         """
@@ -165,6 +186,29 @@ class SocketIOHandler:
             self.logger.debug(f"Streamed command output: {plugin_name} - {command}")
         except Exception as e:
             self.logger.error(f"Error streaming command output: {str(e)}")
+    
+    # Add non-async version for synchronous contexts
+    def sync_stream_command_output(self, plugin_name: str, command: str, output: str, is_complete: bool = False) -> None:
+        """
+        Synchronous version of stream_command_output for use in non-async contexts.
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot stream command output: SocketIO instance not set")
+            return
+            
+        try:
+            from datetime import datetime
+            output_data = {
+                "plugin_name": plugin_name,
+                "command": command,
+                "output": output,
+                "is_complete": is_complete,
+                "timestamp": datetime.now().isoformat()
+            }
+            self.socketio.emit("command_output", output_data)
+            self.logger.debug(f"Streamed command output (sync): {plugin_name} - {command}")
+        except Exception as e:
+            self.logger.error(f"Error streaming command output (sync): {str(e)}")
             
     async def set_current_process(self, plugin_name: str, command: str, pid: int = None) -> None:
         """
