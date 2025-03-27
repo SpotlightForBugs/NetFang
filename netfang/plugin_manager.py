@@ -312,9 +312,13 @@ class PluginManager:
         Args:
             plugin_name: Name of the plugin that completed scanning
         """
-        from netfang.state_machine import StateMachine
-        
-        if StateMachine.instance:
-            StateMachine.instance.mark_scan_complete(plugin_name)
-        else:
-            self.logger.warning(f"Cannot notify scan completion: StateMachine instance not available")
+        try:
+            # Get the StateMachine instance from NetworkManager instead
+            from netfang.network_manager import NetworkManager
+            
+            if NetworkManager.instance and NetworkManager.instance.state_machine:
+                NetworkManager.instance.state_machine.mark_scan_complete(plugin_name)
+            else:
+                self.logger.warning(f"Cannot notify scan completion: NetworkManager instance not available")
+        except Exception as e:
+            self.logger.error(f"Error notifying scan completion: {str(e)}")

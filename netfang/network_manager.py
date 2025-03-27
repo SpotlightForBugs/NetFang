@@ -89,6 +89,9 @@ class NetworkManager:
         asyncio.set_event_loop(self._loop)
         self.running = True
 
+        # Set the event loop for StateMachine
+        self.state_machine.set_loop(self._loop)
+        
         self.flow_task = self._loop.create_task(self.trigger_loop())
         self.state_machine.register_scanning_plugins()
 
