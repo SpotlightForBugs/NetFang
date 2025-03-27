@@ -38,6 +38,8 @@ class NetworkManager:
         self.monitored_interfaces: List[str] = flow_cfg.get("monitored_interfaces", ["eth0"])
         # Get the config value for scan_known_networks with default of False
         self.scan_known_networks: bool = flow_cfg.get("scan_known_networks", False)
+        # Get the config value for scan_timeout with default of -1 (wait forever)
+        self.scan_timeout: int = flow_cfg.get("scan_timeout", -1)  # Safety timeout in seconds to avoid scan hang
         NetworkManager.global_monitored_interfaces = self.monitored_interfaces
 
         # Instantiate the state machine

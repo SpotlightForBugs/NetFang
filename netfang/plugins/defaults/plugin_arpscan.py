@@ -11,6 +11,7 @@ from netfang.db.database import add_plugin_log, add_or_update_device, add_or_upd
 from netfang.plugins.base_plugin import BasePlugin
 
 
+# Parsers are kept as common functions to be used by different plugins
 def parse_arp_scan(output: str, mode: str) -> Dict[str, Any]:
     parsed_result = {
         "interface": None,
@@ -70,9 +71,9 @@ def parse_arp_fingerprint(output: str) -> Dict[str, str]:
     return fingerprint
 
 
-class ArpScanPlugin(BasePlugin):
-    name = "ArpScan"
-
+class BaseArpPlugin(BasePlugin):
+    """Base class with common functionality for ARP-related plugins"""
+    
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         self.scan_in_progress = False
@@ -81,8 +82,6 @@ class ArpScanPlugin(BasePlugin):
         self.interfaces = None
         self.last_scan_time = 0
         self.scan_throttle = 60  # Minimum seconds between scans
-        # Initialize interfaces in background
-        self.thread_pool.submit(self._init_interfaces)
     
     def _init_interfaces(self) -> None:
         """Initialize interfaces in background"""
@@ -187,6 +186,67 @@ class ArpScanPlugin(BasePlugin):
         
         return interfaces
 
+    def _get_or_create_network_id(self, db_path: str, mac_address: str) -> Optional[int]:
+        """Get the network ID for a MAC address or create a new network entry
+        
+        Returns:
+            Network ID if available, otherwise None
+        """
+        try:
+            # First try to get existing network
+            network = get_network_by_mac(db_path, mac_address)
+            if network:
+                return network.get('id')
+                
+            # If not found, create a new network entry
+            add_or_update_network(db_path, mac_address)
+            add_plugin_log(db_path, self.name, f"Created new network entry for MAC: {mac_address}")
+            
+            # Get the newly created network
+            network = get_network_by_mac(db_path, mac_address)
+            if network:
+                return network.get('id')
+            else:
+                self.logger.error(f"Failed to create or retrieve network for MAC: {mac_address}")
+                add_plugin_log(db_path, self.name, f"Failed to create or retrieve network for MAC: {mac_address}")
+                return None
+        except Exception as e:
+            self.logger.error(f"Error getting or creating network for MAC {mac_address}: {str(e)}")
+            add_plugin_log(db_path, self.name, f"Error getting or creating network for MAC {mac_address}: {str(e)}")
+            return None
+
+    def _notify_scan_complete(self) -> None:
+        """
+        Notify the plugin manager that the scan is complete.
+        """
+        try:
+            # Get plugin manager instance and notify scan completion
+            from netfang.plugin_manager import PluginManager
+            manager = PluginManager.instance
+            if manager:
+                manager.notify_scan_complete(self.name)
+            else:
+                self.logger.warning("Cannot notify scan completion: PluginManager instance not available")
+        except Exception as e:
+            self.logger.error(f"Error notifying scan completion: {str(e)}")
+            add_plugin_log(self.config["database_path"], self.name, f"Error notifying scan completion: {str(e)}")
+
+
+class ArpScanPlugin(BaseArpPlugin):
+    """Plugin for running arp-scan to discover devices on the network"""
+    name = "ArpScan"
+
+    def __init__(self, config: Dict[str, Any]) -> None:
+        super().__init__(config)
+        # Get plugin-specific config
+        plugin_cfg = self.config.get("plugin_config", {})
+        self.scan_timeout = plugin_cfg.get("scan_timeout", 30)
+        self.auto_scan_new_network = plugin_cfg.get("auto_scan_new_network", True)
+        self.auto_scan_known_network = plugin_cfg.get("auto_scan_known_network", False)
+        self.router_vendor_name = plugin_cfg.get("router_vendor_name", "NetFang Router")
+        # Initialize interfaces in background
+        self.thread_pool.submit(self._init_interfaces)
+
     def on_setup(self) -> None:
         self.logger.info(f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces or ['detecting...'])}")
         add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found ethernet interfaces: {', '.join(self.interfaces or ['detecting...'])}")
@@ -231,14 +291,25 @@ class ArpScanPlugin(BasePlugin):
 
     def on_new_network_connected(self, mac: str) -> None:
         """Handle new network connection by scanning it"""
+        if not self.auto_scan_new_network:
+            self.logger.info(f"[{self.name}] New network connected with MAC {mac} - auto-scan disabled")
+            add_plugin_log(self.config["database_path"], self.name, f"New network connected - auto-scan disabled: {mac}")
+            return
+            
         self.logger.info(f"[{self.name}] New network connected with MAC {mac} - initiating scan...")
         # Scan on new network connection - run in background
         self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
 
     def on_known_network_connected(self, mac: str) -> None:
         """Handle known network connection - DO NOT scan unless specified in UI/config"""
-        self.logger.info(f"[{self.name}] Known network connected with MAC {mac} - not scanning")
-        add_plugin_log(self.config["database_path"], self.name, f"Known network connected - not scanning: {mac}")
+        if not self.auto_scan_known_network:
+            self.logger.info(f"[{self.name}] Known network connected with MAC {mac} - auto-scan disabled")
+            add_plugin_log(self.config["database_path"], self.name, f"Known network connected - auto-scan disabled: {mac}")
+            return
+            
+        self.logger.info(f"[{self.name}] Known network connected with MAC {mac} - initiating scan...")
+        # Scan on known network connection - run in background
+        self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
         
     def on_connected_blacklisted(self, mac: str) -> None:
         """Handle blacklisted network connection - DO NOT scan blacklisted networks"""
@@ -252,6 +323,10 @@ class ArpScanPlugin(BasePlugin):
 
     def on_connected_new(self) -> None:
         """Handle generic new connection by scanning"""
+        if not self.auto_scan_new_network:
+            self.logger.info(f"[{self.name}] New connection detected - auto-scan disabled")
+            return
+            
         self.logger.info(f"[{self.name}] New connection detected - initiating scan...")
         # Scan on any new connection - run in background
         self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
@@ -261,49 +336,6 @@ class ArpScanPlugin(BasePlugin):
         self.scan_in_progress = False
         self.logger.info(f"[{self.name}] Scan completed")
         add_plugin_log(self.config["database_path"], self.name, "Scan completed")
-
-    def fingerprint_device(self, ip_address: str) -> Optional[Dict[str, str]]:
-        """Get the ARP fingerprint for a specific IP address"""
-        db_path = self.config.get("database_path", "netfang.db")
-        try:
-            # First check if arp-fingerprint tool exists
-            try:
-                check_cmd = subprocess.run(["sudo", "which", "arp-fingerprint"], 
-                                          capture_output=True, text=True)
-                if check_cmd.returncode != 0:
-                    self.logger.warning("arp-fingerprint tool not found, skipping fingerprinting")
-                    add_plugin_log(db_path, self.name, "arp-fingerprint tool not found, skipping fingerprinting")
-                    return None
-            except (subprocess.SubprocessError, FileNotFoundError) as e:
-                self.logger.warning(f"Error checking for arp-fingerprint: {str(e)}")
-                add_plugin_log(db_path, self.name, f"Error checking for arp-fingerprint: {str(e)}")
-                return None
-                
-            # Run the fingerprinting with timeout
-            try:
-                result = subprocess.run(["sudo", "arp-fingerprint", ip_address], 
-                                       capture_output=True, text=True, timeout=10)
-                
-                # Log the fingerprinting command output
-                output_log = result.stdout if result.stdout else "No output"
-                add_plugin_log(db_path, self.name, f"Command output [sudo arp-fingerprint {ip_address}]: {output_log}")
-                
-                if result.returncode == 0 and result.stdout.strip():
-                    fingerprint = parse_arp_fingerprint(result.stdout)
-                    return fingerprint
-                else:
-                    error_log = result.stderr if result.stderr else "No error output"
-                    self.logger.debug(f"No fingerprint data for {ip_address}: {error_log}")
-                    add_plugin_log(db_path, self.name, f"No fingerprint data for {ip_address}: {error_log}")
-                    return None
-            except (subprocess.SubprocessError, FileNotFoundError) as e:
-                self.logger.error(f"Error fingerprinting {ip_address}: {str(e)}")
-                add_plugin_log(db_path, self.name, f"Error fingerprinting {ip_address}: {str(e)}")
-                return None
-        except Exception as e:
-            self.logger.error(f"Error in fingerprint_device for {ip_address}: {str(e)}")
-            add_plugin_log(db_path, self.name, f"Error in fingerprint_device for {ip_address}: {str(e)}")
-            return None
 
     def run_arp_scan(self, interface: str) -> Dict[str, Any]:
         """Run arp-scan on the specified interface
@@ -320,7 +352,7 @@ class ArpScanPlugin(BasePlugin):
             add_plugin_log(db_path, self.name, f"Running command: {cmd_str}")
             
             try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.scan_timeout)
                 
                 # Log the complete command output to database
                 output_log = result.stdout if result.stdout else "No output"
@@ -358,66 +390,33 @@ class ArpScanPlugin(BasePlugin):
             return {"devices": []}
 
     def get_mac_for_ip(self, ip: str) -> Optional[str]:
-        """Get MAC address for an IP from the ARP cache"""
-        db_path = self.config.get("database_path", "netfang.db")
-        
+        """Get MAC address for an IP from the ARP cache - 
+        Try to use ArpCache plugin first, fallback to built-in method if not available"""
         try:
+            # Try to use ArpCache plugin if available
+            from netfang.plugin_manager import PluginManager
+            manager = PluginManager.instance
+            if manager and manager.is_plugin_enabled("ArpCache"):
+                # Directly call the plugin's method
+                for plugin in manager.plugins.values():
+                    if plugin.name == "ArpCache":
+                        return plugin.get_mac_for_ip(ip)
+            
+            # Fallback to built-in method if ArpCache plugin is not available
+            db_path = self.config.get("database_path", "netfang.db")
             cmd = ["sudo", "arp", "-n", ip]
             cmd_str = " ".join(cmd)
-            self.logger.debug(f"Running arp command: {cmd_str}")
-            add_plugin_log(db_path, self.name, f"Running command: {cmd_str}")
+            self.logger.debug(f"Using built-in ARP method: {cmd_str}")
+            add_plugin_log(db_path, self.name, f"Using built-in ARP method: {cmd_str}")
             
-            try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
-                
-                # Log the complete command output to database
-                output_log = result.stdout if result.stdout else "No output"
-                add_plugin_log(db_path, self.name, f"Command output [sudo arp -n {ip}]: {output_log}")
-                
-                mac_match = re.search(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})", result.stdout)
-                if mac_match:
-                    mac_address = mac_match.group(1)
-                    add_plugin_log(db_path, self.name, f"Found MAC {mac_address} for IP {ip}")
-                    return mac_address
-                else:
-                    add_plugin_log(db_path, self.name, f"No MAC address found for IP {ip}")
-                    return None
-            except (subprocess.SubprocessError, FileNotFoundError) as e:
-                self.logger.error(f"Error running arp command for {ip}: {str(e)}")
-                add_plugin_log(db_path, self.name, f"Error running arp command for {ip}: {str(e)}")
-                return None
-        except Exception as e:
-            self.logger.error(f"Error getting MAC for {ip}: {str(e)}")
-            add_plugin_log(db_path, self.name, f"Error getting MAC for {ip}: {str(e)}")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
+            mac_match = re.search(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})", result.stdout)
+            if mac_match:
+                return mac_match.group(1)
             return None
-
-    def _get_or_create_network_id(self, db_path: str, mac_address: str) -> Optional[int]:
-        """Get the network ID for a MAC address or create a new network entry
-        
-        Returns:
-            Network ID if available, otherwise None
-        """
-        try:
-            # First try to get existing network
-            network = get_network_by_mac(db_path, mac_address)
-            if network:
-                return network.get('id')
-                
-            # If not found, create a new network entry
-            add_or_update_network(db_path, mac_address)
-            add_plugin_log(db_path, self.name, f"Created new network entry for MAC: {mac_address}")
             
-            # Get the newly created network
-            network = get_network_by_mac(db_path, mac_address)
-            if network:
-                return network.get('id')
-            else:
-                self.logger.error(f"Failed to create or retrieve network for MAC: {mac_address}")
-                add_plugin_log(db_path, self.name, f"Failed to create or retrieve network for MAC: {mac_address}")
-                return None
         except Exception as e:
-            self.logger.error(f"Error getting or creating network for MAC {mac_address}: {str(e)}")
-            add_plugin_log(db_path, self.name, f"Error getting or creating network for MAC {mac_address}: {str(e)}")
+            self.logger.error(f"Error in get_mac_for_ip for {ip}: {str(e)}")
             return None
 
     def perform_action(self, args: list) -> None:
@@ -485,6 +484,7 @@ class ArpScanPlugin(BasePlugin):
                     ip_to_device = {device["ip"]: device for device in all_devices}
                     
                     # Store router network info if we have it
+                    router_network_id = None
                     for interface, result in arp_scan_results.items():
                         router_mac = result.get("mac_address")
                         router_ip = result.get("ipv4")
@@ -500,66 +500,47 @@ class ArpScanPlugin(BasePlugin):
                                 hostname="Router",
                                 services=None,
                                 network_id=router_network_id,
-                                vendor="NetFang Router",
+                                vendor=self.router_vendor_name,
                                 deviceclass="Router",
                                 fingerprint=None
                             )
                             add_plugin_log(db_path, self.name, f"Stored router info: IP={router_ip}, MAC={router_mac}")
                     
-                    # Process and save all discovered devices - parallelize fingerprinting
-                    fingerprint_futures = {}
+                    # Process and save all discovered devices
                     for ip in all_ips:
-                        device = ip_to_device.get(ip)
-                        
-                        if device:
-                            # We have detailed info from arp-scan
-                            mac = device["mac"]
-                            vendor = device["vendor"]
-                        else:
-                            # We only have the IP, get MAC from ARP cache
-                            mac = self.get_mac_for_ip(ip) or "Unknown"
-                            vendor = "Unknown vendor"
-                        
-                        # Skip if we couldn't determine a MAC address
-                        if mac == "Unknown":
-                            self.logger.warning(f"Skipping device with IP {ip} - could not determine MAC address")
-                            add_plugin_log(db_path, self.name, f"Skipping device with IP {ip} - could not determine MAC address")
-                            continue
-                        
-                        # Get fingerprint in parallel
-                        fingerprint_futures[ip] = {
-                            "future": self.thread_pool.submit(self.fingerprint_device, ip),
-                            "mac": mac,
-                            "vendor": vendor
-                        }
-                    
-                    # Process fingerprinting results and save devices
-                    for ip, data in fingerprint_futures.items():
                         try:
-                            fingerprint = data["future"].result()
-                            mac = data["mac"]
-                            vendor = data["vendor"]
+                            device = ip_to_device.get(ip)
                             
-                            fingerprint_str = str(fingerprint) if fingerprint else None
+                            if device:
+                                # We have detailed info from arp-scan
+                                mac = device["mac"]
+                                vendor = device["vendor"]
+                            else:
+                                # We only have the IP, get MAC from ARP cache
+                                mac = self.get_mac_for_ip(ip) or "Unknown"
+                                vendor = "Unknown vendor"
                             
-                            # Get or create a network ID for this MAC address
-                            network_id = self._get_or_create_network_id(db_path, mac)
+                            # Skip if we couldn't determine a MAC address
+                            if mac == "Unknown":
+                                self.logger.warning(f"Skipping device with IP {ip} - could not determine MAC address")
+                                add_plugin_log(db_path, self.name, f"Skipping device with IP {ip} - could not determine MAC address")
+                                continue
                             
-                            # Add device to database
+                            # Add device to database - router fingerprinting will be done by the fingerprint plugin
                             add_or_update_device(
                                 db_path, 
                                 ip, 
                                 mac, 
                                 hostname=None,
                                 services=None,
-                                network_id=network_id, 
+                                network_id=router_network_id, 
                                 vendor=vendor,
                                 deviceclass=None,
-                                fingerprint=fingerprint_str
+                                fingerprint=None
                             )
                             
-                            self.logger.debug(f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
-                            add_plugin_log(db_path, self.name, f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={network_id}")
+                            self.logger.debug(f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={router_network_id}")
+                            add_plugin_log(db_path, self.name, f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={router_network_id}")
                         except Exception as e:
                             self.logger.error(f"[{self.name}] Error processing device {ip}: {str(e)}")
                             add_plugin_log(db_path, self.name, f"Error processing device {ip}: {str(e)}")
@@ -579,19 +560,3 @@ class ArpScanPlugin(BasePlugin):
                     
                     # Notify scan completion even if there was an error
                     self._notify_scan_complete()
-
-    def _notify_scan_complete(self) -> None:
-        """
-        Notify the plugin manager that the scan is complete.
-        """
-        try:
-            # Get plugin manager instance and notify scan completion
-            from netfang.plugin_manager import PluginManager
-            manager = PluginManager.instance
-            if manager:
-                manager.notify_scan_complete(self.name)
-            else:
-                self.logger.warning("Cannot notify scan completion: PluginManager instance not available")
-        except Exception as e:
-            self.logger.error(f"Error notifying scan completion: {str(e)}")
-            add_plugin_log(self.config["database_path"], self.name, f"Error notifying scan completion: {str(e)}")

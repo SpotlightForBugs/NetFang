@@ -2,7 +2,30 @@
   "default_plugins": {
     "arpscan": {
       "enabled": true,
-      "dependencies": []
+      "dependencies": [],
+      "plugin_config": {
+        "scan_timeout": 30,
+        "auto_scan_new_network": true,
+        "auto_scan_known_network": false,
+        "router_vendor_name": "NetFang Router"
+      }
+    },
+    "arpcache": {
+      "enabled": true,
+      "dependencies": [],
+      "plugin_config": {
+        "arp_timeout": 5,
+        "max_ping_attempts": 3,
+        "use_ping_first": true
+      }
+    },
+    "arpfingerprint": {
+      "enabled": true,
+      "dependencies": ["arpscan"],
+      "plugin_config": {
+        "max_devices_per_scan": 10,
+        "fingerprint_timeout": 10
+      }
     },
     "rustscan": {
       "enabled": true,
@@ -33,27 +56,26 @@
       "enabled": true,
       "dependencies": []
     },
-
-  "pushover": {
-    "enabled": false,
-    "dependencies": [],
-    "plugin_config": {
-      "api_token": "env:PUSHOVER_API_TOKEN",
-      "user_key": "env:PUSHOVER_USER_KEY"
+    "pushover": {
+      "enabled": false,
+      "dependencies": [],
+      "plugin_config": {
+        "api_token": "env:PUSHOVER_API_TOKEN",
+        "user_key": "env:PUSHOVER_USER_KEY"
+      }
     }
-  }
-},
-"database_path": "netfang.db",
-"network_settings": {
-"ssid_if_ethernet": "connected",
-"ssid_if_no_ethernet": "no-connection"
-},
-"network_flows": {
-"home_network_mac": "AA:BB:CC:11:22:33",
-"blacklisted_macs": [
-"DE:AD:BE:EF:CA:FE"
-]
-},
+  },
+  "database_path": "netfang.db",
+  "network_settings": {
+    "ssid_if_ethernet": "connected",
+    "ssid_if_no_ethernet": "no-connection"
+  },
+  "network_flows": {
+    "home_network_mac": "AA:BB:CC:11:22:33",
+    "blacklisted_macs": [
+      "DE:AD:BE:EF:CA:FE"
+    ]
+  },
   "hardware": {
     "ups_hat_c": {
       "enabled": true

@@ -35,6 +35,7 @@ class PluginManager:
 
     def load_config(self) -> None:
         with open(self.config_path, 'r') as f:
+            # Load YAML instead of JSON
             raw_config = json.load(f)
         self.config = _expand_env_in_config(raw_config)
 
