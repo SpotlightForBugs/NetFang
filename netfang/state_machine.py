@@ -31,6 +31,8 @@ class StateMachine:
         self.return_state_after_scan: Optional[State] = None
         self.active_scans: Dict[str, bool] = {}  # Track active scans by plugin name
         self.scan_timeout: int = 120  # Safety timeout in seconds to avoid scan hang
+        self.last_network_mac: str = ""  # Track last network MAC to prevent redundant scans
+        self.already_scanned: Dict[str, bool] = {}  # Track networks that have already been scanned
 
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Sets the event loop for scheduling state update tasks."""
@@ -52,7 +54,9 @@ class StateMachine:
                     # Use the SocketIO handler for broadcasting state changes
                     await socketio_handler.broadcast_state_change(self.current_state, self.state_context)
                     
-                    await self.notify_plugins(self.current_state)
+                    # Only notify plugins about the current state, don't trigger scans from flow_loop
+                    # This prevents the endless scanning loop
+                    await self.notify_plugins_basic(self.current_state)
                     
                     # Check if we're in scanning state and need to manage the scan sequence
                     if self.current_state == State.SCANNING_IN_PROGRESS and self.scanning_plugins:
@@ -66,6 +70,29 @@ class StateMachine:
                 add_plugin_log(self.db_path, "StateMachine", f"Error in flow loop: {str(e)}")
                     
             await asyncio.sleep(5)
+
+    async def notify_plugins_basic(self, state: State) -> None:
+        """
+        Basic notification for the flow loop - doesn't trigger scans.
+        Only used by the flow_loop to avoid repeated scan triggers.
+        """
+        try:
+            if state == State.WAITING_FOR_NETWORK:
+                self.plugin_manager.on_waiting_for_network()
+            elif state == State.DISCONNECTED:
+                self.plugin_manager.on_disconnected()
+                # Reset network tracking on disconnect to ensure we scan on next connect
+                self.last_network_mac = ""
+            elif state == State.RECONNECTING:
+                self.plugin_manager.on_reconnecting()
+            elif state == State.CONNECTING:
+                self.plugin_manager.on_connecting()
+            elif state == State.SCANNING_IN_PROGRESS:
+                self.plugin_manager.on_scanning_in_progress()
+            # Don't handle connection states here to avoid redundant scans
+            # They are handled by the full notify_plugins method
+        except Exception as e:
+            self.logger.error(f"Error in basic plugin notification for state {state}: {str(e)}")
 
     async def manage_scan_sequence(self) -> None:
         """
@@ -176,19 +203,31 @@ class StateMachine:
         if perform_action_data is None:
             perform_action_data = []
 
-        # Handle new network connections by always starting a scan
-        if state == State.CONNECTED_NEW or state == State.CONNECTED_HOME or state == State.CONNECTED_KNOWN:
-            self.logger.info(f"Connection detected ({state}), initiating scan sequence...")
-            # Save the connection state to return to after scanning
-            self.start_scan_sequence(state)
-            return
+        # Handle new network connections - but only scan if it's a new connection or we haven't scanned this network recently
+        network_mac = mac or state_context.get('mac', '')
+        
+        if (state == State.CONNECTED_NEW or state == State.CONNECTED_HOME or state == State.CONNECTED_KNOWN) and network_mac:
+            # Check if this is a new network connection that needs scanning
+            if network_mac != self.last_network_mac or network_mac not in self.already_scanned:
+                self.logger.info(f"New network connection detected ({state}, MAC: {network_mac}), initiating scan sequence...")
+                self.last_network_mac = network_mac
+                self.already_scanned[network_mac] = True
+                # Save the connection state to return to after scanning
+                self.start_scan_sequence(state)
+                return
+            else:
+                self.logger.info(f"Network already scanned ({state}, MAC: {network_mac}), skipping scan")
 
         # Pass state to appropriate plugin callbacks
         try:
             if state == State.WAITING_FOR_NETWORK:
                 self.plugin_manager.on_waiting_for_network()
+                # Clear network tracking on disconnection
+                self.last_network_mac = ""
             elif state == State.DISCONNECTED:
                 self.plugin_manager.on_disconnected()
+                # Clear network tracking on disconnection
+                self.last_network_mac = ""
             elif state == State.RECONNECTING:
                 self.plugin_manager.on_reconnecting()
             elif state == State.CONNECTING:
@@ -272,6 +311,14 @@ class StateMachine:
         self.register_scanning_plugins()
         self.update_state(State.SCANNING_IN_PROGRESS)
 
+    def reset_network_tracking(self) -> None:
+        """
+        Resets the network tracking to force a fresh scan on the next connection.
+        """
+        self.last_network_mac = ""
+        self.already_scanned = {}
+        self.logger.info("Network tracking reset, next connection will trigger a scan")
+
     def update_state(self, new_state: State, mac: str = "", message: str = "",
                      alert_data: Optional[Dict[str, Any]] = None,
                      perform_action_data: list[Union[str, int]] = None, ) -> None:
@@ -306,6 +353,10 @@ class StateMachine:
                 
                 # Broadcast state change using SocketIO
                 await socketio_handler.broadcast_state_change(self.current_state, self.state_context)
+                
+                # Reset network tracking on disconnect states to ensure scan on next connection
+                if new_state in [State.DISCONNECTED, State.WAITING_FOR_NETWORK]:
+                    self.reset_network_tracking()
                 
                 await self.notify_plugins(self.current_state, self.state_context, mac, message, alert_data,
                                           perform_action_data)
