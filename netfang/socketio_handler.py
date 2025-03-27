@@ -213,7 +213,7 @@ class SocketIOHandler:
         except Exception as e:
             self.logger.error(f"Error streaming command output (sync): {str(e)}")
             
-    async def set_current_process(self, plugin_name: str, command: str, pid: int = None) -> None:
+    async def set_current_process(self, plugin_name: str, command: str, pid: int = None, process_id: str = None) -> None:
         """
         Update the current running process information.
         
@@ -221,6 +221,7 @@ class SocketIOHandler:
             plugin_name: The name of the plugin running the command
             command: The command being executed
             pid: Process ID if available
+            process_id: Unique identifier for the process
         """
         if not self.socketio:
             self.logger.warning("Cannot update current process: SocketIO instance not set")
@@ -231,6 +232,7 @@ class SocketIOHandler:
                 "plugin_name": plugin_name,
                 "command": command,
                 "pid": pid,
+                "process_id": process_id,
                 "start_time": datetime.now().isoformat()
             }
             self.current_process = process_data
@@ -239,16 +241,23 @@ class SocketIOHandler:
         except Exception as e:
             self.logger.error(f"Error updating current process: {str(e)}")
             
-    async def clear_current_process(self) -> None:
-        """Clear the current process information."""
+    async def clear_current_process(self, process_id: str = None) -> None:
+        """
+        Clear the current process information.
+        
+        Args:
+            process_id: The ID of the process to clear. If None, clears current process.
+        """
         if not self.socketio:
             self.logger.warning("Cannot clear current process: SocketIO instance not set")
             return
             
         try:
-            self.current_process = None
-            self.socketio.emit("current_process", None)
-            self.logger.debug("Cleared current process")
+            # Only clear if this is the current process
+            if not process_id or (self.current_process and self.current_process.get("process_id") == process_id):
+                self.current_process = None
+                self.socketio.emit("current_process", None)
+                self.logger.debug("Cleared current process")
         except Exception as e:
             self.logger.error(f"Error clearing current process: {str(e)}")
             
