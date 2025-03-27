@@ -1,914 +1,1117 @@
 {% extends "hidden/hidden_structure.html" %}
 
-{% block title %}NetFang Secured Router{% endblock %}
+{% block title %}NetFang Analysis Dashboard{% endblock %}
 
-{% block header_title %}NetFang Secured Router - {{ hostname }}{% endblock %}
+{% block header_title %}Analysis Dashboard - {{ hostname }}{% endblock %}
 
 {% block main_content %}
-    <div class="state-indicator">
-        <strong>NetFang Status:</strong>
-        <span id="state">{{ state }}</span>
-        <div id="scanningIndicator" class="scanning-indicator">
-            <div class="scanning-pulse"></div>
-            <span>Scanning network...</span>
+    <!-- Status Card -->
+    <div class="status-card" id="statusContainer">
+        <div class="status-card-header">
+            <div class="status-info">
+                <div class="status-icon" id="statusIcon">
+                    <i class="fas fa-question-circle"></i> <!-- Default Icon -->
+                </div>
+                <div class="status-details">
+                    <h3>System Status</h3>
+                    <div class="status-label">Current Phase:</div>
+                    <div class="status-value" id="state">{{ state }}</div>
+                </div>
+            </div>
+            <div class="status-actions">
+                <!-- Changed button ID and text -->
+                <button id="restartNetfangButton" class="btn btn-outline-primary">
+                    <i class="fas fa-power-off"></i> Restart Analyzer
+                </button>
+            </div>
         </div>
-        <div class="state-status-bar">
-            <div class="state-status-progress"></div>
+        <div class="status-card-body">
+            <div class="scanning-indicator" id="scanningIndicator"> <!-- Keep for visual feedback -->
+                <div class="scanning-pulse"></div>
+                <span id="scanningIndicatorText">Working...</span>
+            </div>
+            <div class="progress status-progress">
+                <div class="progress-bar" id="stateStatusProgress" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+            <div class="status-description" id="stateDescription">Initializing...</div>
         </div>
-        <div id="stateDescription" class="state-description mt-2"></div>
     </div>
 
-    <!-- Current Processes Display -->
-    <div id="currentProcessesContainer" class="current-processes-container">
-        <!-- Individual process boxes will be dynamically added here -->
+    <!-- Dashboard Overview -->
+    <div class="row g-3 mb-4">
+        <!-- Scan Targets Card -->
+        <div class="col-md-6 col-xl-3">
+            <div class="metric-card">
+                <div class="metric-card-body">
+                    <div class="metric-icon bg-primary-soft">
+                        <i class="fas fa-bullseye"></i> <!-- Changed Icon -->
+                    </div>
+                    <div class="metric-data">
+                        <h4 class="metric-title">Scan Targets</h4> <!-- Changed Title -->
+                        <div class="metric-value" id="networksCount">-</div>
+                        <div class="metric-trend">
+                            <!-- Changed Labels -->
+                            <span class="badge bg-success"><i class="fas fa-check"></i> Trusted: <span id="homeNetworkCount">-</span></span>
+                            <span class="badge bg-danger"><i class="fas fa-skull-crossbones"></i> High-Risk: <span id="blacklistedNetworkCount">-</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Discovered Hosts Card -->
+        <div class="col-md-6 col-xl-3">
+            <div class="metric-card">
+                <div class="metric-card-body">
+                    <div class="metric-icon bg-success-soft">
+                        <i class="fas fa-server"></i> <!-- Changed Icon -->
+                    </div>
+                    <div class="metric-data">
+                        <h4 class="metric-title">Discovered Hosts</h4> <!-- Changed Title -->
+                        <div class="metric-value" id="devicesCount">-</div>
+                        <div class="metric-trend">
+                            <span class="badge bg-info"><i class="fas fa-plug"></i> Active: <span id="connectedDeviceCount">-</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Analysis Events Card -->
+        <div class="col-md-6 col-xl-3">
+            <div class="metric-card">
+                <div class="metric-card-body">
+                    <div class="metric-icon bg-warning-soft">
+                        <i class="fas fa-tasks"></i> <!-- Changed Icon -->
+                    </div>
+                    <div class="metric-data">
+                        <h4 class="metric-title">Analysis Events</h4> <!-- Changed Title -->
+                        <div class="metric-value" id="activityCount">-</div>
+                        <div class="metric-trend">
+                            <span class="badge bg-info"><i class="fas fa-history"></i> Recent</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Health Card (Optional) -->
+        <div class="col-md-6 col-xl-3">
+            <div class="metric-card">
+                <div class="metric-card-body">
+                    <div class="metric-icon bg-info-soft"> <!-- Changed Color -->
+                        <i class="fas fa-heartbeat"></i> <!-- Changed Icon -->
+                    </div>
+                    <div class="metric-data">
+                        <h4 class="metric-title">System Health</h4> <!-- Changed Title -->
+                        <div class="metric-value" id="securityScore">-</div> <!-- Keep ID for JS -->
+                        <div class="metric-trend">
+                            <span class="badge bg-secondary" id="securityScoreTrend">Unknown</span> <!-- Changed Default -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <div class="dashboard-container">
-        <!-- Network Information -->
-        <div class="dashboard-panel">
-            <div class="panel-header">
-                <h2>Networks</h2>
-                <span class="panel-toggle">▼</span>
-            </div>
-            <div class="panel-content">
-                <div class="table-container">
-                    <table class="data-table" id="networksTable">
-                        <thead>
-                            <tr>
-                                <th>MAC Address</th>
-                                <th>Status</th>
-                                <th>Last Seen</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
+    <!-- Activity & Visualization Row -->
+    <div class="row g-3 mb-4">
+        <!-- Scan Event Timeline -->
+        <div class="col-xl-8">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Scan Event Timeline</h5> <!-- Changed Title -->
+                    <div class="card-actions">
+                        <select id="timeRangeSelector" class="form-select form-select-sm">
+                            <option value="day">Last 24 Hours</option>
+                            <option value="week">Last 7 Days</option>
+                            <option value="month">Last 30 Days</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="activityChart" class="chart-container"></div>
                 </div>
             </div>
         </div>
-        
-        <!-- Devices Information -->
-        <div class="dashboard-panel">
-            <div class="panel-header">
-                <h2>Devices</h2>
-                <span class="panel-toggle">▼</span>
-            </div>
-            <div class="panel-content">
-                <div class="table-container">
-                    <table class="data-table" id="devicesTable">
-                        <thead>
-                            <tr>
-                                <th>IP Address</th>
-                                <th>MAC Address</th>
-                                <th>Vendor</th>
-                                <th>Network</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
+
+        <!-- Host Status Distribution -->
+        <div class="col-xl-4">
+            <div class="card shadow-sm">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Host Status</h5> <!-- Changed Title -->
                 </div>
-            </div>
-        </div>
-        
-        <!-- Plugin Logs -->
-        <div class="dashboard-panel">
-            <div class="panel-header">
-                <h2>Plugin Logs</h2>
-                <span class="panel-toggle collapsed">▼</span>
-            </div>
-            <div class="panel-content collapsed">
-                <div class="table-container">
-                    <table class="data-table" id="pluginLogsTable">
-                        <thead>
-                            <tr>
-                                <th>Plugin</th>
-                                <th>Event</th>
-                                <th>Timestamp</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Data will be populated by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-                <div class="table-actions">
-                    <button id="clearLogsButton" class="clear-logs-button">Clear Log Display</button>
-                    <button id="autoScrollToggle" class="auto-scroll-button active">Auto-scroll: ON</button>
-                </div>
-            </div>
-        </div>
-        
-        <!-- Plugin Actions -->
-        <div class="dashboard-panel">
-            <div class="panel-header">
-                <h2>Available Actions</h2>
-                <span class="panel-toggle">▼</span>
-            </div>
-            <div class="panel-content">
-                <div class="action-container" id="pluginActionsContainer">
-                    <p class="no-actions-message">No actions available from plugins.</p>
-                    <!-- Actions will be populated by JavaScript -->
+                <div class="card-body">
+                    <!-- Keep donut chart, labels will be updated in JS -->
+                    <div id="securityDonut" class="chart-container chart-container-sm"></div>
                 </div>
             </div>
         </div>
     </div>
-    
-    <div class="dashboard-controls">
-        <button id="syncButton" class="sync-button">Sync Dashboard</button>
-        <button id="restartServiceButton" class="service-button">Restart Netfang Service</button>
-        <div id="statusMessage" class="status-message"></div>
+
+    <!-- Tab Navigation -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header tab-header">
+            <!-- Changed Tab Names -->
+            <ul class="nav nav-tabs card-header-tabs" id="dashboardTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="targets-tab" data-bs-toggle="tab" data-bs-target="#targets-content" type="button" role="tab">Targets</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="hosts-tab" data-bs-toggle="tab" data-bs-target="#hosts-content" type="button" role="tab">Hosts</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="logs-tab" data-bs-toggle="tab" data-bs-target="#logs-content" type="button" role="tab">Event Logs</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tools-tab" data-bs-toggle="tab" data-bs-target="#tools-content" type="button" role="tab">Analysis Tools</button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="tasks-tab" data-bs-toggle="tab" data-bs-target="#tasks-content" type="button" role="tab">Active Tasks</button>
+                </li>
+            </ul>
+        </div>
+        <div class="card-body">
+            <div class="tab-content" id="dashboardTabsContent">
+                <!-- Targets Tab (Formerly Networks) -->
+                <div class="tab-pane fade show active" id="targets-content" role="tabpanel" aria-labelledby="targets-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Observed Networks / Targets</h5> <!-- Changed Title -->
+                        <div class="table-actions">
+                            <div class="input-group input-group-sm table-search">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="networkSearchInput" placeholder="Search targets...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <!-- Changed table ID and headers -->
+                        <table class="table table-hover align-middle" id="targetsTable">
+                            <thead>
+                                <tr>
+                                    <th>Identifier (MAC/SSID)</th>
+                                    <th>Status</th>
+                                    <th>Last Seen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Hosts Tab (Formerly Devices) -->
+                <div class="tab-pane fade" id="hosts-content" role="tabpanel" aria-labelledby="hosts-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">Discovered Hosts</h5> <!-- Changed Title -->
+                        <div class="table-actions">
+                            <div class="input-group input-group-sm table-search">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="deviceSearchInput" placeholder="Search hosts...">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <!-- Changed table ID and headers -->
+                        <table class="table table-hover align-middle" id="hostsTable">
+                            <thead>
+                                <tr>
+                                    <th>IP Address</th>
+                                    <th>MAC Address</th>
+                                    <th>OS/Vendor Guess</th>
+                                    <th>Target Network</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Event Logs Tab (Formerly Logs) -->
+                <div class="tab-pane fade" id="logs-content" role="tabpanel" aria-labelledby="logs-tab">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="card-title mb-0">System & Plugin Event Logs</h5> <!-- Changed Title -->
+                        <div class="table-actions d-flex gap-2">
+                            <button id="clearLogsButton" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-trash-alt"></i> Clear Display
+                            </button>
+                            <button id="autoScrollToggle" class="btn btn-sm btn-primary">
+                                <i class="fas fa-scroll"></i> Auto-scroll: ON
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive log-table-container">
+                        <!-- Changed table ID -->
+                        <table class="table table-hover align-middle table-sm" id="eventLogsTable">
+                            <thead>
+                                <tr>
+                                    <th>Source</th> <!-- Changed Header -->
+                                    <th>Event Message</th> <!-- Changed Header -->
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Data will be populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Analysis Tools Tab (Formerly Actions) -->
+                <div class="tab-pane fade" id="tools-content" role="tabpanel" aria-labelledby="tools-tab">
+                    <div class="mb-3">
+                        <h5 class="card-title">Available Analysis Tools (System-Wide)</h5> <!-- Changed Title -->
+                    </div>
+                    <!-- Changed container ID -->
+                    <div class="actions-container" id="analysisToolsContainer">
+                        <div class="no-actions-message text-center text-muted py-4">
+                            <i class="fas fa-toolbox fa-2x mb-2"></i> <!-- Changed Icon -->
+                            <p>No system-wide tools registered by plugins</p>
+                        </div>
+                        <!-- Tools will be populated by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Active Tasks Tab (Formerly Processes) -->
+                <div class="tab-pane fade" id="tasks-content" role="tabpanel" aria-labelledby="tasks-tab">
+                    <div class="mb-3">
+                        <h5 class="card-title">Active Analysis Tasks</h5> <!-- Changed Title -->
+                    </div>
+                    <!-- Changed container ID -->
+                    <div id="activeTasksContainer" class="processes-container">
+                        <div class="no-processes-message text-center text-muted py-4">
+                            <i class="fas fa-spinner fa-pulse fa-2x mb-2"></i> <!-- Changed Icon -->
+                            <p>No analysis tasks currently running</p>
+                        </div>
+                        <!-- Task boxes will be dynamically added here -->
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 {% endblock %}
 
 {% block additional_scripts %}
 <script>
     // socket is already established in the global scope (from hidden_structure.html)
-    
-    // Connection status handling
-    socket.on('connect', function() {
-        console.log('Connected to server via Socket.IO');
-        document.getElementById('statusMessage').textContent = 'Connected to server';
-        document.getElementById('statusMessage').style.opacity = 1;
-        setTimeout(() => {
-            document.getElementById('statusMessage').style.opacity = 0;
-        }, 2000);
-    });
-    
-    socket.on('connect_error', function(error) {
-        console.error('Socket.IO connection error:', error);
-        document.getElementById('statusMessage').textContent = 'Connection error! Trying to reconnect...';
-        document.getElementById('statusMessage').style.opacity = 1;
-        alertify.error('Connection to server lost. Trying to reconnect...', 0);
-    });
-    
-    socket.on('reconnect', function(attemptNumber) {
-        console.log('Reconnected to server after ' + attemptNumber + ' attempts');
-        document.getElementById('statusMessage').textContent = 'Reconnected to server';
-        document.getElementById('statusMessage').style.opacity = 1;
-        setTimeout(() => {
-            document.getElementById('statusMessage').style.opacity = 0;
-        }, 2000);
-        alertify.dismissAll();
-        alertify.success('Reconnected to server');
-        // Refresh dashboard data after reconnect
-        syncDashboard();
-    });
 
-    // Configure alertify defaults
-    alertify.defaults.notifier.position = 'top-right';
-    alertify.defaults.notifier.delay = 5;
-    alertify.defaults.transition = "slide";
-    alertify.defaults.theme.ok = "btn btn-primary";
-    alertify.defaults.theme.cancel = "btn btn-danger";
-    alertify.defaults.theme.input = "form-control";
-
+    // --- Constants and State Variables ---
     const stateElement = document.getElementById("state");
     const scanningIndicator = document.getElementById("scanningIndicator");
-    const stateIndicator = document.querySelector(".state-indicator");
-    const stateStatusProgress = document.querySelector(".state-status-progress");
+    const scanningIndicatorText = document.getElementById("scanningIndicatorText");
+    const statusContainer = document.getElementById("statusContainer");
+    const statusIcon = document.getElementById("statusIcon");
+    const stateStatusProgress = document.getElementById("stateStatusProgress");
     const stateDescription = document.getElementById("stateDescription");
-    const dashboardContainer = document.querySelector(".dashboard-container");
-    let previousState = '{{ state }}';
+    const restartNetfangButton = document.getElementById('restartNetfangButton'); // Updated ID
+    let previousState = '{{ state }}'; // Initial state from Flask
     let currentIntervalID = null;
-    let scanCompletedTimeout = null;
-    
-    // Current process display elements
-    const currentProcessesContainer = document.getElementById('currentProcessesContainer');
-    
-    // Plugin logs elements
-    const pluginLogsTable = document.getElementById('pluginLogsTable').getElementsByTagName('tbody')[0];
+
+    // Dashboard data elements (IDs remain the same for simplicity, but represent new concepts)
+    const networksCount = document.getElementById("networksCount"); // Represents Targets
+    const devicesCount = document.getElementById("devicesCount");   // Represents Hosts
+    const homeNetworkCount = document.getElementById("homeNetworkCount"); // Represents Trusted Targets
+    const blacklistedNetworkCount = document.getElementById("blacklistedNetworkCount"); // Represents High-Risk Targets
+    const connectedDeviceCount = document.getElementById("connectedDeviceCount"); // Represents Active Hosts
+    const activityCount = document.getElementById("activityCount"); // Represents Events
+    const securityScore = document.getElementById("securityScore"); // Represents System Health
+    const securityScoreTrend = document.getElementById("securityScoreTrend");
+
+    // Active Tasks display elements (Updated IDs)
+    const activeTasksContainer = document.getElementById('activeTasksContainer');
+
+    // Event Logs elements (Updated IDs)
+    const eventLogsTable = document.getElementById('eventLogsTable').getElementsByTagName('tbody')[0];
     const clearLogsButton = document.getElementById('clearLogsButton');
     const autoScrollToggle = document.getElementById('autoScrollToggle');
     let autoScrollEnabled = true;
-    
-    // Networks and devices tables
-    const networksTable = document.getElementById('networksTable').getElementsByTagName('tbody')[0];
-    const devicesTable = document.getElementById('devicesTable').getElementsByTagName('tbody')[0];
-    
-    // Plugin actions container
-    const pluginActionsContainer = document.getElementById('pluginActionsContainer');
-    
-    // Track registered actions
-    let registeredActions = {};
-    
-    // Map network IDs to MAC addresses for action handling
-    let networkIdToMac = {};
-    let deviceIdToInfo = {};
 
-    // Initialize state descriptions
-    const stateDescriptions = {
-        'WAITING_FOR_NETWORK': 'NetFang is waiting for a network connection. Please check your network cable or Wi-Fi connection.',
-        'DISCONNECTED': 'Network connection lost. NetFang will automatically try to reconnect when a network is available.',
-        'RECONNECTING': 'Attempting to reconnect to the network...',
-        'CONNECTING': 'Establishing connection to the network...',
-        'CONNECTED_KNOWN': 'Connected to a known network. Network scan completed. Enhanced security features are active.',
-        'CONNECTED_HOME': 'Connected to your home network. Network scan completed. Full security features are active.',
-        'CONNECTED_NEW': 'Connected to a new, unrecognized network. Network scan completed with security measures in place.',
-        'CONNECTED_BLACKLISTED': 'Warning: Connected to a blacklisted network! Enhanced protection measures activated.',
-        'SCANNING_IN_PROGRESS': 'Network scan in progress. Discovering devices and potential threats...',
-        'SCAN_COMPLETED': 'Network scan completed. Results have been analyzed and security measures are in place.',
-        'PERFORM_ACTION': 'Executing security action...'
+    // Targets and Hosts tables (Updated IDs)
+    const targetsTable = document.getElementById('targetsTable').getElementsByTagName('tbody')[0];
+    const hostsTable = document.getElementById('hostsTable').getElementsByTagName('tbody')[0];
+
+    // Search inputs (IDs remain the same)
+    const networkSearchInput = document.getElementById('networkSearchInput'); // Searches Targets
+    const deviceSearchInput = document.getElementById('deviceSearchInput');   // Searches Hosts
+
+    // Analysis Tools container (Updated ID)
+    const analysisToolsContainer = document.getElementById('analysisToolsContainer');
+
+    // Track registered actions (Tools)
+    let registeredActions = {}; // Structure: { action_id: { action_id, plugin_name, action_name, description, target_type, command? } }
+
+    // Map Target/Host IDs for action handling (IDs remain the same)
+    let networkIdToMac = {}; // Maps Target ID -> MAC/Identifier
+    let deviceIdToInfo = {}; // Maps Host ID -> { ip, mac, network_id }
+
+    // Chart instances
+    let activityChart = null;
+    let securityDonut = null; // Represents Host Status
+
+    // --- State Definitions and Handling ---
+
+    // NEW State Definitions reflecting analysis phases
+    const stateDefinitions = {
+        'IDLE': {
+            description: 'System idle. Ready to start analysis or monitoring.',
+            icon: 'fas fa-power-off', color: 'text-secondary', progress: 10, score: 50, trend: 'Ready', trendClass: 'bg-secondary', indicatorText: 'Idle'
+        },
+        'INITIALIZING': {
+            description: 'System initializing components and plugins...',
+            icon: 'fas fa-cog fa-spin', color: 'text-info', progress: 25, score: 60, trend: 'Initializing', trendClass: 'bg-info', indicatorText: 'Initializing...'
+        },
+        'SCANNING_NETWORK': {
+            description: 'Actively scanning the network for targets and hosts using configured tools (e.g., ARP, Nmap)...',
+            icon: 'fas fa-crosshairs fa-spin', color: 'text-primary', progress: 50, score: 70, trend: 'Scanning', trendClass: 'bg-primary', indicatorText: 'Scanning Network...'
+        },
+        'ANALYZING_RESULTS': {
+            description: 'Processing scan results, identifying services, OS, and potential vulnerabilities...',
+            icon: 'fas fa-microscope', color: 'text-info', progress: 75, score: 80, trend: 'Analyzing', trendClass: 'bg-info', indicatorText: 'Analyzing Results...'
+        },
+        'MONITORING': {
+            description: 'Passively monitoring network traffic and known hosts for changes or threats.',
+            icon: 'fas fa-eye', color: 'text-success', progress: 100, score: 90, trend: 'Monitoring', trendClass: 'bg-success', indicatorText: 'Monitoring...'
+        },
+        'EXECUTING_ACTION': {
+            description: 'Running a specific analysis tool or module...',
+            icon: 'fas fa-terminal', color: 'text-warning', progress: 60, score: 75, trend: 'Executing', trendClass: 'bg-warning', indicatorText: 'Executing Task...'
+        },
+        'REPORTING': {
+            description: 'Generating or updating analysis reports.',
+            icon: 'fas fa-file-alt', color: 'text-success', progress: 100, score: 85, trend: 'Reporting', trendClass: 'bg-success', indicatorText: 'Reporting...'
+        },
+        'ERROR_STATE': {
+            description: 'An error occurred. Check logs for details. System may be in an unstable state.',
+            icon: 'fas fa-exclamation-triangle', color: 'text-danger', progress: 100, score: 10, trend: 'Error', trendClass: 'bg-danger', indicatorText: 'Error!'
+        },
+        'WAITING_FOR_NETWORK': { // Keep similar states for underlying network issues
+            description: 'Waiting for a network interface to become available or configured.',
+            icon: 'fas fa-plug', color: 'text-secondary', progress: 5, score: 20, trend: 'No Network', trendClass: 'bg-secondary', indicatorText: 'Waiting for Network...'
+        },
+        'NETWORK_DISCONNECTED': {
+             description: 'Network connection lost. Analysis paused. Will resume when connection is restored.',
+             icon: 'fas fa-unlink', color: 'text-danger', progress: 10, score: 15, trend: 'Disconnected', trendClass: 'bg-danger', indicatorText: 'Network Disconnected'
+        },
+        // Add more states as needed by your NetworkManager logic
+        'UNKNOWN': {
+            description: 'Current system state is unknown.',
+            icon: 'fas fa-question-circle', color: 'text-secondary', progress: 0, score: 0, trend: 'Unknown', trendClass: 'bg-secondary', indicatorText: 'Unknown State'
+        }
     };
 
-    // Update the state indicator, progress bar, and container styling based on current state
+    // Update the status card, progress bar, and container styling based on current state
     function updateStateIndicator(state) {
-        // Remove any existing state classes
-        stateIndicator.className = "state-indicator";
-        
-        // Add the new state class
-        stateIndicator.classList.add(`state-${state}`);
-        
-        // Add class to dashboard container for broader styling
-        dashboardContainer.className = "dashboard-container";
-        dashboardContainer.classList.add(`dashboard-state-${state}`);
-        
-        // Update progress bar visibility and animation based on state
-        if (state === "SCANNING_IN_PROGRESS" || state === "CONNECTING" || state === "RECONNECTING") {
+        const definition = stateDefinitions[state] || stateDefinitions['UNKNOWN'];
+
+        // Remove previous state classes
+        statusContainer.className = "status-card";
+        // Add new state class (lowercase, hyphenated)
+        statusContainer.classList.add(`state-${state.toLowerCase().replace(/_/g, '-')}`);
+
+        // Update Icon
+        statusIcon.innerHTML = `<i class="${definition.icon} ${definition.color}"></i>`;
+
+        // Update Progress Bar
+        stateStatusProgress.style.width = `${definition.progress}%`;
+        stateStatusProgress.style.backgroundColor = ""; // Reset color (can be set via CSS)
+        stateStatusProgress.style.animation = (state === 'SCANNING_NETWORK' || state === 'INITIALIZING' || state === 'EXECUTING_ACTION') ? "progressAnim 2s infinite" : "none";
+
+        // Update Scanning Indicator visibility and text
+        if (state === 'SCANNING_NETWORK' || state === 'ANALYZING_RESULTS' || state === 'EXECUTING_ACTION' || state === 'INITIALIZING') {
             scanningIndicator.classList.add('active');
-            stateStatusProgress.style.animation = "progressAnim 2s infinite";
-            
-            // For scanning state, show an alertify notification if not already shown
-            if (state === "SCANNING_IN_PROGRESS") {
-                alertify.notify('Network scan in progress...', 'info', 0, function(){});
-            }
+            scanningIndicatorText.textContent = definition.indicatorText;
         } else {
             scanningIndicator.classList.remove('active');
-            stateStatusProgress.style.animation = "none";
-            
-            // Clear any existing scan completed timeout
-            if (scanCompletedTimeout) {
-                clearTimeout(scanCompletedTimeout);
-                scanCompletedTimeout = null;
-            }
-            
-            // Dismiss any persistent notifications
-            alertify.dismissAll();
-            
-            // Set fixed progress for complete states
-            if (state === "CONNECTED_HOME" || state === "CONNECTED_KNOWN" || state === "SCAN_COMPLETED") {
-                stateStatusProgress.style.width = "100%";
-                
-                // If transition from scanning to completed, show a success notification
-                if (previousState === "SCANNING_IN_PROGRESS" && state === "SCAN_COMPLETED") {
-                    alertify.success('Network scan completed successfully!');
-                    
-                    // After scan completes, we'll stay on SCAN_COMPLETED temporarily then auto-transition back
-                    // to the appropriate connected state after a few seconds (this is cosmetic only)
-                    scanCompletedTimeout = setTimeout(() => {
-                        // This will be handled by the server but we'll update the UI proactively
-                        // for a smoother experience
-                        syncDashboard();
-                    }, 5000);
-                }
-            } else if (state === "CONNECTED_NEW") {
-                stateStatusProgress.style.width = "75%";
-            } else if (state === "CONNECTED_BLACKLISTED") {
-                stateStatusProgress.style.width = "100%";
-                stateStatusProgress.style.background = "linear-gradient(to right, #ef5350, #e57373)";
-                
-                // Show a warning notification for blacklisted networks
-                alertify.error('Warning: Connected to a blacklisted network!', 0);
-            } else if (state === "DISCONNECTED" || state === "WAITING_FOR_NETWORK") {
-                stateStatusProgress.style.width = "25%";
-                
-                // Show a notification for disconnection
-                if (previousState !== "DISCONNECTED" && previousState !== "WAITING_FOR_NETWORK") {
-                    alertify.warning('Network connection lost.');
-                }
+        }
+
+        // Update State Description
+        stateDescription.textContent = definition.description;
+
+        // Update "Security Score" / System Health
+        animateValue(securityScore, parseInt(securityScore.textContent) || 0, definition.score, 1000);
+        securityScoreTrend.innerHTML = `<i class="fas fa-chart-line"></i> ${definition.trend}`;
+        securityScoreTrend.className = `badge ${definition.trendClass}`;
+
+        // Update Host Status Donut Chart
+        updateSecurityDonut(state); // Reuse function, update labels/data inside
+
+        // Update Restart Button Style (e.g., make it red in ERROR_STATE)
+        if (restartNetfangButton) {
+            if (state === 'ERROR_STATE') {
+                restartNetfangButton.className = "btn btn-danger";
+                restartNetfangButton.innerHTML = `<i class="fas fa-exclamation-triangle"></i> Force Restart`;
             } else {
-                stateStatusProgress.style.width = "50%";
+                restartNetfangButton.className = "btn btn-outline-primary";
+                restartNetfangButton.innerHTML = `<i class="fas fa-power-off"></i> Restart Analyzer`;
             }
         }
-        
-        // Update state description
-        stateDescription.textContent = stateDescriptions[state] || '';
-        
-        // Update the buttons style based on state
-        updateButtonStyles(state);
-        
-        // Adjust table headers based on state
-        updateTableStyles(state);
-    }
-    
-    // Update button styles based on state
-    function updateButtonStyles(state) {
-        const syncButton = document.getElementById('syncButton');
-        const restartButton = document.getElementById('restartServiceButton');
-        
-        // Reset button classes
-        syncButton.className = 'sync-button';
-        restartButton.className = 'service-button';
-        
-        if (state === "CONNECTED_BLACKLISTED") {
-            restartButton.classList.add('warning-button');
-            restartButton.textContent = "Security Reset";
-        } else {
-            restartButton.textContent = "Restart Netfang Service";
-        }
-        
-        if (state === "SCANNING_IN_PROGRESS") {
-            syncButton.disabled = true;
-            syncButton.classList.add('disabled-button');
-        } else {
-            syncButton.disabled = false;
-            syncButton.classList.remove('disabled-button');
-        }
-    }
-    
-    // Update table styling based on state
-    function updateTableStyles(state) {
-        const tableHeaders = document.querySelectorAll('.data-table th');
-        
-        // Reset all table header styles
-        tableHeaders.forEach(th => {
-            th.style.backgroundColor = '';
-            th.style.color = '';
-            th.style.borderBottomColor = '';
-        });
-        
-        // Apply state-specific styles
-        if (state === "CONNECTED_BLACKLISTED") {
-            tableHeaders.forEach(th => {
-                th.style.backgroundColor = '#ffebee';
-                th.style.borderBottomColor = '#ef5350';
-            });
-        } else if (state === "CONNECTED_HOME" || state === "SCAN_COMPLETED") {
-            tableHeaders.forEach(th => {
-                th.style.backgroundColor = '#e8f5e9';
-                th.style.borderBottomColor = '#43a047';
-            });
-        } else if (state === "SCANNING_IN_PROGRESS") {
-            tableHeaders.forEach(th => {
-                th.style.backgroundColor = '#e0f7fa';
-                th.style.borderBottomColor = '#26c6da';
-            });
-        }
+
+        // Handle Notifications based on state transitions
+        handleStateNotifications(state, previousState);
     }
 
-    // Initialize collapsible panels
-    document.querySelectorAll('.panel-header').forEach(header => {
-        header.addEventListener('click', () => {
-            const toggle = header.querySelector('.panel-toggle');
-            const content = header.nextElementSibling;
-            
-            toggle.classList.toggle('collapsed');
-            content.classList.toggle('collapsed');
-        });
-    });
+    function handleStateNotifications(newState, oldState) {
+         // Dismiss previous non-error notifications
+         if (newState !== 'ERROR_STATE' && newState !== 'NETWORK_DISCONNECTED') {
+             alertify.dismissAll();
+         }
 
-    // Typewriter effect for 'state'
-    function typeText(element, text) {
-        if (currentIntervalID !== null) {
-            clearInterval(currentIntervalID);
+         switch(newState) {
+             case 'SCANNING_NETWORK':
+                 if (oldState !== newState) alertify.notify('Starting network scan...', 'info', 5);
+                 break;
+             case 'ANALYZING_RESULTS':
+                 if (oldState === 'SCANNING_NETWORK') alertify.success('Scan complete. Analyzing results...', 5);
+                 break;
+             case 'MONITORING':
+                 if (oldState === 'ANALYZING_RESULTS' || oldState === 'INITIALIZING') alertify.success('System is now monitoring.', 3);
+                 break;
+             case 'ERROR_STATE':
+                 // Persistent error notification
+                 if (oldState !== newState) alertify.error('System entered ERROR state. Check logs!', 0);
+                 break;
+             case 'NETWORK_DISCONNECTED':
+                 if (oldState !== newState) alertify.warning('Network disconnected. Analysis paused.', 10);
+                 break;
+             // Add more notifications as needed
+         }
+    }
+
+    // Update Host Status donut chart
+    function updateSecurityDonut(state) { // Renamed conceptually
+        if (!securityDonut) return;
+
+        // Example data - This should be driven by actual analysis results eventually
+        let data = [0, 0, 0, 100]; // [Identified, Vulnerable, Exploited, Unknown/Offline]
+        let labels = ['Identified', 'Vulnerable', 'Exploited', 'Unknown'];
+        let colors = ['#0dcaf0', '#ffc107', '#dc3545', '#e0e0e0']; // Info, Warning, Danger, Gray
+
+        // Adjust data based on state (Placeholder logic)
+        switch(state) {
+            case 'MONITORING':
+            case 'REPORTING':
+                // Simulate some results after analysis
+                data = [60, 15, 5, 20];
+                break;
+            case 'ANALYZING_RESULTS':
+                data = [70, 0, 0, 30]; // Mostly identified
+                break;
+            case 'SCANNING_NETWORK':
+                data = [30, 0, 0, 70]; // Some identified
+                break;
+            case 'ERROR_STATE':
+            case 'NETWORK_DISCONNECTED':
+            case 'WAITING_FOR_NETWORK':
+            case 'IDLE':
+            default:
+                data = [0, 0, 0, 100]; // All unknown/offline
+                break;
         }
-        let index = 0;
-        element.innerText = '';
-        currentIntervalID = setInterval(() => {
-            if (index < text.length) {
-                element.innerText += text.charAt(index);
-                index++;
-            } else {
-                clearInterval(currentIntervalID);
-                currentIntervalID = null;
+
+        securityDonut.updateOptions({
+            series: data,
+            labels: labels,
+            colors: colors
+        });
+    }
+
+    // Initialize Host Status donut chart
+    function initializeSecurityDonut() { // Renamed conceptually
+        const options = {
+            series: [0, 0, 0, 100], // Initial: [Identified, Vulnerable, Exploited, Unknown]
+            chart: {
+                type: 'donut',
+                height: 240,
+                fontFamily: 'Inter, sans-serif',
+            },
+            colors: ['#0dcaf0', '#ffc107', '#dc3545', '#e0e0e0'], // Initial colors
+            labels: ['Identified', 'Vulnerable', 'Exploited', 'Unknown'],
+            plotOptions: {
+                pie: {
+                    donut: {
+                        size: '70%',
+                        labels: { // Simplified labels for donut center
+                            show: true,
+                            name: { show: false },
+                            value: { show: false }, // Hide individual value
+                            total: {
+                                show: true,
+                                label: 'Total Hosts', // Changed label
+                                formatter: function(w) {
+                                    // Calculate total from series data
+                                    const total = w.globals.seriesTotals.reduce((a, b) => a + b, 0);
+                                    // Show total number of hosts (get from devicesCount)
+                                    return devicesCount.textContent || '0';
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            dataLabels: { enabled: false },
+            legend: { position: 'bottom', offsetY: 0 },
+            responsive: [{ /* ... responsive options ... */ }]
+        };
+
+        securityDonut = new ApexCharts(document.getElementById('securityDonut'), options);
+        securityDonut.render();
+    }
+
+    // Initialize Scan Event Timeline chart (Activity Chart)
+    function initializeActivityChart() { // Conceptually renamed
+        // ... (Chart initialization code remains largely the same) ...
+        // Consider changing colors or line style if desired
+        const options = {
+             series: [{ name: 'Scan Events', data: generateRandomData(24) }],
+             // ... rest of the options from previous version ...
+             colors: ['#6f42c1'], // Example: Purple color
+             fill: {
+                type: 'gradient',
+                gradient: { shadeIntensity: 0.8, opacityFrom: 0.6, opacityTo: 0.1, stops: [0, 90, 100] }
+            },
+             // ... rest of the options ...
+        };
+        activityChart = new ApexCharts(document.getElementById('activityChart'), options);
+        activityChart.render();
+    }
+
+    // --- Data Handling and UI Updates ---
+
+    // Handle dashboard data sync (Targets, Hosts, Logs)
+    function updateDashboardData(data) {
+        // Update metrics counts (using new conceptual names)
+        const targets = data.networks || []; // Use 'networks' data for Targets
+        const hosts = data.devices || [];     // Use 'devices' data for Hosts
+        const trustedTargets = targets.filter(n => n.is_home).length; // is_home -> Trusted
+        const highRiskTargets = targets.filter(n => n.is_blacklisted).length; // is_blacklisted -> High-Risk
+
+        animateValue(networksCount, parseInt(networksCount.textContent) || 0, targets.length, 500); // Targets count
+        animateValue(devicesCount, parseInt(devicesCount.textContent) || 0, hosts.length, 500);     // Hosts count
+        animateValue(homeNetworkCount, parseInt(homeNetworkCount.textContent) || 0, trustedTargets, 500); // Trusted count
+        animateValue(blacklistedNetworkCount, parseInt(blacklistedNetworkCount.textContent) || 0, highRiskTargets, 500); // High-Risk count
+        animateValue(connectedDeviceCount, parseInt(connectedDeviceCount.textContent) || 0, hosts.length, 500); // Active Hosts count (assuming all listed are active)
+        // Update activity count based on logs or other event source if available
+        animateValue(activityCount, parseInt(activityCount.textContent) || 0, (data.plugin_logs?.length || 0), 500); // Event count
+
+        // Clear existing tables (using new IDs)
+        targetsTable.innerHTML = '';
+        hostsTable.innerHTML = '';
+
+        // Reset ID mappings
+        networkIdToMac = {};
+        deviceIdToInfo = {};
+
+        // Populate Targets table
+        targets.forEach(target => {
+            const row = targetsTable.insertRow();
+            networkIdToMac[target.id] = target.mac_address; // Store mapping
+
+            let statusClass = 'badge bg-secondary';
+            let statusText = 'Observed';
+            if (target.is_home) { // Trusted
+                statusClass = 'badge bg-success'; statusText = 'Trusted'; row.classList.add('table-success');
+            } else if (target.is_blacklisted) { // High-Risk
+                statusClass = 'badge bg-danger'; statusText = 'High-Risk'; row.classList.add('table-danger');
+            } else if (target.is_known) { // Known (optional concept)
+                 statusClass = 'badge bg-info'; statusText = 'Known';
             }
-        }, 50);
+
+            const actionButtons = getActionButtonsHtml('network', target.id); // Get actions for 'network' type
+
+            row.innerHTML = `
+                <td>${escapeHtml(target.mac_address)}</td> <!-- Assuming MAC is identifier -->
+                <td><span class="${statusClass}">${statusText}</span></td>
+                <td>${formatTimestamp(target.last_seen)}</td>
+                <td><div class="action-buttons d-flex flex-wrap gap-1">${actionButtons}</div></td>
+            `;
+        });
+
+        // Populate Hosts table
+        hosts.forEach(host => {
+            const row = hostsTable.insertRow();
+            deviceIdToInfo[host.id] = { ip: host.ip_address, mac: host.mac_address, network_id: host.network_id }; // Store mapping
+
+            const hasFingerprintData = host.fingerprint && host.fingerprint !== 'None' && host.fingerprint.trim() !== '';
+            const fingerprintHtml = hasFingerprintData ?
+                `<button class="btn btn-sm btn-outline-info show-fingerprint" title="Show/Hide OS/Service Info">
+                    <i class="fas fa-fingerprint"></i>
+                 </button>
+                 <div class="fingerprint-data small bg-light p-2 mt-1 rounded" style="display: none; white-space: pre-wrap; word-break: break-all;">${escapeHtml(host.fingerprint)}</div>` : '';
+
+            const actionButtons = getActionButtonsHtml('device', host.id); // Get actions for 'device' type
+
+            const targetInfo = host.network_id && networkIdToMac[host.network_id] ?
+                `${escapeHtml(networkIdToMac[host.network_id])}` : 'Unknown';
+
+            // Use Vendor as OS/Vendor Guess
+            const vendorBadge = host.vendor ?
+                `<span class="badge bg-light text-dark">${escapeHtml(host.vendor)}</span>` :
+                '<span class="badge bg-secondary">Unknown</span>';
+
+            row.innerHTML = `
+                <td>${escapeHtml(host.ip_address) || 'N/A'}</td>
+                <td>${escapeHtml(host.mac_address) || 'N/A'}</td>
+                <td>${vendorBadge}</td>
+                <td><span class="text-muted small">${targetInfo}</span></td>
+                <td>
+                    <div class="d-flex align-items-center gap-2">
+                        <div>${fingerprintHtml}</div>
+                        <div class="action-buttons d-flex flex-wrap gap-1">${actionButtons}</div>
+                    </div>
+                </td>
+            `;
+        });
+
+        // Populate Event Logs table (using new ID)
+        if (data.plugin_logs && data.plugin_logs.length > 0) {
+            // Only clear/repopulate fully on large updates (heuristic)
+            if (data.plugin_logs.length > 10) {
+                 eventLogsTable.innerHTML = '';
+                 data.plugin_logs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                     .forEach(log => addEventLog(log, false)); // Add without animation
+                 if (autoScrollEnabled) {
+                     eventLogsTable.closest('.log-table-container').scrollTop = 0;
+                 }
+            }
+            // Individual logs are added via 'plugin_log' event
+        }
+
+        // Update registered actions/tools if provided in sync data
+        if (data.registered_actions) {
+             const currentActionKeys = Object.keys(registeredActions);
+             const newActionKeys = Object.keys(data.registered_actions);
+             if (currentActionKeys.length !== newActionKeys.length || !currentActionKeys.every(key => newActionKeys.includes(key))) {
+                 console.log("Updating registered tools from dashboard data.");
+                 registeredActions = data.registered_actions;
+                 updateAnalysisToolsPanel(); // Update the Tools tab
+             }
+        }
+
+
+        // Re-bind event listeners after updating tables
+        setupFingerprintToggles();
+        setupActionButtons(); // Re-bind actions in tables/tools panel
+
+        // alertify.success(`Dashboard updated at ${new Date().toLocaleTimeString()}`, 2); // Optional notification
     }
 
-    // Listen for state updates from the server
+    // Generate HTML for action buttons (Tools)
+    function getActionButtonsHtml(targetType, targetId) {
+        let actionButtons = [];
+        Object.values(registeredActions).forEach(action => {
+            // Action's target_type should match the context ('network' for targets, 'device' for hosts)
+            if (action.target_type === targetType) {
+                actionButtons.push(`
+                    <button
+                        class="btn btn-sm btn-outline-primary plugin-action-button"
+                        data-action-id="${action.action_id}"
+                        data-target-id="${targetId}"
+                        title="${escapeHtml(action.description || action.action_name)}"
+                    >
+                        <i class="fas fa-play small me-1"></i> ${escapeHtml(action.action_name)}
+                    </button>
+                `);
+            }
+        });
+        return actionButtons.join('');
+    }
+
+    // Update the Analysis Tools panel (System-wide tools)
+    function updateAnalysisToolsPanel() {
+        analysisToolsContainer.innerHTML = ''; // Clear current tools
+
+        const systemActions = Object.values(registeredActions).filter(
+            action => action.target_type === 'system'
+        );
+
+        if (systemActions.length === 0) {
+            analysisToolsContainer.innerHTML = `
+                <div class="no-actions-message text-center text-muted py-4">
+                    <i class="fas fa-toolbox fa-2x mb-2"></i>
+                    <p>No system-wide tools registered by plugins</p>
+                </div>`;
+            return;
+        }
+
+        // Group tools by plugin
+        const toolsByPlugin = {};
+        systemActions.forEach(action => {
+            if (!toolsByPlugin[action.plugin_name]) toolsByPlugin[action.plugin_name] = [];
+            toolsByPlugin[action.plugin_name].push(action);
+        });
+
+        const toolsContainer = document.createElement('div');
+        toolsContainer.className = 'row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3';
+
+        Object.entries(toolsByPlugin).forEach(([pluginName, actions]) => {
+            const card = document.createElement('div');
+            card.className = 'col';
+            card.innerHTML = `
+                <div class="card h-100 shadow-sm">
+                    <div class="card-header bg-light">
+                        <h6 class="card-title mb-0 fw-bold">${escapeHtml(pluginName)}</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            ${actions.map(action => `
+                                <button
+                                    class="btn btn-primary plugin-action-button text-start"
+                                    data-action-id="${action.action_id}"
+                                    data-target-id="system"
+                                    title="${escapeHtml(action.description || action.action_name)}"
+                                >
+                                   <i class="fas fa-wrench me-2"></i> ${escapeHtml(action.action_name)}
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>`;
+            toolsContainer.appendChild(card);
+        });
+
+        analysisToolsContainer.appendChild(toolsContainer);
+        setupActionButtons(); // Re-bind listeners
+    }
+
+    // --- Event Log Handling ---
+
+    // Add event log to the table (using new ID)
+    function addEventLog(log, animate = true) {
+        const row = eventLogsTable.insertRow(0);
+        row.innerHTML = `
+            <td><span class="badge bg-secondary">${escapeHtml(log.plugin_name || 'System')}</span></td>
+            <td>${escapeHtml(log.event || log.message || '')}</td>
+            <td><span class="text-muted small">${formatTimestamp(log.timestamp)}</span></td>
+        `;
+
+        if (animate) {
+            row.classList.add('new-log-entry');
+            setTimeout(() => row.classList.remove('new-log-entry'), 2000);
+            if (autoScrollEnabled) {
+                const scrollContainer = eventLogsTable.closest('.log-table-container');
+                if (scrollContainer && scrollContainer.scrollTop < 50) {
+                     scrollContainer.scrollTop = 0;
+                }
+            }
+        }
+
+        // Limit table size
+        const MAX_LOG_ROWS = 500;
+        if (eventLogsTable.rows.length > MAX_LOG_ROWS) {
+            eventLogsTable.deleteRow(eventLogsTable.rows.length - 1);
+        }
+    }
+
+    // --- Active Task (Process) Handling ---
+
+    // Handle command output streaming for tasks
+    function handleCommandOutput(data) {
+        const processId = data.process_id;
+        let taskCard = document.getElementById(`task-${processId}`); // Use task- ID prefix
+
+        const noTasksMessage = activeTasksContainer.querySelector('.no-processes-message');
+        if (noTasksMessage) noTasksMessage.remove();
+
+        if (!taskCard) {
+            taskCard = document.createElement('div');
+            taskCard.id = `task-${processId}`;
+            taskCard.className = 'card process-card mb-3 shadow-sm'; // Keep process-card class for styling
+            taskCard.innerHTML = `
+                <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="fas fa-tasks me-2"></i> <!-- Task Icon -->
+                        Task <span class="badge bg-info ms-1">${escapeHtml(data.plugin_name)}</span>
+                        <small class="text-muted ms-2">ID: ${processId.substring(0, 8)}...</small>
+                    </h6>
+                    <button type="button" class="btn-close btn-sm" aria-label="Close" onclick="closeTask('${processId}')"></button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="command-line bg-dark text-light p-2 small">
+                        <code>$ ${escapeHtml(data.command)}</code>
+                    </div>
+                    <div class="process-output p-2" id="output-${processId}" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.8em; background-color: #f8f9fa;"></div>
+                </div>
+            `;
+            activeTasksContainer.prepend(taskCard); // Add new tasks at the top
+        }
+
+        const outputContainer = document.getElementById(`output-${processId}`);
+        if (outputContainer) {
+            const outputLine = document.createElement('div');
+            // Add stream indicator (stdout/stderr) if needed
+            // outputLine.className = data.stream === 'stderr' ? 'text-danger' : '';
+            outputLine.textContent = data.output;
+            outputContainer.appendChild(outputLine);
+            outputContainer.scrollTop = outputContainer.scrollHeight; // Auto-scroll
+
+            if (data.is_complete) {
+                const completionLine = document.createElement('div');
+                const exitStatus = data.exit_code === 0 ? 'successfully' : `with error code ${data.exit_code}`;
+                completionLine.className = `completion-line text-muted small mt-2 border-top pt-1 ${data.exit_code !== 0 ? 'text-danger fw-bold' : 'text-success'}`;
+                completionLine.textContent = `--- Task finished ${exitStatus} ---`;
+                outputContainer.appendChild(completionLine);
+                // Maybe change card border or header color on completion/error
+                taskCard.querySelector('.card-header').classList.add(data.exit_code === 0 ? 'bg-success-soft' : 'bg-danger-soft');
+            }
+        }
+    }
+
+    // Handle new task start event
+    function handleCurrentProcess(data) { // Keep function name, but treat as task start
+        if (data === null || !data.process_id) return; // Ignore null updates for now
+
+        const processId = data.process_id;
+        let taskCard = document.getElementById(`task-${processId}`);
+
+        const noTasksMessage = activeTasksContainer.querySelector('.no-processes-message');
+        if (noTasksMessage) noTasksMessage.remove();
+
+        if (!taskCard) {
+             taskCard = document.createElement('div');
+             taskCard.id = `task-${processId}`;
+             taskCard.className = 'card process-card mb-3 shadow-sm';
+             taskCard.innerHTML = `
+                <div class="card-header d-flex justify-content-between align-items-center bg-light">
+                    <h6 class="mb-0 fw-bold">
+                        <i class="fas fa-tasks me-2"></i>
+                        Task <span class="badge bg-info ms-1">${escapeHtml(data.plugin_name)}</span>
+                        <small class="text-muted ms-2">ID: ${processId.substring(0, 8)}...</small>
+                    </h6>
+                    <button type="button" class="btn-close btn-sm" aria-label="Close" onclick="closeTask('${processId}')"></button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="command-line bg-dark text-light p-2 small">
+                        <code>$ ${escapeHtml(data.command)}</code>
+                    </div>
+                    <div class="process-output p-2" id="output-${processId}" style="max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 0.8em; background-color: #f8f9fa;"></div>
+                </div>
+            `;
+            activeTasksContainer.prepend(taskCard);
+        }
+
+        const outputContainer = document.getElementById(`output-${processId}`);
+        if (outputContainer) {
+            const startLine = document.createElement('div');
+            startLine.className = 'start-line text-muted small mb-1 border-bottom pb-1';
+            // Use JS Date for formatting start time if available
+            const startTime = data.start_time ? formatTimestamp(new Date(data.start_time * 1000)) : 'N/A'; // Assuming start_time is epoch seconds
+            startLine.textContent = `Task started at ${startTime}`;
+            outputContainer.innerHTML = ''; // Clear previous output
+            outputContainer.appendChild(startLine);
+        }
+    }
+
+    // Close a specific task card
+    window.closeTask = function(processId) { // Renamed function
+        const taskCard = document.getElementById(`task-${processId}`);
+        if (taskCard) {
+            taskCard.remove();
+            if (activeTasksContainer.children.length === 0) {
+                activeTasksContainer.innerHTML = `
+                    <div class="no-processes-message text-center text-muted py-4">
+                        <i class="fas fa-spinner fa-pulse fa-2x mb-2"></i>
+                        <p>No analysis tasks currently running</p>
+                    </div>`;
+            }
+        }
+    }
+
+    // --- Utility Functions ---
+    // animateValue, formatTimestamp, escapeHtml (remain the same)
+    // typeText (remains the same)
+    // setupFingerprintToggles (remains the same, acts on hostsTable)
+    // setupActionButtons (remains the same, acts on targetsTable, hostsTable, analysisToolsContainer)
+    // setupTableFilters (remains the same, acts on networkSearchInput, deviceSearchInput)
+
+    // --- Socket Event Listeners ---
     socket.on("state_update", (data) => {
-        console.log(`[${new Date().toLocaleTimeString()}] State update received:`, data);
-        const newState = data.state || 'Unknown';
-
+        console.log(`State update: ${data.state}`);
+        const newState = data.state || 'UNKNOWN';
         if (newState !== previousState) {
-            // Update state display
-            typeText(stateElement, newState);
+            typeText(stateElement, newState.replace(/_/g, ' '));
             updateStateIndicator(newState);
-            
-            // Record new state
             previousState = newState;
         }
     });
 
-    // Format timestamp for display
-    function formatTimestamp(timestamp) {
-        try {
-            const date = new Date(timestamp);
-            return date.toLocaleString();
-        } catch (e) {
-            return 'Invalid time';
-        }
-    }
-    
-    // Toggle fingerprint display
-    function setupFingerprintToggles() {
-        document.querySelectorAll('.show-fingerprint').forEach(button => {
-            button.addEventListener('click', function() {
-                const dataElement = this.nextElementSibling;
-                if (dataElement.style.display === 'block') {
-                    dataElement.style.display = 'none';
-                    this.textContent = 'Show Fingerprint';
-                } else {
-                    dataElement.style.display = 'block';
-                    this.textContent = 'Hide Fingerprint';
-                }
-            });
-        });
-    }
-    
-    // Set up action button click handlers
-    function setupActionButtons() {
-        document.querySelectorAll('.plugin-action-button').forEach(button => {
-            button.addEventListener('click', function() {
-                const actionId = this.dataset.actionId;
-                const action = registeredActions[actionId];
-                
-                if (!action) return;
-                
-                let targetId = this.dataset.targetId;
-                
-                console.log(`Executing action: ${action.action_name} (${action.plugin_name}) on target ${targetId}`);
-                
-                // Trigger API call to execute action
-                fetch('/plugin/action', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        plugin_name: action.plugin_name,
-                        action_id: action.action_id,
-                        target_type: action.target_type,
-                        target_id: targetId
-                    })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        alertify.success(data.message || 'Action executed successfully');
-                    } else {
-                        alertify.error(data.message || 'Failed to execute action');
-                    }
-                })
-                .catch(error => {
-                    alertify.error(`Error: ${error.message}`);
-                });
-            });
-        });
-    }
-    
-    // Handle dashboard data sync
-    function updateDashboardData(data) {
-        // Clear existing tables
-        networksTable.innerHTML = '';
-        devicesTable.innerHTML = '';
-        
-        // Track network IDs to MACs for action handling
-        networkIdToMac = {};
-        deviceIdToInfo = {};
-        
-        // Populate Networks table
-        data.networks.forEach(network => {
-            const row = networksTable.insertRow();
-            
-            const statusClass = network.is_home ? 'network-home' : 
-                               (network.is_blacklisted ? 'network-blacklisted' : '');
-            
-            const statusText = network.is_home ? 'Home' : 
-                              (network.is_blacklisted ? 'Blacklisted' : 'Known');
-            
-            // Store mapping of ID to MAC
-            networkIdToMac[network.id] = network.mac_address;
-            
-            // Create action buttons for this network
-            const actionButtons = getActionButtonsHtml('network', network.id);
-            
-            row.innerHTML = `
-                <td>${network.mac_address}</td>
-                <td class="${statusClass}">${statusText}</td>
-                <td>${formatTimestamp(network.last_seen)}</td>
-                <td>${actionButtons}</td>
-            `;
-        });
-        
-        // Populate Devices table
-        data.devices.forEach(device => {
-            const row = devicesTable.insertRow();
-            
-            // Store device info for action handling
-            deviceIdToInfo[device.id] = {
-                ip: device.ip_address,
-                mac: device.mac_address,
-                network_id: device.network_id
-            };
-            
-            // Check if we have fingerprint data
-            const hasFingerprintData = device.fingerprint && device.fingerprint !== 'None';
-            const fingerprintHtml = hasFingerprintData ? 
-                `<span class="show-fingerprint">Show Fingerprint</span>
-                 <div class="fingerprint-data">${device.fingerprint}</div>` : '';
-            
-            // Create action buttons for this device
-            const actionButtons = getActionButtonsHtml('device', device.id);
-            
-            // Get network name if available
-            const networkInfo = device.network_id && networkIdToMac[device.network_id] ? 
-                `${networkIdToMac[device.network_id]}` : 'Unknown';
-                
-            row.innerHTML = `
-                <td>${device.ip_address || 'N/A'}</td>
-                <td>${device.mac_address || 'N/A'}</td>
-                <td>${device.vendor || 'Unknown'}</td>
-                <td>${networkInfo}</td>
-                <td>${fingerprintHtml} ${actionButtons}</td>
-            `;
-        });
-        
-        // Populate Plugin Logs table - only replace all if it's more than a regular update
-        if (data.plugin_logs && data.plugin_logs.length > 5) {
-            pluginLogsTable.innerHTML = '';
-            
-            data.plugin_logs.sort((a, b) => {
-                return new Date(b.timestamp) - new Date(a.timestamp);
-            }).forEach(log => {
-                const row = pluginLogsTable.insertRow();
-                row.innerHTML = `
-                    <td>${log.plugin_name}</td>
-                    <td>${log.event}</td>
-                    <td>${formatTimestamp(log.timestamp)}</td>
-                `;
-            });
-        }
-        
-        // Set up fingerprint toggle buttons
-        setupFingerprintToggles();
-        
-        // Set up action buttons
-        setupActionButtons();
-        
-        // Update actions panel with global actions
-        updateActionsPanel();
-        
-        // Show success message with animation
-        const statusMessage = document.getElementById('statusMessage');
-        statusMessage.textContent = `Dashboard updated at ${new Date().toLocaleTimeString()}`;
-        statusMessage.style.opacity = 1;
-        
-        setTimeout(() => {
-            statusMessage.style.opacity = 0;
-        }, 3000);
-    }
-    
-    // Generate HTML for action buttons based on registered actions
-    function getActionButtonsHtml(targetType, targetId) {
-        let actionButtonsHtml = '';
-        
-        // Find actions for this target type
-        Object.values(registeredActions).forEach(action => {
-            if (action.target_type === targetType && 
-                (action.target_id === null || action.target_id === targetId.toString())) {
-                
-                actionButtonsHtml += `
-                    <button 
-                        class="plugin-action-button" 
-                        data-action-id="${action.action_id}" 
-                        data-target-id="${targetId}"
-                        title="${action.description}"
-                    >
-                        ${action.action_name}
-                    </button>
-                `;
-            }
-        });
-        
-        return actionButtonsHtml;
-    }
-    
-    // Update the actions panel with global (system-wide) actions
-    function updateActionsPanel() {
-        // Clear current actions
-        pluginActionsContainer.innerHTML = '';
-        
-        // Find all system actions
-        const systemActions = Object.values(registeredActions).filter(
-            action => action.target_type === 'system'
-        );
-        
-        if (systemActions.length === 0) {
-            pluginActionsContainer.innerHTML = '<p class="no-actions-message">No actions available from plugins.</p>';
-            return;
-        }
-        
-        // Group actions by plugin
-        const actionsByPlugin = {};
-        systemActions.forEach(action => {
-            if (!actionsByPlugin[action.plugin_name]) {
-                actionsByPlugin[action.plugin_name] = [];
-            }
-            actionsByPlugin[action.plugin_name].push(action);
-        });
-        
-        // Create action elements for each plugin
-        Object.entries(actionsByPlugin).forEach(([pluginName, actions]) => {
-            const pluginActionGroup = document.createElement('div');
-            pluginActionGroup.className = 'plugin-action-group';
-            
-            const pluginHeader = document.createElement('h3');
-            pluginHeader.textContent = pluginName;
-            pluginActionGroup.appendChild(pluginHeader);
-            
-            const actionButtons = document.createElement('div');
-            actionButtons.className = 'action-buttons';
-            
-            actions.forEach(action => {
-                const button = document.createElement('button');
-                button.className = 'plugin-action-button';
-                button.dataset.actionId = action.action_id;
-                button.dataset.targetId = action.target_id || 'system';
-                button.textContent = action.action_name;
-                button.title = action.description;
-                actionButtons.appendChild(button);
-            });
-            
-            pluginActionGroup.appendChild(actionButtons);
-            pluginActionsContainer.appendChild(pluginActionGroup);
-        });
-        
-        // Set up action buttons
-        setupActionButtons();
-    }
-    
-    // Add plugin log to the table
-    function addPluginLog(log) {
-        // Create a new row at the beginning of the table
-        const row = pluginLogsTable.insertRow(0);
-        row.innerHTML = `
-            <td>${log.plugin_name}</td>
-            <td>${log.event}</td>
-            <td>${formatTimestamp(log.timestamp)}</td>
-        `;
-        
-        // Flash highlight the new row
-        row.classList.add('new-log-entry');
-        setTimeout(() => {
-            row.classList.remove('new-log-entry');
-        }, 2000);
-        
-        // Auto-scroll to keep the newest logs visible
-        if (autoScrollEnabled) {
-            row.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-        
-        // Limit table size to prevent performance issues
-        if (pluginLogsTable.rows.length > 1000) {
-            pluginLogsTable.deleteRow(pluginLogsTable.rows.length - 1);
-        }
-    }
-    
-    // Handle command output for multiple processes
-    function handleCommandOutput(data) {
-        const processId = data.process_id;
-        let processContainer = document.getElementById(`process-${processId}`);
-
-        // If the process container doesn't exist, create it
-        if (!processContainer) {
-            processContainer = document.createElement('div');
-            processContainer.id = `process-${processId}`;
-            processContainer.className = 'current-process-container';
-
-            processContainer.innerHTML = `
-                <div class="current-process-header">
-                    <h3>Current Process <span class="current-process-plugin">(${data.plugin_name})</span></h3>
-                    <button class="close-button" onclick="closeProcess('${processId}')">×</button>
-                </div>
-                <div class="current-process-command">${data.command}</div>
-                <div class="current-process-output" id="output-${processId}"></div>
-            `;
-
-            document.getElementById('currentProcessesContainer').appendChild(processContainer);
-        }
-
-        // Add output line to the process output container
-        const outputContainer = document.getElementById(`output-${processId}`);
-        const outputLine = document.createElement('div');
-        outputLine.className = 'output-line';
-        outputLine.textContent = data.output;
-        outputContainer.appendChild(outputLine);
-
-        // Auto-scroll output
-        outputContainer.scrollTop = outputContainer.scrollHeight;
-
-        // If command is complete, add a completion marker
-        if (data.is_complete) {
-            const completionLine = document.createElement('div');
-            completionLine.className = 'completion-line';
-            completionLine.textContent = '--- Process completed ---';
-            outputContainer.appendChild(completionLine);
-        }
-    }
-
-    // Close a specific process output box
-    function closeProcess(processId) {
-        const processContainer = document.getElementById(`process-${processId}`);
-        if (processContainer) {
-            processContainer.remove();
-        }
-    }
-
-    // Handle current process update
-    function handleCurrentProcess(data) {
-        if (data === null) {
-            // Clear current process display
-            currentProcessesContainer.innerHTML = '';
-            return;
-        }
-        
-        const processId = data.process_id;
-        let processContainer = document.getElementById(`process-${processId}`);
-
-        // If the process container doesn't exist, create it
-        if (!processContainer) {
-            processContainer = document.createElement('div');
-            processContainer.id = `process-${processId}`;
-            processContainer.className = 'current-process-container';
-
-            processContainer.innerHTML = `
-                <div class="current-process-header">
-                    <h3>Current Process <span class="current-process-plugin">(${data.plugin_name})</span></h3>
-                    <button class="close-button" onclick="closeProcess('${processId}')">×</button>
-                </div>
-                <div class="current-process-command">${data.command}</div>
-                <div class="current-process-output" id="output-${processId}"></div>
-            `;
-
-            currentProcessesContainer.appendChild(processContainer);
-        }
-
-        // Add start message
-        const startLine = document.createElement('div');
-        startLine.className = 'start-line';
-        startLine.textContent = `Process started at ${formatTimestamp(data.start_time)}`;
-        const outputContainer = document.getElementById(`output-${processId}`);
-        outputContainer.innerHTML = '';
-        outputContainer.appendChild(startLine);
-    }
-    
-    // Listen for dashboard data from the server
     socket.on('dashboard_data', (data) => {
-        console.log(`[${new Date().toLocaleTimeString()}] Dashboard data received:`, data);
+        console.log("Dashboard data received.");
         updateDashboardData(data);
+        // Sync state from dashboard data if needed
+        if (data.state && data.state !== previousState) {
+             console.log(`Syncing state from dashboard data: ${data.state}`);
+             typeText(stateElement, data.state.replace(/_/g, ' '));
+             updateStateIndicator(data.state);
+             previousState = data.state;
+        }
     });
-    
-    // Listen for real-time plugin logs
-    socket.on('plugin_log', (log) => {
-        console.log(`[${new Date().toLocaleTimeString()}] Plugin log received:`, log);
-        addPluginLog(log);
+
+    socket.on('plugin_log', (log) => { // Use for Event Logs
+        addEventLog(log);
     });
-    
-    // Listen for command output streaming
-    socket.on('command_output', (data) => {
-        console.log(`[${new Date().toLocaleTimeString()}] Command output:`, data);
+
+    socket.on('command_output', (data) => { // Use for Task output
         handleCommandOutput(data);
     });
-    
-    // Listen for current process updates
-    socket.on('current_process', (data) => {
-        console.log(`[${new Date().toLocaleTimeString()}] Current process update:`, data);
+
+    socket.on('current_process', (data) => { // Use for Task start
         handleCurrentProcess(data);
     });
-    
-    // Listen for plugin action registration
-    socket.on('register_action', (action) => {
-        console.log(`[${new Date().toLocaleTimeString()}] Action registered:`, action);
-        
-        // Store the action
+
+    socket.on('register_action', (action) => { // Use for Tool registration
+        console.log(`Tool registered: ${action.action_name}`);
         registeredActions[action.action_id] = action;
-        
-        // Update action panels
-        updateActionsPanel();
-        
-        // Notify user - change alertify.info to alertify.notify with 'info' type
-        alertify.notify(`New action available: ${action.action_name}`, 'info', 3);
+        updateAnalysisToolsPanel(); // Update Tools tab
+        // Request sync to update action buttons in tables
+        syncDashboard();
+        alertify.notify(`New tool available: ${escapeHtml(action.action_name)}`, 'info', 5);
     });
-    
-    // Listen for alert notifications
-    socket.on('alert_sync', (data) => {
-        console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, data);
-        if (data.level === 'ERROR' || data.level === 'CRITICAL') {
-            alertify.error(data.message, 0);  // 0 means it stays until dismissed
-        } else if (data.level === 'WARNING') {
-            alertify.warning(data.message, 10);
-        } else if (data.level === 'INFO') {
-            alertify.info(data.message, 5);
-        } else if (data.level === 'SUCCESS') {
-            alertify.success(data.message, 5);
+
+     socket.on('registered_actions', (actions) => { // Handle initial list of actions on connect
+        console.log("Received initial list of registered tools.");
+        registeredActions = actions || {};
+        updateAnalysisToolsPanel();
+        // No need to sync here, dashboard_data will follow if requested
+    });
+
+    socket.on('alert_sync', (data) => { // Use for system alerts
+        console.log(`Alert: ${data.level} - ${data.message}`);
+        const message = escapeHtml(data.message);
+        const duration = (data.level === 'ERROR' || data.level === 'CRITICAL') ? 0 : (data.level === 'WARNING' ? 10 : 5);
+        switch(data.level) {
+            case 'ERROR':
+            case 'CRITICAL': alertify.error(message, duration); break;
+            case 'WARNING': alertify.warning(message, duration); break;
+            case 'INFO': alertify.message(message, duration); break; // Use message for info
+            case 'SUCCESS': alertify.success(message, duration); break;
         }
     });
-    
+
+    // Handle socket connection events
+    socket.on('connect', () => {
+        console.log("Socket connected.");
+        alertify.success('Real-time connection established.', 2);
+        syncDashboard(); // Request initial data
+    });
+    socket.on('disconnect', (reason) => {
+        console.warn(`Socket disconnected: ${reason}`);
+        alertify.error('Real-time connection lost. Attempting to reconnect...', 0);
+        updateStateIndicator('NETWORK_DISCONNECTED'); // Reflect disconnected state in UI
+    });
+    socket.on('connect_error', (error) => {
+        console.error(`Socket connection error: ${error}`);
+    });
+
+
+    // --- Initialization and Global Functions ---
+
     // Sync dashboard function
     window.syncDashboard = function() {
+        console.log("Requesting dashboard sync...");
         socket.emit('sync_dashboard');
-        const statusMessage = document.getElementById('statusMessage');
-        statusMessage.textContent = 'Syncing...';
-        statusMessage.style.opacity = 1;
-        const syncButton = document.getElementById('syncButton');
-        syncButton.classList.add('syncing');
-        
-        setTimeout(() => {
-            syncButton.classList.remove('syncing');
-        }, 1000);
-    };
-    
-    // Clear logs display handler
-    clearLogsButton.addEventListener('click', () => {
-        // Only clear the display, not the database
-        pluginLogsTable.innerHTML = '';
-        alertify.info('Log display cleared');
-    });
-    
-    // Auto-scroll toggle handler
-    autoScrollToggle.addEventListener('click', () => {
-        autoScrollEnabled = !autoScrollEnabled;
-        autoScrollToggle.textContent = autoScrollEnabled ? 'Auto-scroll: ON' : 'Auto-scroll: OFF';
-        autoScrollToggle.classList.toggle('active', autoScrollEnabled);
-    });
-    
-    // Close process output handler
-    closeProcessButton.addEventListener('click', () => {
-        currentProcessContainer.style.display = 'none';
-        currentProcessOutput.innerHTML = '';
-    });
-    
-    // Handle manual sync button click
-    document.getElementById('syncButton').addEventListener('click', window.syncDashboard);
-    
-    // Handle service restart button
-    document.getElementById('restartServiceButton').addEventListener('click', async () => {
-        if (confirm('Are you sure you want to restart the Netfang service?')) {
-            const statusMessage = document.getElementById('statusMessage');
-            statusMessage.textContent = 'Restarting service...';
-            statusMessage.style.opacity = 1;
-            
-            try {
-                const response = await fetch('/update', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {
-                    statusMessage.textContent = data.message;
-                    // Show success notification
-                    alertify.success(data.message, 5);
-                } else {
-                    statusMessage.textContent = data.message;
-                    // Show error notification
-                    alertify.error(data.message, 5);
-                }
-            } catch (error) {
-                statusMessage.textContent = `Error: ${error.message}`;
-                alertify.error(`Error restarting service: ${error.message}`, 5);
-            }
-            
-            // Clear status message after 5 seconds
+        const syncButton = document.getElementById('syncButton'); // In hidden_structure.html
+        if (syncButton && !syncButton.disabled) {
+            const originalHtml = syncButton.innerHTML;
+            syncButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Syncing...';
+            syncButton.disabled = true;
             setTimeout(() => {
-                statusMessage.style.opacity = 0;
-            }, 5000);
+                syncButton.innerHTML = originalHtml;
+                syncButton.disabled = false;
+            }, 2000);
         }
-    });
+        alertify.notify('Syncing dashboard data...', 'info', 2);
+    };
 
-    // Check initial state for scanning and update indicator
-    updateStateIndicator(previousState);
-    
-    // Auto-refresh dashboard data every 30 seconds
-    setInterval(window.syncDashboard, 30000);
+    // --- Event Listeners Setup ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Set initial state display
+        stateElement.textContent = previousState.replace(/_/g, ' ');
+        updateStateIndicator(previousState);
 
-    // Request initial dashboard data when connected
-    document.addEventListener('DOMContentLoaded', function() {
-        if (socket.connected) {
-            window.syncDashboard();
-        }
-    });
+        // Initialize charts
+        initializeActivityChart();
+        initializeSecurityDonut();
 
-    // Set up panel toggles
-    document.querySelectorAll('.panel-toggle').forEach(toggle => {
-        toggle.addEventListener('click', function() {
-            // Toggle collapsed class on the toggle element
-            this.classList.toggle('collapsed');
-            
-            // Find the panel content (next sibling to the panel header)
-            const panelContent = this.parentElement.nextElementSibling;
-            
-            // Toggle collapsed class on the panel content
-            panelContent.classList.toggle('collapsed');
+        // Setup table filters
+        setupTableFilters();
+
+        // Setup action button delegation (covers tables and tools panel)
+        setupActionButtons();
+
+        // Setup fingerprint toggle delegation
+        setupFingerprintToggles();
+
+        // Clear logs display handler
+        clearLogsButton.addEventListener('click', () => {
+            eventLogsTable.innerHTML = '';
+            alertify.message('Log display cleared', 2);
         });
+
+        // Auto-scroll toggle handler
+        autoScrollToggle.addEventListener('click', () => {
+            autoScrollEnabled = !autoScrollEnabled;
+            const scrollContainer = eventLogsTable.closest('.log-table-container');
+            if (autoScrollEnabled) {
+                autoScrollToggle.innerHTML = '<i class="fas fa-scroll"></i> Auto-scroll: ON';
+                autoScrollToggle.classList.replace('btn-outline-secondary', 'btn-primary');
+                alertify.success('Log auto-scroll enabled', 2);
+                if (scrollContainer) scrollContainer.scrollTop = 0;
+            } else {
+                autoScrollToggle.innerHTML = '<i class="fas fa-scroll"></i> Auto-scroll: OFF';
+                autoScrollToggle.classList.replace('btn-primary', 'btn-outline-secondary');
+                alertify.message('Log auto-scroll disabled', 2);
+            }
+        });
+
+        // Restart Analyzer button handler (Updated ID)
+        if (restartNetfangButton) {
+            restartNetfangButton.addEventListener('click', () => {
+                alertify.confirm(
+                    'Restart Analyzer',
+                    'Are you sure you want to restart the NetFang analysis service?',
+                    () => { // On confirm
+                        console.log('Requesting service restart...');
+                        const originalHtml = restartNetfangButton.innerHTML;
+                        restartNetfangButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restarting...';
+                        restartNetfangButton.disabled = true;
+
+                        // Call the new API endpoint
+                        fetch('/service/restart', { method: 'POST' })
+                            .then(response => response.json())
+                            .then(data => {
+                                restartNetfangButton.innerHTML = originalHtml; // Reset button always
+                                restartNetfangButton.disabled = false;
+                                if (data.status === 'success') {
+                                    alertify.success(data.message || 'Service restart initiated.');
+                                } else {
+                                    alertify.error(data.message || 'Failed to initiate restart.');
+                                }
+                            })
+                            .catch(error => {
+                                restartNetfangButton.innerHTML = originalHtml;
+                                restartNetfangButton.disabled = false;
+                                alertify.error(`Error sending restart request: ${error}`);
+                            });
+                    },
+                    () => alertify.error('Restart cancelled') // On cancel
+                ).set('labels', {ok:'Restart', cancel:'Cancel'});
+            });
+        }
+
+        // Initial dashboard data load
+        if (socket.connected) {
+            syncDashboard();
+        } else {
+            console.log("Waiting for socket connection...");
+        }
+
+        console.log("Analysis Dashboard Initialized");
     });
+
 </script>
 {% endblock %}
