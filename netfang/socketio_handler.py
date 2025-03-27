@@ -341,7 +341,7 @@ class SocketIOHandler:
                 
                 # Send all cached output lines
                 for output_line in cached_output:
-                    # Use the existing socket.io event but specific to this client
+                    # Output line is already a dictionary with all required fields
                     if sid:
                         self.socketio.emit("command_output", output_line, to=sid)
                     else:
