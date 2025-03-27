@@ -39,6 +39,11 @@ class SocketIOHandler:
             self.logger.warning("Cannot broadcast state change: SocketIO instance not set")
             return
             
+        # Check if state is None and log a warning
+        if state is None:
+            self.logger.warning("Cannot broadcast state change: Received None state")
+            return
+            
         # Convert context to a JSON-serializable format if needed
         safe_context = {}
         for key, value in context.items():

@@ -102,8 +102,7 @@
 
 {% block additional_scripts %}
 <script>
-    // Initialize Socket.IO connection
-    const socket = io();
+    // socket is already established in the global scope (from hidden_structure.html)
     
     // Connection status handling
     socket.on('connect', function() {

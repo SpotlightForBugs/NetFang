@@ -42,6 +42,11 @@ class StateMachine:
         while True:
             try:
                 async with self.state_lock:
+                    # Ensure current_state is not None before broadcasting
+                    if self.current_state is None:
+                        self.logger.error("Current state is None, resetting to WAITING_FOR_NETWORK")
+                        self.current_state = State.WAITING_FOR_NETWORK
+                    
                     # Use the SocketIO handler for broadcasting state changes
                     await socketio_handler.broadcast_state_change(self.current_state, self.state_context)
                     
@@ -118,6 +123,11 @@ class StateMachine:
         if self.plugin_manager is None:
             raise RuntimeError("PluginManager for StateMachine is not set!")
         
+        # Ensure state is not None
+        if state is None:
+            self.logger.error("notify_plugins received None state, using WAITING_FOR_NETWORK as fallback")
+            state = State.WAITING_FOR_NETWORK
+            
         # Use provided state_context or default to instance variable
         if state_context is None:
             state_context = self.state_context
@@ -180,8 +190,9 @@ class StateMachine:
                     self.logger.info(f"Scan completed, returning to {self.return_state_after_scan.value} state")
                     # Schedule state transition after a short delay to ensure plugins process scan completion
                     if self.loop:
-                        self.loop.call_later(2, lambda: self.update_state(self.return_state_after_scan))
+                        next_state = self.return_state_after_scan
                         self.return_state_after_scan = None
+                        self.loop.call_later(2, lambda: self.update_state(next_state))
                         
             elif state == State.PERFORM_ACTION:
                 if not perform_action_data or len(perform_action_data) < 2:
@@ -213,8 +224,12 @@ class StateMachine:
         Args:
             return_state: The state to transition to after scanning completes.
         """
-        self.logger.info(f"Starting scan sequence, will return to {return_state.value if return_state else 'previous state'}")
-        self.return_state_after_scan = return_state if return_state else self.current_state
+        # Ensure return_state is not None
+        if return_state is None:
+            return_state = self.current_state
+            
+        self.logger.info(f"Starting scan sequence, will return to {return_state.value}")
+        self.return_state_after_scan = return_state
         self.current_scan_index = 0
         self.register_scanning_plugins()
         self.update_state(State.SCANNING_IN_PROGRESS)
@@ -225,6 +240,11 @@ class StateMachine:
         """
         Updates the current state and schedules a task to notify plugins.
         """
+        # Ensure new_state is not None
+        if new_state is None:
+            self.logger.error("Attempted to update state to None, using WAITING_FOR_NETWORK as fallback")
+            new_state = State.WAITING_FOR_NETWORK
+            
         if alert_data is None:
             alert_data = {}
         if perform_action_data is None:
