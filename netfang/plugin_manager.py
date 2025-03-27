@@ -411,6 +411,7 @@ class PluginManager:
                 
                 # Get the StateMachine instance from NetworkManager
                 from netfang.network_manager import NetworkManager
+                from netfang.state_machine import State
                 
                 if NetworkManager.instance and NetworkManager.instance.state_machine:
                     # Get the current state
@@ -418,31 +419,47 @@ class PluginManager:
                     
                     # Only transition if we're in the SCANNING_IN_PROGRESS state
                     if current_state and current_state.name == "SCANNING_IN_PROGRESS":
-                        # Use asyncio to run the state update
-                        from netfang.state_machine import State
+                        # Safe way to schedule the state update without creating new event loops
+                        self.logger.info("Scheduling transition to SCAN_COMPLETED state")
                         
-                        # Schedule the state transition in the event loop
-                        async def update_state():
-                            await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
-                        
-                        # Get or create a new event loop and run the state update
                         try:
-                            loop = asyncio.get_event_loop()
+                            # Get the current event loop
+                            loop = asyncio.get_running_loop()
+                            
+                            # Create a future that can be used to track completion
+                            future = asyncio.run_coroutine_threadsafe(
+                                NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED),
+                                loop
+                            )
+                            
+                            # Optional: Add a callback to handle completion
+                            future.add_done_callback(
+                                lambda f: self.logger.info("State transition completed" if not f.exception() else 
+                                                          f"State transition failed: {f.exception()}")
+                            )
                         except RuntimeError:
-                            # Create a new event loop if none exists
-                            loop = asyncio.new_event_loop()
-                            asyncio.set_event_loop(loop)
+                            # No running event loop in this thread
+                            self.logger.warning("No running event loop found, using alternative approach")
+                            
+                            # Create a task for later execution, don't wait for completion
+                            async def transition_later():
+                                try:
+                                    await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
+                                    self.logger.info("Async state transition completed")
+                                except Exception as e:
+                                    self.logger.error(f"Error in async state transition: {str(e)}")
+                            
+                            # Schedule the task without creating a new event loop
+                            asyncio.create_task(transition_later())
                         
-                        loop.run_until_complete(update_state())
-                        
-                        self.logger.info("Transitioned to SCAN_COMPLETED state")
-                        
-                        # Reset scan tracking after transition
+                        # Reset scan tracking after scheduling transition
                         self.scanning_plugins = {}
                 else:
                     self.logger.warning("Cannot transition state: NetworkManager instance not available")
         except Exception as e:
             self.logger.error(f"Error in notify_scan_complete: {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             
     def mark_scan_complete(self, plugin_name: str) -> None:
         """
