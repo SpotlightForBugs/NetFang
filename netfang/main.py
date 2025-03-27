@@ -300,6 +300,11 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'router_logo.png',
                                mimetype='image/vnd.microsoft.icon')
 
+@app.route("/logout")
+def logout():
+    session.pop('logged_in', None)
+    session.pop('username', None)
+    return redirect(url_for('frontpage'))
 
 @app.route("/plugins/disable", methods=["POST"])
 def disable_plugin():
