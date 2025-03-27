@@ -447,4 +447,11 @@ class PluginManager:
     def mark_scan_complete(self, plugin_name: str) -> None:
         """
         Mark a scan as complete. This is used by the state machine to track which scanning plugins
-        have
+        have completed their scans.
+        
+        Args:
+            plugin_name: Name of the plugin that completed scanning
+        """
+        self.logger.debug(f"Marking scan complete for plugin: {plugin_name}")
+        self.notify_scan_complete(plugin_name)
+
