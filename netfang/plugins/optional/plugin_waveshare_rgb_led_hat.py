@@ -69,11 +69,23 @@ def subprocess_for_led_control(color: str, duration: int, brightness: int, anima
     if alt_color:
         cmd.extend(["--alt-color", alt_color])
     
-    # Execute the command
+    # Execute the command using streaming subprocess for real-time output
     try:
-        subprocess.run(cmd, check=True)
-    except subprocess.CalledProcessError as e:
-        logging.error(f"Error controlling LED: {str(e)}")
+        # Import the streaming subprocess function
+        from netfang.streaming_subprocess import run_subprocess_sync
+        
+        # Use the streaming subprocess runner
+        result = run_subprocess_sync(
+            "WaveshareRGBLEDHat",  # Plugin name
+            cmd,                    # Command to run
+            db_path=None,           # We'll handle logging elsewhere
+            timeout=(duration + 5) if duration > 0 else None  # Add a buffer for the timeout (5 seconds) if needed
+        )
+        
+        if result["status"] != "completed" or result["return_code"] != 0:
+            error = result["stderr"] if result["stderr"] else f"LED control failed with code {result['return_code']}"
+            logging.error(f"Error controlling LED: {error}")
+            
     except Exception as e:
         logging.error(f"Unexpected error controlling LED: {str(e)}")
 

@@ -112,9 +112,9 @@
         <div class="dashboard-panel">
             <div class="panel-header">
                 <h2>Available Actions</h2>
-                <span class="panel-toggle collapsed">▼</span>
+                <span class="panel-toggle">▼</span>
             </div>
-            <div class="panel-content collapsed">
+            <div class="panel-content">
                 <div class="action-container" id="pluginActionsContainer">
                     <p class="no-actions-message">No actions available from plugins.</p>
                     <!-- Actions will be populated by JavaScript -->
@@ -877,6 +877,20 @@
         if (socket.connected) {
             window.syncDashboard();
         }
+    });
+
+    // Set up panel toggles
+    document.querySelectorAll('.panel-toggle').forEach(toggle => {
+        toggle.addEventListener('click', function() {
+            // Toggle collapsed class on the toggle element
+            this.classList.toggle('collapsed');
+            
+            // Find the panel content (next sibling to the panel header)
+            const panelContent = this.parentElement.nextElementSibling;
+            
+            // Toggle collapsed class on the panel content
+            panelContent.classList.toggle('collapsed');
+        });
     });
 </script>
 {% endblock %}

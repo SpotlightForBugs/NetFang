@@ -209,6 +209,9 @@ def handle_connect():
     emit("state_update", {"state": NetworkManager.instance.state_machine.current_state.value,
                           "context": NetworkManager.instance.state_machine.state_context})
     emit("all_alerts", AlertManager.get_alerts(limit_to_this_session=True))
+    
+    # Send cached output of active processes to the newly connected client
+    asyncio.run(socketio_handler.send_cached_output_to_client(request.sid))
 
 
 @socketio.on("disconnect")

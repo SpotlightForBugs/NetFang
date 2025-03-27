@@ -160,7 +160,7 @@ class SocketIOHandler:
         except Exception as e:
             self.logger.error(f"Error streaming plugin log (sync): {str(e)}")
             
-    async def stream_command_output(self, plugin_name: str, command: str, output: str, is_complete: bool = False) -> None:
+    async def stream_command_output(self, plugin_name: str, command: str, output: str, is_complete: bool = False, process_id: str = None) -> None:
         """
         Stream command output to connected clients.
         
@@ -169,6 +169,7 @@ class SocketIOHandler:
             command: The command being executed
             output: The command output line
             is_complete: Whether the command execution is complete
+            process_id: Unique identifier for the process
         """
         if not self.socketio:
             self.logger.warning("Cannot stream command output: SocketIO instance not set")
@@ -180,7 +181,8 @@ class SocketIOHandler:
                 "command": command,
                 "output": output,
                 "is_complete": is_complete,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "process_id": process_id
             }
             self.socketio.emit("command_output", output_data)
             self.logger.debug(f"Streamed command output: {plugin_name} - {command}")
@@ -188,7 +190,7 @@ class SocketIOHandler:
             self.logger.error(f"Error streaming command output: {str(e)}")
     
     # Add non-async version for synchronous contexts
-    def sync_stream_command_output(self, plugin_name: str, command: str, output: str, is_complete: bool = False) -> None:
+    def sync_stream_command_output(self, plugin_name: str, command: str, output: str, is_complete: bool = False, process_id: str = None) -> None:
         """
         Synchronous version of stream_command_output for use in non-async contexts.
         """
@@ -203,7 +205,8 @@ class SocketIOHandler:
                 "command": command,
                 "output": output,
                 "is_complete": is_complete,
-                "timestamp": datetime.now().isoformat()
+                "timestamp": datetime.now().isoformat(),
+                "process_id": process_id
             }
             self.socketio.emit("command_output", output_data)
             self.logger.debug(f"Streamed command output (sync): {plugin_name} - {command}")
@@ -280,6 +283,98 @@ class SocketIOHandler:
             self.logger.debug(f"Registered dashboard action: {plugin_name} - {action_name}")
         except Exception as e:
             self.logger.error(f"Error registering dashboard action: {str(e)}")
+            
+    async def send_cached_output_to_client(self, sid: str = None) -> None:
+        """
+        Send cached output of active processes to a newly connected client.
+        
+        Args:
+            sid: Socket ID of the client to send to, or None for all clients
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot send cached output: SocketIO instance not set")
+            return
+            
+        try:
+            # Import here to avoid circular imports
+            from netfang.streaming_subprocess import StreamingSubprocess
+            
+            # Get all active processes
+            active_processes = StreamingSubprocess.get_active_processes()
+            
+            if not active_processes:
+                self.logger.debug("No active processes with cached output to send")
+                return
+                
+            self.logger.info(f"Sending cached output for {len(active_processes)} active processes to client")
+            
+            # For each active process, send its cached output
+            for process_id, process in active_processes.items():
+                # Get cached output for this process
+                cached_output = StreamingSubprocess.get_cached_output(process_id)
+                
+                if not cached_output:
+                    continue
+                    
+                # Send the current process info first
+                process_data = {
+                    "plugin_name": process.plugin_name,
+                    "command": process.cmd_str,
+                    "start_time": datetime.now().isoformat(),
+                    "process_id": process_id
+                }
+                
+                # Send to specific client or broadcast
+                if sid:
+                    self.socketio.emit("current_process", process_data, to=sid)
+                else:
+                    self.socketio.emit("current_process", process_data)
+                
+                # Send all cached output lines
+                for output_line in cached_output:
+                    # Use the existing socket.io event but specific to this client
+                    if sid:
+                        self.socketio.emit("command_output", output_line, to=sid)
+                    else:
+                        self.socketio.emit("command_output", output_line)
+                
+                self.logger.debug(f"Sent {len(cached_output)} cached output lines for process {process_id}")
+                
+        except Exception as e:
+            self.logger.error(f"Error sending cached output to client: {str(e)}")
+            
+    async def notify_scanning_complete(self) -> None:
+        """
+        Notify clients that all scanning processes have completed.
+        This updates the state machine to transition from SCANNING_IN_PROGRESS to SCAN_COMPLETED.
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot notify scan completion: SocketIO instance not set")
+            return
+            
+        try:
+            # Import here to avoid circular imports
+            from netfang.state_machine import State
+            from netfang.network_manager import NetworkManager
+            
+            # Check if NetworkManager instance exists
+            if not NetworkManager.instance:
+                self.logger.warning("Cannot notify scan completion: NetworkManager instance not available")
+                return
+                
+            # Get the current state
+            current_state = NetworkManager.instance.state_machine.current_state
+            
+            # Only notify if we're in scanning state
+            if current_state and current_state.name == "SCANNING_IN_PROGRESS":
+                self.logger.info("All scanning processes complete, transitioning to SCAN_COMPLETED state")
+                
+                # Transition to scan completed state
+                await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
+                
+                
+        except Exception as e:
+            self.logger.error(f"Error notifying scan completion: {str(e)}")
 
 # Create a singleton instance to be used throughout the application
 handler = SocketIOHandler()
