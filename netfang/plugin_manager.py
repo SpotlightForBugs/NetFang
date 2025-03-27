@@ -27,11 +27,16 @@ def _expand_env_in_config(obj: Any) -> Any:
 
 
 class PluginManager:
+    instance: Optional["PluginManager"] = None
+    
     def __init__(self, config_path: str) -> None:
         self.config_path: str = config_path
         self.config: Dict[str, Any] = {}
         self.plugins: Dict[str, BasePlugin] = {}
         self.logger = logging.getLogger(__name__)
+        
+        # Set the class instance
+        PluginManager.instance = self
 
     def load_config(self) -> None:
         with open(self.config_path, 'r') as f:
