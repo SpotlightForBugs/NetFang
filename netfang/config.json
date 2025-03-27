@@ -47,7 +47,13 @@
       }
     },
     "WaveshareRGBLEDHat": {
-      "enabled": true
+      "enabled": false,
+      "plugin_config": {
+        "brightness": 5,
+        "duration": 5,
+        "speed": 5,
+        "animations_enabled": true
+      }
     },
     "macchanger": {
       "enabled": false

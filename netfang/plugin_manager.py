@@ -34,6 +34,7 @@ class PluginManager:
         self.config_path: str = config_path
         self.config: Dict[str, Any] = {}
         self.plugins: Dict[str, BasePlugin] = {}
+        self.enabled_plugins: Dict[str, bool] = {}  # Track enabled status of plugins
         self.logger = logging.getLogger(__name__)
         self.scanning_plugins: Dict[str, bool] = {}  # track completion status
         
@@ -75,6 +76,9 @@ class PluginManager:
                 is_enabled = d_conf[pl_lower].get("enabled", True)
             elif pl_lower in o_conf:
                 is_enabled = o_conf[pl_lower].get("enabled", False)
+
+            # Store enabled status
+            self.enabled_plugins[plugin_name] = is_enabled
 
             if is_enabled:
                 plugin.on_setup()
@@ -136,6 +140,10 @@ class PluginManager:
         """
         scanning_plugins = []
         for name, plugin in self.plugins.items():
+            # Only consider enabled plugins
+            if not self.enabled_plugins.get(name, False):
+                continue
+                
             if hasattr(plugin, 'on_scanning_in_progress'):
                 # Check if method is overridden (not the base class implementation)
                 # Use a safer approach to determine if method is overridden
@@ -178,6 +186,11 @@ class PluginManager:
             self.logger.warning(f"Plugin {plugin_name} not found for scanning")
             return False
             
+        # Check if plugin is enabled
+        if not self.enabled_plugins.get(plugin_name, False):
+            self.logger.warning(f"Cannot scan with disabled plugin: {plugin_name}")
+            return False
+            
         try:
             # Get database path
             db_path = self.config.get("database_path", "netfang.db")
@@ -213,6 +226,8 @@ class PluginManager:
             for d in deps:
                 self._satisfy_dependency(d)
             plugin_obj.on_enable()
+            # Mark as enabled
+            self.enabled_plugins[plugin_name] = True
             return True
         return False
 
@@ -220,6 +235,8 @@ class PluginManager:
         plugin_obj = self.get_plugin_by_name(plugin_name)
         if plugin_obj:
             plugin_obj.on_disable()
+            # Mark as disabled
+            self.enabled_plugins[plugin_name] = False
             return True
         return False
 
@@ -251,51 +268,66 @@ class PluginManager:
                 print(f"Method {method_name} not found in plugin {plugin_name}")
         else:
             print(f"Plugin {plugin_name} not found")
+            
+    def is_plugin_enabled(self, plugin_name: str) -> bool:
+        """Check if a plugin is enabled"""
+        return self.enabled_plugins.get(plugin_name, False)
 
-    # Event dispatchers
+    # Event dispatchers - Modified to only dispatch to enabled plugins
     def on_home_network_connected(self) -> None:
-        for p in self.plugins.values():
-            p.on_home_network_connected()
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_home_network_connected()
 
     def on_new_network_connected(self, mac: str) -> None:
-        for p in self.plugins.values():
-            p.on_new_network_connected(mac)
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_new_network_connected(mac)
 
     def on_known_network_connected(self, mac: str) -> None:
-        for p in self.plugins.values():
-            p.on_known_network_connected(mac)
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_known_network_connected(mac)
 
     def on_disconnected(self):
-        for p in self.plugins.values():
-            p.on_disconnected()
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_disconnected()
 
     def on_alerting(self, alert:Alert):
-        for p in self.plugins.values():
-            p.on_alerting(alert)
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_alerting(alert)
 
     def on_alert_resolved(self, alert:Alert):
-        for p in self.plugins.values():
-            p.on_alert_resolved(alert)
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_alert_resolved(alert)
 
     def on_reconnecting(self):
-        for p in self.plugins.values():
-            p.on_connected_home()
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_connected_home()
 
     def on_connected_blacklisted(self, mac_address):
-        for p in self.plugins.values():
-            p.on_connected_blacklisted(mac_address)
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_connected_blacklisted(mac_address)
 
     def on_connected_known(self):
-        for p in self.plugins.values():
-            p.on_connected_known()
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_connected_known()
 
     def on_waiting_for_network(self):
-        for p in self.plugins.values():
-            p.on_waiting_for_network()
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_waiting_for_network()
 
     def on_connecting(self):
-        for p in self.plugins.values():
-            p.on_connecting()
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_connecting()
 
     def on_scanning_in_progress(self):
         # Initialize the scanning plugins tracking
@@ -304,27 +336,43 @@ class PluginManager:
         scanning_plugin_names = self.get_scanning_plugin_names()
         for name in scanning_plugin_names:
             plugin = self.get_plugin_by_name(name)
-            if plugin:
+            if plugin and self.enabled_plugins.get(name, False):
                 self.scanning_plugins[name] = False
                 
-        # Now call the actual method on each plugin
-        for p in self.plugins.values():
-            p.on_scanning_in_progress()
+        # Now call the actual method on each enabled plugin
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_scanning_in_progress()
 
     def on_scan_completed(self):
         # Reset scan tracking
         self.scanning_plugins = {}
-        # Notify plugins
-        for p in self.plugins.values():
-            p.on_scan_completed()
+        # Notify enabled plugins
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_scan_completed()
 
     def on_connected_new(self):
-        for p in self.plugins.values():
-            p.on_connected_new()
+        for name, p in self.plugins.items():
+            if self.enabled_plugins.get(name, False):
+                p.on_connected_new()
 
     def perform_action(self, args: list) -> None:
-        for p in self.plugins.values():
-            p.perform_action(args)
+        if not args:
+            return
+            
+        target_plugin = args[0]
+        plugin = self.get_plugin_by_name(target_plugin)
+        
+        # If targeting a specific plugin, check if it's enabled
+        if plugin and not self.enabled_plugins.get(plugin.name, False):
+            self.logger.debug(f"Ignoring action for disabled plugin: {target_plugin}")
+            return
+            
+        # Otherwise, let each enabled plugin decide if it should handle the action
+        for name, p in self.plugins.items():
+            if name.lower() != target_plugin.lower() or self.enabled_plugins.get(name, False):
+                p.perform_action(args)
 
     def is_device_enabled(self, param):
         # following structure is assumed: "hardware": {"device_name": {"enabled": true|false}}
@@ -399,15 +447,4 @@ class PluginManager:
     def mark_scan_complete(self, plugin_name: str) -> None:
         """
         Mark a scan as complete. This is used by the state machine to track which scanning plugins
-        have completed their work.
-        
-        Args:
-            plugin_name: The name of the plugin that completed scanning
-        """
-        if plugin_name in self.scanning_plugins:
-            self.scanning_plugins[plugin_name] = True
-            self.logger.info(f"Marked scan complete for plugin: {plugin_name}")
-            
-            # Check if all plugins are complete
-            if all(self.scanning_plugins.values()):
-                self.notify_scan_complete("all")
+        have

@@ -33,6 +33,9 @@ class AnimationEnum:
     ALERT = "alert"          # Alert pattern (rapid blinks)
     SCANNING = "scanning"    # Scanning pattern (rotating)
 
+# Flag to track if this plugin is enabled
+_plugin_enabled = False
+
 def subprocess_for_led_control(color: str, duration: int, brightness: int, animation: str = "solid", 
                                alt_color: str = None, speed: int = 5):
     """
@@ -46,6 +49,11 @@ def subprocess_for_led_control(color: str, duration: int, brightness: int, anima
         alt_color: Secondary color for animations that use two colors
         speed: Animation speed (1-10, 10 being fastest)
     """
+    # Skip everything if the plugin is not enabled
+    if not _plugin_enabled:
+        return
+        
+    # Only check Raspberry Pi compatibility if the plugin is enabled
     if not pi_utils.is_pi_zero_2():
         logging.warning("This plugin is only compatible with Raspberry Pi Zero 2 W.")
         return
@@ -112,6 +120,10 @@ class AnimationController:
             alt_color: Secondary color for animations that use two colors
             speed: Animation speed (1-10, 10 being fastest)
         """
+        # Skip everything if the plugin is not enabled
+        if not _plugin_enabled:
+            return
+            
         # Stop any running animation
         self.stop_animation()
         
@@ -193,9 +205,15 @@ class WaveshareRGBLEDHat(BasePlugin):
         self.default_speed = plugin_cfg.get("speed", 5)
         self.animations_enabled = plugin_cfg.get("animations_enabled", True)
         
-        self.logger.info(f"[{self.name}] Initialized with brightness={self.default_brightness}, "
-                        f"speed={self.default_speed}, animations_enabled={self.animations_enabled}")
-        add_plugin_log(self.db_path, self.name, "Plugin initialized")
+        # Check if the plugin is enabled in the config
+        is_enabled = config.get("enabled", False)
+        if is_enabled:
+            self.logger.info(f"[{self.name}] Initialized with brightness={self.default_brightness}, "
+                          f"speed={self.default_speed}, animations_enabled={self.animations_enabled}")
+        
+        # Only log to database if the plugin is enabled
+        if is_enabled:
+            add_plugin_log(self.db_path, self.name, "Plugin initialized")
 
     def on_setup(self) -> None:
         # Blue pulse animation indicates initialization
@@ -208,6 +226,10 @@ class WaveshareRGBLEDHat(BasePlugin):
         add_plugin_log(self.db_path, self.name, "Setup complete")
 
     def on_enable(self) -> None:
+        # Set the global enabled flag for LED control functions
+        global _plugin_enabled
+        _plugin_enabled = True
+        
         # Green pulse animation indicates successful enablement
         if self.animations_enabled:
             self.animation_controller.start_animation(
@@ -216,8 +238,15 @@ class WaveshareRGBLEDHat(BasePlugin):
                 speed=self.default_speed
             )
         add_plugin_log(self.db_path, self.name, "Plugin enabled")
+        
+        # Register dashboard actions
+        self.register_dashboard_actions()
 
     def on_disable(self) -> None:
+        # Clear the global enabled flag to prevent LED control when disabled
+        global _plugin_enabled
+        _plugin_enabled = False
+        
         # Turn off any animations and clean up
         self.animation_controller.stop_animation()
         add_plugin_log(self.db_path, self.name, "Plugin disabled")
