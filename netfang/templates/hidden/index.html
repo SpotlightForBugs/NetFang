@@ -142,8 +142,11 @@
     socket.on('connect_error', function(error) {
         console.error('Socket.IO connection error:', error);
         document.getElementById('statusMessage').textContent = 'Connection error! Trying to reconnect...';
-        document.getElementById('statusMessage').style.opacity = 1;
-        alertify.error('Connection to server lost. Trying to reconnect...', 0);
+        document.getElementById('statusMessage').style.opacity = 1
+        //check if this message is already shown
+        if (document.getElementById('statusMessage') && (document.getElementById('statusMessage').textContent !== 'Connection error! Trying to reconnect...') ) {
+            alertify.error('Connection error! Trying to reconnect...', 0);
+        }
     });
     
     socket.on('reconnect', function(attemptNumber) {
