@@ -17,17 +17,12 @@
         </div>
         <div id="stateDescription" class="state-description mt-2"></div>
     </div>
-    
-    <!-- Current Process Display -->
-    <div id="currentProcessContainer" class="current-process-container" style="display: none;">
-        <div class="current-process-header">
-            <h3>Current Process <span id="currentProcessPlugin"></span></h3>
-            <button id="closeProcessButton" class="close-button">×</button>
-        </div>
-        <div class="current-process-command" id="currentProcessCommand"></div>
-        <div class="current-process-output" id="currentProcessOutput"></div>
+
+    <!-- Current Processes Display -->
+    <div id="currentProcessesContainer" class="current-processes-container">
+        <!-- Individual process boxes will be dynamically added here -->
     </div>
-    
+
     <div class="dashboard-container">
         <!-- Network Information -->
         <div class="dashboard-panel">
@@ -183,11 +178,7 @@
     let scanCompletedTimeout = null;
     
     // Current process display elements
-    const currentProcessContainer = document.getElementById('currentProcessContainer');
-    const currentProcessPlugin = document.getElementById('currentProcessPlugin');
-    const currentProcessCommand = document.getElementById('currentProcessCommand');
-    const currentProcessOutput = document.getElementById('currentProcessOutput');
-    const closeProcessButton = document.getElementById('closeProcessButton');
+    const currentProcessesContainer = document.getElementById('currentProcessesContainer');
     
     // Plugin logs elements
     const pluginLogsTable = document.getElementById('pluginLogsTable').getElementsByTagName('tbody')[0];
@@ -678,65 +669,92 @@
         }
     }
     
-    // Handle command output
+    // Handle command output for multiple processes
     function handleCommandOutput(data) {
-        // Show the output container if it's not already visible
-        currentProcessContainer.style.display = 'block';
-        
-        // Update header and command info
-        currentProcessPlugin.textContent = `(${data.plugin_name})`;
-        currentProcessCommand.textContent = data.command;
-        
-        // Create output line
+        const processId = data.process_id;
+        let processContainer = document.getElementById(`process-${processId}`);
+
+        // If the process container doesn't exist, create it
+        if (!processContainer) {
+            processContainer = document.createElement('div');
+            processContainer.id = `process-${processId}`;
+            processContainer.className = 'current-process-container';
+
+            processContainer.innerHTML = `
+                <div class="current-process-header">
+                    <h3>Current Process <span class="current-process-plugin">(${data.plugin_name})</span></h3>
+                    <button class="close-button" onclick="closeProcess('${processId}')">×</button>
+                </div>
+                <div class="current-process-command">${data.command}</div>
+                <div class="current-process-output" id="output-${processId}"></div>
+            `;
+
+            document.getElementById('currentProcessesContainer').appendChild(processContainer);
+        }
+
+        // Add output line to the process output container
+        const outputContainer = document.getElementById(`output-${processId}`);
         const outputLine = document.createElement('div');
         outputLine.className = 'output-line';
         outputLine.textContent = data.output;
-        
-        // Add output to container
-        currentProcessOutput.appendChild(outputLine);
-        
+        outputContainer.appendChild(outputLine);
+
         // Auto-scroll output
-        currentProcessOutput.scrollTop = currentProcessOutput.scrollHeight;
-        
+        outputContainer.scrollTop = outputContainer.scrollHeight;
+
         // If command is complete, add a completion marker
         if (data.is_complete) {
             const completionLine = document.createElement('div');
             completionLine.className = 'completion-line';
             completionLine.textContent = '--- Process completed ---';
-            currentProcessOutput.appendChild(completionLine);
-            
-            // Auto-hide after a delay
-            setTimeout(() => {
-                if (document.activeElement !== closeProcessButton) {
-                    currentProcessContainer.style.display = 'none';
-                    currentProcessOutput.innerHTML = '';
-                }
-            }, 10000);
+            outputContainer.appendChild(completionLine);
         }
     }
-    
+
+    // Close a specific process output box
+    function closeProcess(processId) {
+        const processContainer = document.getElementById(`process-${processId}`);
+        if (processContainer) {
+            processContainer.remove();
+        }
+    }
+
     // Handle current process update
     function handleCurrentProcess(data) {
         if (data === null) {
             // Clear current process display
-            currentProcessContainer.style.display = 'none';
-            currentProcessOutput.innerHTML = '';
+            currentProcessesContainer.innerHTML = '';
             return;
         }
         
-        // Show the process container
-        currentProcessContainer.style.display = 'block';
-        
-        // Update header and command info
-        currentProcessPlugin.textContent = `(${data.plugin_name})`;
-        currentProcessCommand.textContent = data.command;
-        
+        const processId = data.process_id;
+        let processContainer = document.getElementById(`process-${processId}`);
+
+        // If the process container doesn't exist, create it
+        if (!processContainer) {
+            processContainer = document.createElement('div');
+            processContainer.id = `process-${processId}`;
+            processContainer.className = 'current-process-container';
+
+            processContainer.innerHTML = `
+                <div class="current-process-header">
+                    <h3>Current Process <span class="current-process-plugin">(${data.plugin_name})</span></h3>
+                    <button class="close-button" onclick="closeProcess('${processId}')">×</button>
+                </div>
+                <div class="current-process-command">${data.command}</div>
+                <div class="current-process-output" id="output-${processId}"></div>
+            `;
+
+            currentProcessesContainer.appendChild(processContainer);
+        }
+
         // Add start message
         const startLine = document.createElement('div');
         startLine.className = 'start-line';
         startLine.textContent = `Process started at ${formatTimestamp(data.start_time)}`;
-        currentProcessOutput.innerHTML = '';
-        currentProcessOutput.appendChild(startLine);
+        const outputContainer = document.getElementById(`output-${processId}`);
+        outputContainer.innerHTML = '';
+        outputContainer.appendChild(startLine);
     }
     
     // Listen for dashboard data from the server
