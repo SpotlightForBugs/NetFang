@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 from typing import Dict, Any, Optional, Callable
 import json
@@ -16,6 +17,7 @@ class SocketIOHandler:
         self.logger = logging.getLogger(__name__)
         self.logger.info("SocketIO Handler initialized")
         self.db_path = None  # Will be set from main.py
+        self.current_process = None  # To track currently running process
         
     def set_socketio(self, socketio_instance):
         """Set the Flask-SocketIO instance"""
@@ -112,6 +114,128 @@ class SocketIOHandler:
             self.logger.debug(f"Emitted alert: {alert_data.get('message', 'No message')}")
         except Exception as e:
             self.logger.error(f"Error emitting alert: {str(e)}")
+            
+    async def stream_plugin_log(self, plugin_name: str, event: str) -> None:
+        """
+        Stream a plugin log event to connected clients.
+        
+        Args:
+            plugin_name: The name of the plugin generating the log
+            event: The log message/event description
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot stream plugin log: SocketIO instance not set")
+            return
+            
+        try:
+            from datetime import datetime
+            log_data = {
+                "plugin_name": plugin_name,
+                "event": event,
+                "timestamp": datetime.now().isoformat()
+            }
+            self.socketio.emit("plugin_log", log_data)
+            self.logger.debug(f"Streamed plugin log: {plugin_name} - {event}")
+        except Exception as e:
+            self.logger.error(f"Error streaming plugin log: {str(e)}")
+            
+    async def stream_command_output(self, plugin_name: str, command: str, output: str, is_complete: bool = False) -> None:
+        """
+        Stream command output to connected clients.
+        
+        Args:
+            plugin_name: The name of the plugin running the command
+            command: The command being executed
+            output: The command output line
+            is_complete: Whether the command execution is complete
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot stream command output: SocketIO instance not set")
+            return
+            
+        try:
+            output_data = {
+                "plugin_name": plugin_name,
+                "command": command,
+                "output": output,
+                "is_complete": is_complete,
+                "timestamp": datetime.now().isoformat()
+            }
+            self.socketio.emit("command_output", output_data)
+            self.logger.debug(f"Streamed command output: {plugin_name} - {command}")
+        except Exception as e:
+            self.logger.error(f"Error streaming command output: {str(e)}")
+            
+    async def set_current_process(self, plugin_name: str, command: str, pid: int = None) -> None:
+        """
+        Update the current running process information.
+        
+        Args:
+            plugin_name: The name of the plugin running the command
+            command: The command being executed
+            pid: Process ID if available
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot update current process: SocketIO instance not set")
+            return
+            
+        try:
+            process_data = {
+                "plugin_name": plugin_name,
+                "command": command,
+                "pid": pid,
+                "start_time": datetime.now().isoformat()
+            }
+            self.current_process = process_data
+            self.socketio.emit("current_process", process_data)
+            self.logger.debug(f"Updated current process: {plugin_name} - {command}")
+        except Exception as e:
+            self.logger.error(f"Error updating current process: {str(e)}")
+            
+    async def clear_current_process(self) -> None:
+        """Clear the current process information."""
+        if not self.socketio:
+            self.logger.warning("Cannot clear current process: SocketIO instance not set")
+            return
+            
+        try:
+            self.current_process = None
+            self.socketio.emit("current_process", None)
+            self.logger.debug("Cleared current process")
+        except Exception as e:
+            self.logger.error(f"Error clearing current process: {str(e)}")
+            
+    async def register_dashboard_action(self, plugin_name: str, action_id: str, action_name: str, 
+                                        description: str, target_type: str, target_id: str = None) -> None:
+        """
+        Register a plugin action that can be shown on the dashboard.
+        
+        Args:
+            plugin_name: The name of the plugin registering the action
+            action_id: Unique identifier for the action
+            action_name: Display name for the action
+            description: Description of what the action does
+            target_type: Type of target (network, device, system)
+            target_id: Optional ID of the specific target
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot register dashboard action: SocketIO instance not set")
+            return
+            
+        try:
+            action_data = {
+                "plugin_name": plugin_name,
+                "action_id": action_id,
+                "action_name": action_name,
+                "description": description,
+                "target_type": target_type,
+                "target_id": target_id,
+                "registration_time": datetime.now().isoformat()
+            }
+            self.socketio.emit("register_action", action_data)
+            self.logger.debug(f"Registered dashboard action: {plugin_name} - {action_name}")
+        except Exception as e:
+            self.logger.error(f"Error registering dashboard action: {str(e)}")
 
 # Create a singleton instance to be used throughout the application
 handler = SocketIOHandler()

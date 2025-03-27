@@ -18,6 +18,16 @@
         <div id="stateDescription" class="state-description mt-2"></div>
     </div>
     
+    <!-- Current Process Display -->
+    <div id="currentProcessContainer" class="current-process-container" style="display: none;">
+        <div class="current-process-header">
+            <h3>Current Process <span id="currentProcessPlugin"></span></h3>
+            <button id="closeProcessButton" class="close-button">×</button>
+        </div>
+        <div class="current-process-command" id="currentProcessCommand"></div>
+        <div class="current-process-output" id="currentProcessOutput"></div>
+    </div>
+    
     <div class="dashboard-container">
         <!-- Network Information -->
         <div class="dashboard-panel">
@@ -33,6 +43,7 @@
                                 <th>MAC Address</th>
                                 <th>Status</th>
                                 <th>Last Seen</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -57,6 +68,7 @@
                                 <th>IP Address</th>
                                 <th>MAC Address</th>
                                 <th>Vendor</th>
+                                <th>Network</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
@@ -72,9 +84,9 @@
         <div class="dashboard-panel">
             <div class="panel-header">
                 <h2>Plugin Logs</h2>
-                <span class="panel-toggle collapsed">▼</span>
+                <span class="panel-toggle">▼</span>
             </div>
-            <div class="panel-content collapsed">
+            <div class="panel-content">
                 <div class="table-container">
                     <table class="data-table" id="pluginLogsTable">
                         <thead>
@@ -88,6 +100,24 @@
                             <!-- Data will be populated by JavaScript -->
                         </tbody>
                     </table>
+                </div>
+                <div class="table-actions">
+                    <button id="clearLogsButton" class="clear-logs-button">Clear Log Display</button>
+                    <button id="autoScrollToggle" class="auto-scroll-button active">Auto-scroll: ON</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Plugin Actions -->
+        <div class="dashboard-panel">
+            <div class="panel-header">
+                <h2>Available Actions</h2>
+                <span class="panel-toggle collapsed">▼</span>
+            </div>
+            <div class="panel-content collapsed">
+                <div class="action-container" id="pluginActionsContainer">
+                    <p class="no-actions-message">No actions available from plugins.</p>
+                    <!-- Actions will be populated by JavaScript -->
                 </div>
             </div>
         </div>
@@ -151,6 +181,33 @@
     let previousState = '{{ state }}';
     let currentIntervalID = null;
     let scanCompletedTimeout = null;
+    
+    // Current process display elements
+    const currentProcessContainer = document.getElementById('currentProcessContainer');
+    const currentProcessPlugin = document.getElementById('currentProcessPlugin');
+    const currentProcessCommand = document.getElementById('currentProcessCommand');
+    const currentProcessOutput = document.getElementById('currentProcessOutput');
+    const closeProcessButton = document.getElementById('closeProcessButton');
+    
+    // Plugin logs elements
+    const pluginLogsTable = document.getElementById('pluginLogsTable').getElementsByTagName('tbody')[0];
+    const clearLogsButton = document.getElementById('clearLogsButton');
+    const autoScrollToggle = document.getElementById('autoScrollToggle');
+    let autoScrollEnabled = true;
+    
+    // Networks and devices tables
+    const networksTable = document.getElementById('networksTable').getElementsByTagName('tbody')[0];
+    const devicesTable = document.getElementById('devicesTable').getElementsByTagName('tbody')[0];
+    
+    // Plugin actions container
+    const pluginActionsContainer = document.getElementById('pluginActionsContainer');
+    
+    // Track registered actions
+    let registeredActions = {};
+    
+    // Map network IDs to MAC addresses for action handling
+    let networkIdToMac = {};
+    let deviceIdToInfo = {};
 
     // Initialize state descriptions
     const stateDescriptions = {
@@ -346,88 +403,144 @@
         }
     });
 
-    // Check initial state for scanning and update indicator
-    updateStateIndicator(previousState);
-
-    // Dashboard Data Management
-    (function() {
-        // Get DOM elements
-        const networksTable = document.getElementById('networksTable').getElementsByTagName('tbody')[0];
-        const devicesTable = document.getElementById('devicesTable').getElementsByTagName('tbody')[0];
-        const pluginLogsTable = document.getElementById('pluginLogsTable').getElementsByTagName('tbody')[0];
-        const syncButton = document.getElementById('syncButton');
-        const restartServiceButton = document.getElementById('restartServiceButton');
-        const statusMessage = document.getElementById('statusMessage');
-        
-        // Format timestamp for display
-        function formatTimestamp(timestamp) {
-            try {
-                const date = new Date(timestamp);
-                return date.toLocaleString();
-            } catch (e) {
-                return 'Invalid time';
-            }
+    // Format timestamp for display
+    function formatTimestamp(timestamp) {
+        try {
+            const date = new Date(timestamp);
+            return date.toLocaleString();
+        } catch (e) {
+            return 'Invalid time';
         }
-        
-        // Toggle fingerprint display
-        function setupFingerprintToggles() {
-            document.querySelectorAll('.show-fingerprint').forEach(button => {
-                button.addEventListener('click', function() {
-                    const dataElement = this.nextElementSibling;
-                    if (dataElement.style.display === 'block') {
-                        dataElement.style.display = 'none';
-                        this.textContent = 'Show Fingerprint';
+    }
+    
+    // Toggle fingerprint display
+    function setupFingerprintToggles() {
+        document.querySelectorAll('.show-fingerprint').forEach(button => {
+            button.addEventListener('click', function() {
+                const dataElement = this.nextElementSibling;
+                if (dataElement.style.display === 'block') {
+                    dataElement.style.display = 'none';
+                    this.textContent = 'Show Fingerprint';
+                } else {
+                    dataElement.style.display = 'block';
+                    this.textContent = 'Hide Fingerprint';
+                }
+            });
+        });
+    }
+    
+    // Set up action button click handlers
+    function setupActionButtons() {
+        document.querySelectorAll('.plugin-action-button').forEach(button => {
+            button.addEventListener('click', function() {
+                const actionId = this.dataset.actionId;
+                const action = registeredActions[actionId];
+                
+                if (!action) return;
+                
+                let targetId = this.dataset.targetId;
+                
+                console.log(`Executing action: ${action.action_name} (${action.plugin_name}) on target ${targetId}`);
+                
+                // Trigger API call to execute action
+                fetch('/plugin/action', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        plugin_name: action.plugin_name,
+                        action_id: action.action_id,
+                        target_type: action.target_type,
+                        target_id: targetId
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        alertify.success(data.message || 'Action executed successfully');
                     } else {
-                        dataElement.style.display = 'block';
-                        this.textContent = 'Hide Fingerprint';
+                        alertify.error(data.message || 'Failed to execute action');
                     }
+                })
+                .catch(error => {
+                    alertify.error(`Error: ${error.message}`);
                 });
             });
-        }
+        });
+    }
+    
+    // Handle dashboard data sync
+    function updateDashboardData(data) {
+        // Clear existing tables
+        networksTable.innerHTML = '';
+        devicesTable.innerHTML = '';
         
-        // Handle dashboard data sync
-        function updateDashboardData(data) {
-            // Clear existing tables
-            networksTable.innerHTML = '';
-            devicesTable.innerHTML = '';
+        // Track network IDs to MACs for action handling
+        networkIdToMac = {};
+        deviceIdToInfo = {};
+        
+        // Populate Networks table
+        data.networks.forEach(network => {
+            const row = networksTable.insertRow();
+            
+            const statusClass = network.is_home ? 'network-home' : 
+                               (network.is_blacklisted ? 'network-blacklisted' : '');
+            
+            const statusText = network.is_home ? 'Home' : 
+                              (network.is_blacklisted ? 'Blacklisted' : 'Known');
+            
+            // Store mapping of ID to MAC
+            networkIdToMac[network.id] = network.mac_address;
+            
+            // Create action buttons for this network
+            const actionButtons = getActionButtonsHtml('network', network.id);
+            
+            row.innerHTML = `
+                <td>${network.mac_address}</td>
+                <td class="${statusClass}">${statusText}</td>
+                <td>${formatTimestamp(network.last_seen)}</td>
+                <td>${actionButtons}</td>
+            `;
+        });
+        
+        // Populate Devices table
+        data.devices.forEach(device => {
+            const row = devicesTable.insertRow();
+            
+            // Store device info for action handling
+            deviceIdToInfo[device.id] = {
+                ip: device.ip_address,
+                mac: device.mac_address,
+                network_id: device.network_id
+            };
+            
+            // Check if we have fingerprint data
+            const hasFingerprintData = device.fingerprint && device.fingerprint !== 'None';
+            const fingerprintHtml = hasFingerprintData ? 
+                `<span class="show-fingerprint">Show Fingerprint</span>
+                 <div class="fingerprint-data">${device.fingerprint}</div>` : '';
+            
+            // Create action buttons for this device
+            const actionButtons = getActionButtonsHtml('device', device.id);
+            
+            // Get network name if available
+            const networkInfo = device.network_id && networkIdToMac[device.network_id] ? 
+                `${networkIdToMac[device.network_id]}` : 'Unknown';
+                
+            row.innerHTML = `
+                <td>${device.ip_address || 'N/A'}</td>
+                <td>${device.mac_address || 'N/A'}</td>
+                <td>${device.vendor || 'Unknown'}</td>
+                <td>${networkInfo}</td>
+                <td>${fingerprintHtml} ${actionButtons}</td>
+            `;
+        });
+        
+        // Populate Plugin Logs table - only replace all if it's more than a regular update
+        if (data.plugin_logs && data.plugin_logs.length > 5) {
             pluginLogsTable.innerHTML = '';
             
-            // Populate Networks table
-            data.networks.forEach(network => {
-                const row = networksTable.insertRow();
-                
-                const statusClass = network.is_home ? 'network-home' : 
-                                   (network.is_blacklisted ? 'network-blacklisted' : '');
-                
-                const statusText = network.is_home ? 'Home' : 
-                                  (network.is_blacklisted ? 'Blacklisted' : 'Known');
-                
-                row.innerHTML = `
-                    <td>${network.mac_address}</td>
-                    <td class="${statusClass}">${statusText}</td>
-                    <td>${formatTimestamp(network.last_seen)}</td>
-                `;
-            });
-            
-            // Populate Devices table
-            data.devices.forEach(device => {
-                const row = devicesTable.insertRow();
-                
-                // Check if we have fingerprint data
-                const hasFingerprintData = device.fingerprint && device.fingerprint !== 'None';
-                const fingerprintHtml = hasFingerprintData ? 
-                    `<span class="show-fingerprint">Show Fingerprint</span>
-                     <div class="fingerprint-data">${device.fingerprint}</div>` : '';
-                
-                row.innerHTML = `
-                    <td>${device.ip_address || 'N/A'}</td>
-                    <td>${device.mac_address || 'N/A'}</td>
-                    <td>${device.vendor || 'Unknown'}</td>
-                    <td>${fingerprintHtml}</td>
-                `;
-            });
-            
-            // Populate Plugin Logs table - show most recent logs first
             data.plugin_logs.sort((a, b) => {
                 return new Date(b.timestamp) - new Date(a.timestamp);
             }).forEach(log => {
@@ -438,94 +551,326 @@
                     <td>${formatTimestamp(log.timestamp)}</td>
                 `;
             });
-            
-            // Set up fingerprint toggle buttons
-            setupFingerprintToggles();
-            
-            // Show success message with animation
-            statusMessage.textContent = `Dashboard updated at ${new Date().toLocaleTimeString()}`;
-            statusMessage.style.opacity = 1;
-            
-            setTimeout(() => {
-                statusMessage.style.opacity = 0;
-            }, 3000);
         }
         
-        // Listen for dashboard data from the server using the global socket
-        socket.on('dashboard_data', (data) => {
-            console.log(`[${new Date().toLocaleTimeString()}] Dashboard data received:`, data);
-            updateDashboardData(data);
-        });
+        // Set up fingerprint toggle buttons
+        setupFingerprintToggles();
         
-        // Listen for alert notifications from the server using the global socket
-        socket.on('alert_sync', (data) => {
-            console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, data);
-            if (data.level === 'ERROR' || data.level === 'CRITICAL') {
-                alertify.error(data.message, 0);  // 0 means it stays until dismissed
-            } else if (data.level === 'WARNING') {
-                alertify.warning(data.message, 10);
-            } else if (data.level === 'INFO') {
-                alertify.info(data.message, 5);
-            } else if (data.level === 'SUCCESS') {
-                alertify.success(data.message, 5);
+        // Set up action buttons
+        setupActionButtons();
+        
+        // Update actions panel with global actions
+        updateActionsPanel();
+        
+        // Show success message with animation
+        const statusMessage = document.getElementById('statusMessage');
+        statusMessage.textContent = `Dashboard updated at ${new Date().toLocaleTimeString()}`;
+        statusMessage.style.opacity = 1;
+        
+        setTimeout(() => {
+            statusMessage.style.opacity = 0;
+        }, 3000);
+    }
+    
+    // Generate HTML for action buttons based on registered actions
+    function getActionButtonsHtml(targetType, targetId) {
+        let actionButtonsHtml = '';
+        
+        // Find actions for this target type
+        Object.values(registeredActions).forEach(action => {
+            if (action.target_type === targetType && 
+                (action.target_id === null || action.target_id === targetId.toString())) {
+                
+                actionButtonsHtml += `
+                    <button 
+                        class="plugin-action-button" 
+                        data-action-id="${action.action_id}" 
+                        data-target-id="${targetId}"
+                        title="${action.description}"
+                    >
+                        ${action.action_name}
+                    </button>
+                `;
             }
         });
         
-        // Sync dashboard function
-        window.syncDashboard = function() {
-            socket.emit('sync_dashboard');
-            statusMessage.textContent = 'Syncing...';
-            statusMessage.style.opacity = 1;
-            syncButton.classList.add('syncing');
+        return actionButtonsHtml;
+    }
+    
+    // Update the actions panel with global (system-wide) actions
+    function updateActionsPanel() {
+        // Clear current actions
+        pluginActionsContainer.innerHTML = '';
+        
+        // Find all system actions
+        const systemActions = Object.values(registeredActions).filter(
+            action => action.target_type === 'system'
+        );
+        
+        if (systemActions.length === 0) {
+            pluginActionsContainer.innerHTML = '<p class="no-actions-message">No actions available from plugins.</p>';
+            return;
+        }
+        
+        // Group actions by plugin
+        const actionsByPlugin = {};
+        systemActions.forEach(action => {
+            if (!actionsByPlugin[action.plugin_name]) {
+                actionsByPlugin[action.plugin_name] = [];
+            }
+            actionsByPlugin[action.plugin_name].push(action);
+        });
+        
+        // Create action elements for each plugin
+        Object.entries(actionsByPlugin).forEach(([pluginName, actions]) => {
+            const pluginActionGroup = document.createElement('div');
+            pluginActionGroup.className = 'plugin-action-group';
             
-            setTimeout(() => {
-                syncButton.classList.remove('syncing');
-            }, 1000);
-        };
-        
-        // Handle manual sync button click
-        syncButton.addEventListener('click', window.syncDashboard);
-        
-        // Handle service restart button
-        restartServiceButton.addEventListener('click', async () => {
-            if (confirm('Are you sure you want to restart the Netfang service?')) {
-                statusMessage.textContent = 'Restarting service...';
-                statusMessage.style.opacity = 1;
-                
-                try {
-                    const response = await fetch('/update', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (data.status === 'success') {
-                        statusMessage.textContent = data.message;
-                        // Show success notification
-                        alertify.success(data.message, 5);
-                    } else {
-                        statusMessage.textContent = data.message;
-                        // Show error notification
-                        alertify.error(data.message, 5);
-                    }
-                } catch (error) {
-                    statusMessage.textContent = `Error: ${error.message}`;
-                    alertify.error(`Error restarting service: ${error.message}`, 5);
-                }
-                
-                // Clear status message after 5 seconds
-                setTimeout(() => {
-                    statusMessage.style.opacity = 0;
-                }, 5000);
-            }
+            const pluginHeader = document.createElement('h3');
+            pluginHeader.textContent = pluginName;
+            pluginActionGroup.appendChild(pluginHeader);
+            
+            const actionButtons = document.createElement('div');
+            actionButtons.className = 'action-buttons';
+            
+            actions.forEach(action => {
+                const button = document.createElement('button');
+                button.className = 'plugin-action-button';
+                button.dataset.actionId = action.action_id;
+                button.dataset.targetId = action.target_id || 'system';
+                button.textContent = action.action_name;
+                button.title = action.description;
+                actionButtons.appendChild(button);
+            });
+            
+            pluginActionGroup.appendChild(actionButtons);
+            pluginActionsContainer.appendChild(pluginActionGroup);
         });
         
-        // Auto-refresh dashboard data every 30 seconds
-        setInterval(window.syncDashboard, 30000);
-    })();
+        // Set up action buttons
+        setupActionButtons();
+    }
+    
+    // Add plugin log to the table
+    function addPluginLog(log) {
+        // Create a new row at the beginning of the table
+        const row = pluginLogsTable.insertRow(0);
+        row.innerHTML = `
+            <td>${log.plugin_name}</td>
+            <td>${log.event}</td>
+            <td>${formatTimestamp(log.timestamp)}</td>
+        `;
+        
+        // Flash highlight the new row
+        row.classList.add('new-log-entry');
+        setTimeout(() => {
+            row.classList.remove('new-log-entry');
+        }, 2000);
+        
+        // Auto-scroll to keep the newest logs visible
+        if (autoScrollEnabled) {
+            row.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+        
+        // Limit table size to prevent performance issues
+        if (pluginLogsTable.rows.length > 1000) {
+            pluginLogsTable.deleteRow(pluginLogsTable.rows.length - 1);
+        }
+    }
+    
+    // Handle command output
+    function handleCommandOutput(data) {
+        // Show the output container if it's not already visible
+        currentProcessContainer.style.display = 'block';
+        
+        // Update header and command info
+        currentProcessPlugin.textContent = `(${data.plugin_name})`;
+        currentProcessCommand.textContent = data.command;
+        
+        // Create output line
+        const outputLine = document.createElement('div');
+        outputLine.className = 'output-line';
+        outputLine.textContent = data.output;
+        
+        // Add output to container
+        currentProcessOutput.appendChild(outputLine);
+        
+        // Auto-scroll output
+        currentProcessOutput.scrollTop = currentProcessOutput.scrollHeight;
+        
+        // If command is complete, add a completion marker
+        if (data.is_complete) {
+            const completionLine = document.createElement('div');
+            completionLine.className = 'completion-line';
+            completionLine.textContent = '--- Process completed ---';
+            currentProcessOutput.appendChild(completionLine);
+            
+            // Auto-hide after a delay
+            setTimeout(() => {
+                if (document.activeElement !== closeProcessButton) {
+                    currentProcessContainer.style.display = 'none';
+                    currentProcessOutput.innerHTML = '';
+                }
+            }, 10000);
+        }
+    }
+    
+    // Handle current process update
+    function handleCurrentProcess(data) {
+        if (data === null) {
+            // Clear current process display
+            currentProcessContainer.style.display = 'none';
+            currentProcessOutput.innerHTML = '';
+            return;
+        }
+        
+        // Show the process container
+        currentProcessContainer.style.display = 'block';
+        
+        // Update header and command info
+        currentProcessPlugin.textContent = `(${data.plugin_name})`;
+        currentProcessCommand.textContent = data.command;
+        
+        // Add start message
+        const startLine = document.createElement('div');
+        startLine.className = 'start-line';
+        startLine.textContent = `Process started at ${formatTimestamp(data.start_time)}`;
+        currentProcessOutput.innerHTML = '';
+        currentProcessOutput.appendChild(startLine);
+    }
+    
+    // Listen for dashboard data from the server
+    socket.on('dashboard_data', (data) => {
+        console.log(`[${new Date().toLocaleTimeString()}] Dashboard data received:`, data);
+        updateDashboardData(data);
+    });
+    
+    // Listen for real-time plugin logs
+    socket.on('plugin_log', (log) => {
+        console.log(`[${new Date().toLocaleTimeString()}] Plugin log received:`, log);
+        addPluginLog(log);
+    });
+    
+    // Listen for command output streaming
+    socket.on('command_output', (data) => {
+        console.log(`[${new Date().toLocaleTimeString()}] Command output:`, data);
+        handleCommandOutput(data);
+    });
+    
+    // Listen for current process updates
+    socket.on('current_process', (data) => {
+        console.log(`[${new Date().toLocaleTimeString()}] Current process update:`, data);
+        handleCurrentProcess(data);
+    });
+    
+    // Listen for plugin action registration
+    socket.on('register_action', (action) => {
+        console.log(`[${new Date().toLocaleTimeString()}] Action registered:`, action);
+        
+        // Store the action
+        registeredActions[action.action_id] = action;
+        
+        // Update action panels
+        updateActionsPanel();
+        
+        // Notify user
+        alertify.info(`New action available: ${action.action_name}`, 3);
+    });
+    
+    // Listen for alert notifications
+    socket.on('alert_sync', (data) => {
+        console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, data);
+        if (data.level === 'ERROR' || data.level === 'CRITICAL') {
+            alertify.error(data.message, 0);  // 0 means it stays until dismissed
+        } else if (data.level === 'WARNING') {
+            alertify.warning(data.message, 10);
+        } else if (data.level === 'INFO') {
+            alertify.info(data.message, 5);
+        } else if (data.level === 'SUCCESS') {
+            alertify.success(data.message, 5);
+        }
+    });
+    
+    // Sync dashboard function
+    window.syncDashboard = function() {
+        socket.emit('sync_dashboard');
+        const statusMessage = document.getElementById('statusMessage');
+        statusMessage.textContent = 'Syncing...';
+        statusMessage.style.opacity = 1;
+        const syncButton = document.getElementById('syncButton');
+        syncButton.classList.add('syncing');
+        
+        setTimeout(() => {
+            syncButton.classList.remove('syncing');
+        }, 1000);
+    };
+    
+    // Clear logs display handler
+    clearLogsButton.addEventListener('click', () => {
+        // Only clear the display, not the database
+        pluginLogsTable.innerHTML = '';
+        alertify.info('Log display cleared');
+    });
+    
+    // Auto-scroll toggle handler
+    autoScrollToggle.addEventListener('click', () => {
+        autoScrollEnabled = !autoScrollEnabled;
+        autoScrollToggle.textContent = autoScrollEnabled ? 'Auto-scroll: ON' : 'Auto-scroll: OFF';
+        autoScrollToggle.classList.toggle('active', autoScrollEnabled);
+    });
+    
+    // Close process output handler
+    closeProcessButton.addEventListener('click', () => {
+        currentProcessContainer.style.display = 'none';
+        currentProcessOutput.innerHTML = '';
+    });
+    
+    // Handle manual sync button click
+    document.getElementById('syncButton').addEventListener('click', window.syncDashboard);
+    
+    // Handle service restart button
+    document.getElementById('restartServiceButton').addEventListener('click', async () => {
+        if (confirm('Are you sure you want to restart the Netfang service?')) {
+            const statusMessage = document.getElementById('statusMessage');
+            statusMessage.textContent = 'Restarting service...';
+            statusMessage.style.opacity = 1;
+            
+            try {
+                const response = await fetch('/update', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    statusMessage.textContent = data.message;
+                    // Show success notification
+                    alertify.success(data.message, 5);
+                } else {
+                    statusMessage.textContent = data.message;
+                    // Show error notification
+                    alertify.error(data.message, 5);
+                }
+            } catch (error) {
+                statusMessage.textContent = `Error: ${error.message}`;
+                alertify.error(`Error restarting service: ${error.message}`, 5);
+            }
+            
+            // Clear status message after 5 seconds
+            setTimeout(() => {
+                statusMessage.style.opacity = 0;
+            }, 5000);
+        }
+    });
+
+    // Check initial state for scanning and update indicator
+    updateStateIndicator(previousState);
+    
+    // Auto-refresh dashboard data every 30 seconds
+    setInterval(window.syncDashboard, 30000);
 
     // Request initial dashboard data when connected
     document.addEventListener('DOMContentLoaded', function() {

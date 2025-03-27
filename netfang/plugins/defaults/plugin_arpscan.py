@@ -323,41 +323,34 @@ class ArpScanPlugin(BasePlugin):
             cmd = ["sudo", "arp-scan", "-l", f"--interface={interface}"]
             cmd_str = " ".join(cmd)
             self.logger.debug(f"Running arp-scan command: {cmd_str}")
-            add_plugin_log(db_path, self.name, f"Running command: {cmd_str}")
             
-            try:
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=self.scan_timeout)
+            # Use the new streaming subprocess functionality for real-time output
+            from netfang.streaming_subprocess import run_subprocess_sync
+            
+            # Run the command with streaming output to dashboard
+            result = run_subprocess_sync(
+                self.name,
+                cmd,
+                db_path=db_path,
+                timeout=self.scan_timeout
+            )
+            
+            if result["status"] == "completed" and result["return_code"] == 0:
+                # Parse the output
+                parsed_data = parse_arp_scan(result["stdout"], mode="localnet")
+                self.logger.info(f"arp-scan found {len(parsed_data['devices'])} devices on {interface}")
                 
-                # Log the complete command output to database
-                output_log = result.stdout if result.stdout else "No output"
-                error_log = result.stderr if result.stderr else "No error output"
-                add_plugin_log(db_path, self.name, f"Command output [sudo arp-scan]: {output_log}")
-                if error_log != "No error output":
-                    add_plugin_log(db_path, self.name, f"Command stderr [sudo arp-scan]: {error_log}")
+                # Log the parsed data summary
+                device_macs = [dev["mac"] for dev in parsed_data.get("devices", [])]
+                add_plugin_log(db_path, self.name, f"arp-scan found {len(parsed_data['devices'])} devices on {interface}: {', '.join(device_macs)}")
+                return parsed_data
+            else:
+                # Handle error
+                error_message = result["stderr"] if result["stderr"] else f"arp-scan failed with code {result['return_code']}"
+                self.logger.warning(f"arp-scan error: {error_message}")
+                add_plugin_log(db_path, self.name, f"arp-scan error (return code {result['return_code']}): {error_message}")
+                return {"devices": []}
                 
-                if result.returncode == 0:
-                    parsed_data = parse_arp_scan(result.stdout, mode="localnet")
-                    self.logger.info(f"arp-scan found {len(parsed_data['devices'])} devices on {interface}")
-                    # Log the parsed data summary
-                    device_macs = [dev["mac"] for dev in parsed_data.get("devices", [])]
-                    add_plugin_log(db_path, self.name, f"arp-scan found {len(parsed_data['devices'])} devices on {interface}: {', '.join(device_macs)}")
-                    return parsed_data
-                else:
-                    self.logger.warning(f"arp-scan error: {result.stderr}")
-                    add_plugin_log(db_path, self.name, f"arp-scan error (return code {result.returncode}): {result.stderr}")
-                    return {"devices": []}
-            except subprocess.TimeoutExpired:
-                self.logger.warning(f"arp-scan timed out on interface {interface}")
-                add_plugin_log(db_path, self.name, f"arp-scan timed out on interface {interface}")
-                return {"devices": []}
-            except FileNotFoundError:
-                self.logger.error("arp-scan command not found. Please install arp-scan package.")
-                add_plugin_log(db_path, self.name, "arp-scan command not found. Please install arp-scan package.")
-                return {"devices": []}
-            except Exception as e:
-                self.logger.error(f"Error running arp-scan subprocess: {str(e)}")
-                add_plugin_log(db_path, self.name, f"Error running arp-scan subprocess: {str(e)}")
-                return {"devices": []}
         except Exception as e:
             self.logger.error(f"Error in run_arp_scan: {str(e)}")
             add_plugin_log(db_path, self.name, f"Error in run_arp_scan: {str(e)}")

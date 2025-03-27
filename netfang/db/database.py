@@ -385,7 +385,7 @@ def add_or_update_network(
 
 def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
     """
-    Log plugin events for diagnostics.
+    Log plugin events for diagnostics and also stream to dashboard if SocketIO handler is available.
 
     :param db_path: Path to the database file.
     :param plugin_name: Name of the plugin logging the event.
@@ -393,6 +393,7 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
     """
     _ensure_db_initialized(db_path)
 
+    # Store in database
     conn: sqlite3.Connection = sqlite3.connect(db_path)
     cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute("""
@@ -401,6 +402,29 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
     """, (plugin_name, event))
     conn.commit()
     conn.close()
+    
+    # Stream to dashboard in real-time if SocketIO handler is available
+    try:
+        from netfang.socketio_handler import handler
+        import asyncio
+        
+        # Create and run a coroutine to stream the log
+        async def stream_log():
+            await handler.stream_plugin_log(plugin_name, event)
+            
+        # Get the current event loop or create one if it doesn't exist
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_running():
+                asyncio.create_task(stream_log())
+            else:
+                loop.run_until_complete(stream_log())
+        except RuntimeError:
+            # If no event loop is available in this thread, just log without streaming
+            pass
+    except ImportError:
+        # SocketIO handler not available, just log without streaming
+        pass
 
 
 def get_alerts(

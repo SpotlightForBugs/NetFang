@@ -86,53 +86,59 @@ class RustScanPlugin(BasePlugin):
                 else:
                     target = args[2]
 
-            self.logger.info(f"[{self.name}] Running rustscan on {target}...")
-            add_plugin_log(db_path, self.name, f"Starting RustScan on {target}")
-
             # Port range
             port_range = None
             if len(args) > 3:
                 port_range = args[3]
 
+            self.logger.info(f"[{self.name}] Running rustscan on {target}...")
+            add_plugin_log(db_path, self.name, f"Starting RustScan on {target}")
+
             # Check if rustscan is available
             try:
-                subprocess.run(["which", "rustscan"], check=True, capture_output=True)
-                rustscan_available = True
-            except subprocess.CalledProcessError:
-                rustscan_available = False
-                self.logger.warning("RustScan not found. It appears to be not installed.")
-                add_plugin_log(db_path, self.name, "RustScan not found. Please install rustscan.")
-
-            # Execute scan (if tool is available)
-            if rustscan_available:
-                cmd = ["rustscan", "-a", target]
-                if port_range:
-                    cmd.extend(["-p", port_range])
-
-                self.logger.info(f"[{self.name}] Running: {' '.join(cmd)}")
-                add_plugin_log(db_path, self.name, f"Running command: {' '.join(cmd)}")
-
-                # Run scan in background with timeout
-                try:
-                    # For testing, don't actually run the scan, just log the command
-                    # result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-                    # Success log
-                    self.logger.info(f"[{self.name}] RustScan complete on {target}")
-                    add_plugin_log(db_path, self.name, f"RustScan completed successfully on {target}")
-                except subprocess.TimeoutExpired:
-                    self.logger.error(f"RustScan timed out scanning {target}")
-                    add_plugin_log(db_path, self.name, f"RustScan timed out scanning {target}")
-                except Exception as e:
-                    self.logger.error(f"Error during RustScan: {str(e)}")
-                    add_plugin_log(db_path, self.name, f"Error during RustScan: {str(e)}")
-            else:
-                self.logger.info(f"[{self.name}] RustScan would scan: {target}")
-                if port_range:
-                    self.logger.info(f"[{self.name}] Using port range: {port_range}")
-                    add_plugin_log(db_path, self.name, f"Would scan {target} on ports {port_range}")
+                from netfang.streaming_subprocess import run_subprocess_sync
+                
+                # Check if rustscan is installed
+                check_result = run_subprocess_sync(
+                    self.name,
+                    ["which", "rustscan"],
+                    db_path=db_path,
+                    timeout=5
+                )
+                
+                rustscan_available = check_result["status"] == "completed" and check_result["return_code"] == 0
+                
+                if not rustscan_available:
+                    self.logger.warning("RustScan not found. It appears to be not installed.")
+                    add_plugin_log(db_path, self.name, "RustScan not found. Please install rustscan.")
                 else:
-                    add_plugin_log(db_path, self.name, f"Would scan {target} on default ports")
-        
+                    # Execute scan with RustScan
+                    cmd = ["rustscan", "-a", target]
+                    if port_range:
+                        cmd.extend(["-p", port_range])
+
+                    self.logger.info(f"[{self.name}] Running: {' '.join(cmd)}")
+                    add_plugin_log(db_path, self.name, f"Running command: {' '.join(cmd)}")
+
+                    # Run the scan with streaming output
+                    scan_result = run_subprocess_sync(
+                        self.name,
+                        cmd,
+                        db_path=db_path,
+                        timeout=60  # Longer timeout for network scanning
+                    )
+                    
+                    if scan_result["status"] == "completed" and scan_result["return_code"] == 0:
+                        self.logger.info(f"[{self.name}] RustScan complete on {target}")
+                        add_plugin_log(db_path, self.name, f"RustScan completed successfully on {target}")
+                    else:
+                        error = scan_result["stderr"] if scan_result["stderr"] else f"RustScan failed with code {scan_result['return_code']}"
+                        self.logger.error(f"Error during RustScan: {error}")
+                        add_plugin_log(db_path, self.name, f"Error during RustScan: {error}")
+            except Exception as e:
+                self.logger.error(f"Error checking/running rustscan: {str(e)}")
+                add_plugin_log(db_path, self.name, f"Error checking/running rustscan: {str(e)}")
+                
         except Exception as e:
             self.logger.error(f"[{self.name}] Error during scan: {str(e)}")
             add_plugin_log(db_path, self.name, f"Error during scan: {str(e)}")

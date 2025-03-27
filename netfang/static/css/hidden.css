@@ -374,6 +374,15 @@ button:active {
   background-color: #e5e5e5;
 }
 
+.warning-button {
+  background-color: #f44336;
+  color: white;
+}
+
+.warning-button:hover {
+  background-color: #d32f2f;
+}
+
 .status-message {
   padding: 8px 15px;
   border-radius: 4px;
@@ -384,7 +393,7 @@ button:active {
   transition: opacity 0.3s;
 }
 
-/* Device status styles */
+/* Network and device status styles */
 .network-home {
   color: #2e7d32;
   font-weight: 500;
@@ -414,13 +423,230 @@ button:active {
 }
 
 .show-fingerprint {
+  display: inline-block;
   background-color: #e0e0e0;
   color: #333;
+  padding: 4px 8px;
+  border-radius: 4px;
+  margin-right: 5px;
+  cursor: pointer;
+  font-size: 0.8rem;
+}
+
+.show-fingerprint:hover {
+  background-color: #d0d0d0;
 }
 
 .block-device {
   background-color: #ffebee;
   color: #c62828;
+}
+
+/* Current Process Display */
+.current-process-container {
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  overflow: hidden;
+  border: 1px solid #e0e0e0;
+}
+
+.current-process-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: linear-gradient(to right, #0055a5, #0078c8);
+  color: white;
+}
+
+.current-process-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.close-button {
+  background: none;
+  color: white;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 5px;
+  line-height: 1;
+}
+
+.current-process-command {
+  background-color: #263238;
+  color: #fff;
+  padding: 10px 15px;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.9rem;
+  border-bottom: 1px solid #37474f;
+}
+
+.current-process-output {
+  max-height: 300px;
+  overflow-y: auto;
+  background-color: #1e1e1e;
+  color: #ddd;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 0.85rem;
+  padding: 0;
+  white-space: pre-wrap;
+}
+
+.output-line {
+  padding: 2px 15px;
+  border-bottom: 1px solid #333;
+  line-height: 1.4;
+}
+
+.output-line:nth-child(odd) {
+  background-color: #252525;
+}
+
+.start-line {
+  padding: 8px 15px;
+  background-color: #2d3748;
+  color: #a0aec0;
+  font-style: italic;
+}
+
+.completion-line {
+  padding: 8px 15px;
+  background-color: #2c3e50;
+  color: #4fc08d;
+  font-weight: bold;
+  text-align: center;
+}
+
+/* Table Actions for Logs */
+.table-actions {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.clear-logs-button {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.clear-logs-button:hover {
+  background-color: #e5e5e5;
+}
+
+.auto-scroll-button {
+  background-color: #f0f0f0;
+  color: #333;
+  border: 1px solid #e0e0e0;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+}
+
+.auto-scroll-button.active {
+  background-color: #0078c8;
+  color: white;
+  border-color: #0066aa;
+}
+
+/* New Log Entry Animation */
+.new-log-entry {
+  animation: highlight-new 2s ease-out;
+}
+
+@keyframes highlight-new {
+  0% { background-color: #e3f2fd; }
+  100% { background-color: transparent; }
+}
+
+/* Plugin Actions */
+.plugin-action-group {
+  margin-bottom: 20px;
+}
+
+.plugin-action-group h3 {
+  margin: 0 0 10px 0;
+  font-size: 1rem;
+  color: #0055a5;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 5px;
+}
+
+.action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.plugin-action-button {
+  background-color: #e3f2fd;
+  color: #0055a5;
+  border: 1px solid #bbdefb;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.plugin-action-button:hover {
+  background-color: #bbdefb;
+  transform: translateY(-1px);
+}
+
+.no-actions-message {
+  color: #757575;
+  font-style: italic;
+  text-align: center;
+  padding: 20px;
+}
+
+/* State description */
+.state-description {
+  flex-basis: 100%;
+  color: #555;
+  font-size: 0.9rem;
+  margin-top: 10px;
+  padding: 5px 0;
+}
+
+/* Default button and disabled state */
+.disabled-button {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.disabled-button:hover {
+  transform: none;
+}
+
+/* Syncing animation */
+.syncing {
+  position: relative;
+  overflow: hidden;
+}
+
+.syncing::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 300%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  animation: syncing-animation 1s ease-in-out;
+}
+
+@keyframes syncing-animation {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
 /* Alert Panel Styles - Updated */
@@ -672,6 +898,16 @@ button:active {
   }
 }
 
+@keyframes highlight-new {
+  0% { background-color: #e3f2fd; }
+  100% { background-color: transparent; }
+}
+
+@keyframes syncing-animation {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .dashboard-controls {
@@ -686,6 +922,18 @@ button:active {
   .data-table th,
   .data-table td {
     padding: 8px 10px;
+  }
+
+  .action-buttons {
+    flex-direction: column;
+  }
+  
+  .current-process-container {
+    margin: 10px 0;
+  }
+  
+  .current-process-output {
+    max-height: 200px;
   }
 
   #alertPanel {
