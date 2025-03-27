@@ -9,7 +9,7 @@ werkzeug>=3.0.6 # not directly required, pinned by Snyk to avoid a vulnerability
 zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
 mac-vendor-lookup>=0.1.11
 aiohttp>=3.10.11 # not directly required, pinned by Snyk to avoid a vulnerability
-waitress>=2.1.2  # Production-grade WSGI server
+waitress>=3.0.1  # Production-grade WSGI server
 python-dotenv>=1.0.0  # For loading environment variables
 typing-extensions>=4.7.1  # For improved type hinting
 
