@@ -11,7 +11,7 @@ from flask import request, jsonify, render_template, session, redirect, url_for,
     render_template_string, abort, Flask
 from flask import send_from_directory
 from flask_socketio import SocketIO, emit
-
+from flask_minify import minify
 from netfang.alert_manager import AlertManager, Alert
 from netfang.api import pi_utils
 from netfang.db.database import init_db, get_dashboard_data
@@ -35,6 +35,7 @@ except ImportError as e:
     print("Error tracing is disabled by default. To enable, install the sentry-sdk package.")
 
 app = Flask(__name__)
+minify(app=app, html=True, js=True, cssless=True)
 socketio = SocketIO(app)
 # Set the SocketIO instance in our handler
 socketio_handler.set_socketio(socketio)

@@ -4,6 +4,7 @@ scapy
 netifaces-plus
 sentry-sdk[flask]
 psutil
+Flask-Minify
 Flask-SocketIO
 werkzeug>=3.0.6 # not directly required, pinned by Snyk to avoid a vulnerability
 zipp>=3.19.1 # not directly required, pinned by Snyk to avoid a vulnerability
