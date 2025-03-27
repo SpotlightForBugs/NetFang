@@ -773,8 +773,8 @@
         // Update action panels
         updateActionsPanel();
         
-        // Notify user
-        alertify.info(`New action available: ${action.action_name}`, 3);
+        // Notify user - change alertify.info to alertify.notify with 'info' type
+        alertify.notify(`New action available: ${action.action_name}`, 'info', 3);
     });
     
     // Listen for alert notifications
