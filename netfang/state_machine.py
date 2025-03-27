@@ -29,7 +29,9 @@ class StateMachine:
         self.scanning_plugins: List[str] = []
         self.current_scan_index: int = 0
         self.return_state_after_scan: Optional[State] = None
-        
+        self.active_scans: Dict[str, bool] = {}  # Track active scans by plugin name
+        self.scan_timeout: int = 120  # Safety timeout in seconds to avoid scan hang
+
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Sets the event loop for scheduling state update tasks."""
         self.loop = loop
@@ -76,6 +78,11 @@ class StateMachine:
             
         # Check if all plugins have been executed
         if self.current_scan_index >= len(self.scanning_plugins):
+            # Wait for all active scans to complete before transitioning
+            if any(self.active_scans.values()):
+                self.logger.info("Waiting for active scans to complete...")
+                return
+                
             self.logger.info("All scanning plugins completed, moving to SCAN_COMPLETED state")
             self.update_state(State.SCAN_COMPLETED)
             # Reset for next scan sequence
@@ -95,16 +102,44 @@ class StateMachine:
         
         # Execute the plugin's scan action
         try:
+            # Mark scan as active
+            self.active_scans[current_plugin_name] = True
+            
             # Pass appropriate arguments based on plugin type
             self.plugin_manager.perform_plugin_scan(current_plugin_name)
             self.logger.info(f"Scan with {current_plugin_name} initiated")
             add_plugin_log(self.db_path, current_plugin_name, f"Scan initiated by state machine")
+            
+            # Set timeout to ensure scan completion even if a plugin fails to report completion
+            if self.loop:
+                self.loop.call_later(self.scan_timeout, 
+                                    lambda: self.mark_scan_complete(current_plugin_name, timed_out=True))
         except Exception as e:
             self.logger.error(f"Error executing scan plugin {current_plugin_name}: {str(e)}")
             add_plugin_log(self.db_path, current_plugin_name, f"Scan error: {str(e)}")
+            # Mark as complete even if it failed so we can move on
+            self.mark_scan_complete(current_plugin_name)
         
         # Move to the next plugin
         self.current_scan_index += 1
+
+    def mark_scan_complete(self, plugin_name: str, timed_out: bool = False) -> None:
+        """
+        Marks a scan as complete.
+        Called by plugins when they finish scanning or by timeout.
+        
+        Args:
+            plugin_name: Name of the plugin that completed scanning
+            timed_out: Whether the scan timed out
+        """
+        if timed_out:
+            self.logger.warning(f"Scan by {plugin_name} timed out after {self.scan_timeout} seconds")
+            add_plugin_log(self.db_path, plugin_name, f"Scan timed out after {self.scan_timeout} seconds")
+        
+        # Update active scans tracking
+        if plugin_name in self.active_scans:
+            self.active_scans[plugin_name] = False
+            self.logger.info(f"Scan by {plugin_name} completed")
 
     def register_scanning_plugins(self) -> None:
         """
@@ -112,6 +147,9 @@ class StateMachine:
         """
         self.scanning_plugins = self.plugin_manager.get_scanning_plugin_names()
         self.logger.info(f"Registered scanning plugins: {', '.join(self.scanning_plugins)}")
+        
+        # Initialize active scans tracking
+        self.active_scans = {plugin_name: False for plugin_name in self.scanning_plugins}
 
     async def notify_plugins(self, state: State, state_context=None,
                              mac: str = "", message: str = "", alert_data: Optional[Dict[str, Any]] = None,

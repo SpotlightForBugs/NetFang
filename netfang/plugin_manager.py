@@ -302,3 +302,18 @@ class PluginManager:
     def is_device_enabled(self, param):
         # following structure is assumed: "hardware": {"device_name": {"enabled": true|false}}
         return self.config.get("hardware", {}).get(param, {}).get("enabled", False)
+
+    def notify_scan_complete(self, plugin_name: str) -> None:
+        """
+        Notify the state machine that a scan has completed.
+        This should be called by plugins when they finish scanning.
+        
+        Args:
+            plugin_name: Name of the plugin that completed scanning
+        """
+        from netfang.state_machine import StateMachine
+        
+        if StateMachine.instance:
+            StateMachine.instance.mark_scan_complete(plugin_name)
+        else:
+            self.logger.warning(f"Cannot notify scan completion: StateMachine instance not available")

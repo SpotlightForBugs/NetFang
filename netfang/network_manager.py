@@ -2,13 +2,13 @@ import json
 import os
 import subprocess
 import threading
-from typing import Dict, Any, Optional, Callable, List
+from typing import Dict, Any, Optional, Callable, List, Tuple
 
 import netifaces
 
 from netfang.alert_manager import Alert
 from netfang.api.pi_utils import is_pi
-from netfang.db.database import get_network_by_mac, add_or_update_network
+from netfang.db.database import get_network_by_mac, add_or_update_network, get_devices
 from netfang.plugin_manager import PluginManager
 from netfang.state_machine import StateMachine
 from netfang.states.state import State
@@ -36,6 +36,8 @@ class NetworkManager:
         self.blacklisted_macs: List[str] = [m.upper() for m in flow_cfg.get("blacklisted_macs", [])]
         self.home_mac: str = flow_cfg.get("home_network_mac", "").upper()
         self.monitored_interfaces: List[str] = flow_cfg.get("monitored_interfaces", ["eth0"])
+        # Get the config value for scan_known_networks with default of False
+        self.scan_known_networks: bool = flow_cfg.get("scan_known_networks", False)
         NetworkManager.global_monitored_interfaces = self.monitored_interfaces
 
         # Instantiate the state machine
@@ -79,22 +81,21 @@ class NetworkManager:
 
     def _run_async_loop(self) -> None:
         """
-        Runs the asyncio event loop in a separate thread.
+        Internal method to run the asyncio event loop.
         """
         self._loop = asyncio.new_event_loop()
         asyncio.set_event_loop(self._loop)
-        # Set the loop in the state machine
-        self.state_machine.set_loop(self._loop)
         self.running = True
 
-        # Schedule the state machine's flow loop and the triggers loop.
-        # Enable the flow_task to ensure regular dashboard updates
-        self.flow_task = self._loop.create_task(self.state_machine.flow_loop())
-        self.trigger_task = self._loop.create_task(self.trigger_loop())
+        self.flow_task = self._loop.create_task(self.trigger_loop())
+        self.state_machine.register_scanning_plugins()
 
-        print("[NetworkManager] Event loop started in background thread")
-        self._loop.run_forever()
-        print("[NetworkManager] Event loop stopped")
+        try:
+            self._loop.run_forever()
+        finally:
+            self.running = False
+            self._loop.close()
+            self._loop = None
 
     async def stop(self) -> None:
         """
@@ -123,53 +124,92 @@ class NetworkManager:
 
     def handle_network_connection(self, interface_name: str) -> None:
         """
-        Processes a network connection event.
+        Handles network connection events.
+        
+        1. If connected to home network: no scanning
+        2. If connected to blacklisted network: no scanning
+        3. If connected to known network: scan only if explicitly configured
+        4. If connected to new network: always scan
         """
-        gateways = netifaces.gateways()
-        default_gateway = gateways.get("default", [])
-        if default_gateway and netifaces.AF_INET in default_gateway:
-            gateway_ip: str = default_gateway[netifaces.AF_INET][0]
-            script_dir: str = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            helper_script: str = os.path.join(script_dir, "netfang/scripts/arp_helper.py")
+        print(f"Connection detected on interface {interface_name}")
 
-            try:
-                result = subprocess.run(["sudo", "python3", helper_script, gateway_ip], capture_output=True, text=True,
-                                        check=True, )
-                response = json.loads(result.stdout)
-
-                if response["success"]:
-                    mac_address: str = response["mac_address"]
-                else:
-                    error_msg: str = response.get("error", "Unknown ARP error")
+        try:
+            gateways: Dict[int, Dict[int, Tuple[str, str, bool]]] = netifaces.gateways()
+            if 'default' in gateways:
+                try:
+                    ipa = netifaces.ifaddresses(interface_name)
+                    if netifaces.AF_INET in ipa:
+                        local_ip: str = ipa[netifaces.AF_INET][0]["addr"]
+                        print(f"Local IP: {local_ip}")
+                    default_interface = gateways['default'][netifaces.AF_INET][1]
+                    print(f"Default interface: {default_interface}")
+                    gateway_ip: str = gateways['default'][netifaces.AF_INET][0]
+                    print(f"Gateway IP: {gateway_ip}")
+                    result = subprocess.run(
+                        ["ip", "neigh", "show", gateway_ip], capture_output=True, text=True, check=True
+                    )
+                    if result.stdout:
+                        mac_address = result.stdout.split()[4]
+                    else:
+                        # Try using ping and arp to get MAC
+                        subprocess.run(["ping", "-c", "1", gateway_ip], capture_output=True, check=False)
+                        result = subprocess.run(["arp", "-a", gateway_ip], capture_output=True, text=True, check=True)
+                        try:
+                            mac_address = result.stdout.split("at ")[1].split(" ")[0]
+                        except IndexError:
+                            print(f"Could not parse MAC address from: {result.stdout}")
+                            self.handle_network_disconnection()
+                            return
+                except (subprocess.SubprocessError, json.JSONDecodeError) as e:
                     AlertManager.instance.alert_manager.raise_alert(Alert.category.NETWORK, Alert.level.WARNING,
-                                                                    error_msg)
+                                                                    f"Error while fetching MAC address: {e}")
                     return
-            except (subprocess.SubprocessError, json.JSONDecodeError) as e:
-                AlertManager.instance.alert_manager.raise_alert(Alert.category.NETWORK, Alert.level.WARNING,
-                                                                f"Error while fetching MAC address: {e}")
+            else:
+                print("No default gateway found!")
+                self.handle_network_disconnection()
                 return
-        else:
-            print("No default gateway found!")
-            self.handle_network_disconnection()
-            return
 
-        mac_upper: str = mac_address.upper()
-        is_blacklisted: bool = mac_upper in self.blacklisted_macs
-        is_home: bool = mac_upper == self.home_mac
-        net_info = get_network_by_mac(self.db_path, mac_upper)
+            mac_upper: str = mac_address.upper()
+            is_blacklisted: bool = mac_upper in self.blacklisted_macs
+            is_home: bool = mac_upper == self.home_mac
+            net_info = get_network_by_mac(self.db_path, mac_upper)
+            
+            # Determine if this is a truly new network (not home, not blacklisted, and either not in DB or has no devices)
+            is_new_network = False
+            if not is_home and not is_blacklisted:
+                if not net_info:
+                    # Network not in DB
+                    is_new_network = True
+                else:
+                    # Check if there are any devices saved for this network
+                    network_id = net_info["id"]
+                    devices = get_devices(self.db_path, network_id)
+                    if not devices:
+                        is_new_network = True
 
-        if is_blacklisted:
-            add_or_update_network(self.db_path, mac_upper, True, False)
-            self.state_machine.update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
-        elif is_home:
-            add_or_update_network(self.db_path, mac_upper, False, True)
-            self.state_machine.update_state(State.CONNECTED_HOME, mac=mac_upper)
-        elif not net_info:
-            add_or_update_network(self.db_path, mac_upper, False, False)
-            self.state_machine.update_state(State.CONNECTED_NEW, mac=mac_upper)
-        else:
-            add_or_update_network(self.db_path, mac_upper, False, False)
-            self.state_machine.update_state(State.CONNECTED_KNOWN, mac=mac_upper)
+            # Update network in the database
+            if is_blacklisted:
+                add_or_update_network(self.db_path, mac_upper, True, False)
+                self.state_machine.update_state(State.CONNECTED_BLACKLISTED, mac=mac_upper)
+            elif is_home:
+                add_or_update_network(self.db_path, mac_upper, False, True)
+                self.state_machine.update_state(State.CONNECTED_HOME, mac=mac_upper)
+            elif is_new_network:
+                add_or_update_network(self.db_path, mac_upper, False, False)
+                self.state_machine.update_state(State.CONNECTED_NEW, mac=mac_upper)
+            else:
+                add_or_update_network(self.db_path, mac_upper, False, False)
+                # If we want to scan known networks based on config, use CONNECTED_NEW state to trigger scanning
+                # Otherwise use CONNECTED_KNOWN state which doesn't trigger scanning
+                if self.scan_known_networks:
+                    self.state_machine.update_state(State.CONNECTED_NEW, mac=mac_upper)
+                else:
+                    self.state_machine.update_state(State.CONNECTED_KNOWN, mac=mac_upper)
+                
+        except Exception as e:
+            print(f"Error handling network connection: {str(e)}")
+            AlertManager.instance.alert_manager.raise_alert(Alert.category.NETWORK, Alert.level.WARNING,
+                                                            f"Error handling network connection: {str(e)}")
 
     @classmethod
     def handle_network_disconnection(cls) -> None:

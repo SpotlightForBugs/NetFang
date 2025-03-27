@@ -236,14 +236,19 @@ class ArpScanPlugin(BasePlugin):
         self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
 
     def on_known_network_connected(self, mac: str) -> None:
-        """Handle known network connection (not scanning the home network)"""
+        """Handle known network connection - DO NOT scan unless specified in UI/config"""
         self.logger.info(f"[{self.name}] Known network connected with MAC {mac} - not scanning")
+        add_plugin_log(self.config["database_path"], self.name, f"Known network connected - not scanning: {mac}")
         
+    def on_connected_blacklisted(self, mac: str) -> None:
+        """Handle blacklisted network connection - DO NOT scan blacklisted networks"""
+        self.logger.info(f"[{self.name}] Blacklisted network connected with MAC {mac} - not scanning")
+        add_plugin_log(self.config["database_path"], self.name, f"Blacklisted network connected - not scanning: {mac}")
+
     def on_home_network_connected(self) -> None:
-        """Handle home network connection by scanning it"""
-        self.logger.info(f"[{self.name}] Home network connected - initiating scan...")
-        # Scan on home network connection - run in background
-        self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
+        """Handle home network connection - DO NOT scan home networks"""
+        self.logger.info(f"[{self.name}] Home network connected - not scanning for security reasons")
+        add_plugin_log(self.config["database_path"], self.name, "Home network connected - not scanning")
 
     def on_connected_new(self) -> None:
         """Handle generic new connection by scanning"""
@@ -255,6 +260,7 @@ class ArpScanPlugin(BasePlugin):
         """Reset scan flag when scan is complete"""
         self.scan_in_progress = False
         self.logger.info(f"[{self.name}] Scan completed")
+        add_plugin_log(self.config["database_path"], self.name, "Scan completed")
 
     def fingerprint_device(self, ip_address: str) -> Optional[Dict[str, str]]:
         """Get the ARP fingerprint for a specific IP address"""
@@ -428,6 +434,9 @@ class ArpScanPlugin(BasePlugin):
             db_path = self.config["database_path"]
             add_plugin_log(db_path, self.name, "Starting network scan")
 
+            # Set scan flag so we know scan is in progress
+            self.scan_in_progress = True
+
             if args[1] == "localnet":
                 try:
                     all_ips = set()
@@ -443,6 +452,9 @@ class ArpScanPlugin(BasePlugin):
                         self.logger.warning("No ethernet interfaces available for scanning")
                         add_plugin_log(db_path, self.name, "No ethernet interfaces available for scanning")
                         self.scan_in_progress = False
+                        
+                        # Notify that our scan is complete even though it didn't do anything
+                        self._notify_scan_complete()
                         return
                     
                     # Run scans in parallel for each interface
@@ -556,8 +568,30 @@ class ArpScanPlugin(BasePlugin):
                     self.scan_in_progress = False
                     self.logger.info(f"[{self.name}] Network scan complete - saved {len(all_ips)} devices to database")
                     add_plugin_log(db_path, self.name, f"Scan complete - stored {len(all_ips)} devices in database")
+                    
+                    # Notify StateMachine that our scan is complete
+                    self._notify_scan_complete()
                 
                 except Exception as e:
                     self.scan_in_progress = False
                     self.logger.error(f"[{self.name}] Error during scan: {str(e)}")
                     add_plugin_log(db_path, self.name, f"Scan error: {str(e)}")
+                    
+                    # Notify scan completion even if there was an error
+                    self._notify_scan_complete()
+
+    def _notify_scan_complete(self) -> None:
+        """
+        Notify the plugin manager that the scan is complete.
+        """
+        try:
+            # Get plugin manager instance and notify scan completion
+            from netfang.plugin_manager import PluginManager
+            manager = PluginManager.instance
+            if manager:
+                manager.notify_scan_complete(self.name)
+            else:
+                self.logger.warning("Cannot notify scan completion: PluginManager instance not available")
+        except Exception as e:
+            self.logger.error(f"Error notifying scan completion: {str(e)}")
+            add_plugin_log(self.config["database_path"], self.name, f"Error notifying scan completion: {str(e)}")

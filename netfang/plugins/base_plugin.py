@@ -1,7 +1,7 @@
 # netfang/plugins/base_plugin.py
 
 from abc import ABC, abstractmethod
-from typing import Any, Dict
+from typing import Any, Callable, Dict, List
 
 from netfang.alert_manager import Alert
 
@@ -14,7 +14,17 @@ class BasePlugin(ABC):
 
     def __init__(self, config: Dict[str, Any]) -> None:
         self.config: Dict[str, Any] = config
+        self.callbacks: List[Callable] = []
 
+    def register_callback(self, callback: Callable) -> None:
+        """Register a callback function to be executed by the plugin."""
+        self.callbacks.append(callback)
+
+    def execute_callbacks(self, *args, **kwargs) -> None:
+        """Execute all registered callback functions with the provided arguments."""
+        for callback in self.callbacks:
+            callback(*args, **kwargs)
+            
     @abstractmethod
     def on_setup(self) -> None:
         """Called once after plugin is loaded."""
