@@ -1,19 +1,23 @@
 import logging
 import re
 import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, Optional
 
 from netfang.db.database import add_plugin_log
-from netfang.plugins.defaults.plugin_arpscan import BaseArpPlugin
+from netfang.plugins.base_plugin import BasePlugin
 
 
-class ArpCachePlugin(BaseArpPlugin):
+class ArpCachePlugin(BasePlugin):
     """Plugin for querying the ARP cache to find MAC addresses for IP addresses"""
     name = "ArpCache"
 
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         self.logger = logging.getLogger(__name__)
+        self.thread_pool = ThreadPoolExecutor(max_workers=3)
+        
         # Get plugin-specific config
         plugin_cfg = self.config.get("plugin_config", {})
         self.arp_timeout = plugin_cfg.get("arp_timeout", 5)

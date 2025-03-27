@@ -1,26 +1,49 @@
 import logging
+import re
+import subprocess
+import time
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any, Dict, List, Optional
 
-import subprocess
-import re
-
-from netfang.db.database import add_plugin_log, add_or_update_device, get_network_by_mac
-from netfang.plugins.defaults.plugin_arpscan import BaseArpPlugin, parse_arp_fingerprint
+from netfang.db.database import add_plugin_log, add_or_update_device, get_devices
+from netfang.plugins.base_plugin import BasePlugin
 
 
-class ArpFingerprintPlugin(BaseArpPlugin):
+def parse_arp_fingerprint(output: str) -> Dict[str, str]:
+    """Parse the output of arp-fingerprint command."""
+    fingerprint = {}
+    
+    # Parse the arp-fingerprint output
+    lines = output.strip().split("\n")
+    for line in lines:
+        if "=" in line:
+            key, value = line.split("=", 1)
+            fingerprint[key.strip()] = value.strip()
+        else:
+            # Handle space-separated format like "192.168.178.1   01000000000     UNKNOWN"
+            parts = line.strip().split()
+            if len(parts) >= 3:
+                fingerprint["ip"] = parts[0]
+                fingerprint["fingerprint"] = parts[1]
+                fingerprint["type"] = parts[2] 
+    
+    return fingerprint
+
+
+class ArpFingerprintPlugin(BasePlugin):
     """Plugin for fingerprinting devices using arp-fingerprint"""
     name = "ArpFingerprint"
 
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
+        self.scan_in_progress = False
         self.logger = logging.getLogger(__name__)
+        self.thread_pool = ThreadPoolExecutor(max_workers=5)
+        
         # Get plugin-specific config
         plugin_cfg = self.config.get("plugin_config", {})
         self.max_devices_per_scan = plugin_cfg.get("max_devices_per_scan", 10)
         self.fingerprint_timeout = plugin_cfg.get("fingerprint_timeout", 10)
-        # Initialize interfaces in background
-        self.thread_pool.submit(self._init_interfaces)
 
     def on_setup(self) -> None:
         self.logger.info(f"[{self.name}] Setup complete.")
@@ -89,7 +112,6 @@ class ArpFingerprintPlugin(BaseArpPlugin):
 
     def get_recent_devices(self, db_path: str, limit: int) -> List[Dict[str, Any]]:
         """Get most recent devices from database to fingerprint"""
-        from netfang.db.database import get_devices
         return get_devices(db_path, limit=limit)
 
     def perform_action(self, args: list) -> None:

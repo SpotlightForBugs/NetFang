@@ -11,8 +11,8 @@ from netfang.db.database import add_plugin_log, add_or_update_device, add_or_upd
 from netfang.plugins.base_plugin import BasePlugin
 
 
-# Parsers are kept as common functions to be used by different plugins
 def parse_arp_scan(output: str, mode: str) -> Dict[str, Any]:
+    """Parse the output of arp-scan command."""
     parsed_result = {
         "interface": None,
         "mac_address": None,
@@ -51,29 +51,10 @@ def parse_arp_scan(output: str, mode: str) -> Dict[str, Any]:
     return parsed_result
 
 
-def parse_arp_fingerprint(output: str) -> Dict[str, str]:
-    fingerprint = {}
-    
-    # Parse the arp-fingerprint output
-    lines = output.strip().split("\n")
-    for line in lines:
-        if "=" in line:
-            key, value = line.split("=", 1)
-            fingerprint[key.strip()] = value.strip()
-        else:
-            # Handle space-separated format like "192.168.178.1   01000000000     UNKNOWN"
-            parts = line.strip().split()
-            if len(parts) >= 3:
-                fingerprint["ip"] = parts[0]
-                fingerprint["fingerprint"] = parts[1]
-                fingerprint["type"] = parts[2] 
-    
-    return fingerprint
+class ArpScanPlugin(BasePlugin):
+    """Plugin for running arp-scan to discover devices on the network"""
+    name = "ArpScan"
 
-
-class BaseArpPlugin(BasePlugin):
-    """Base class with common functionality for ARP-related plugins"""
-    
     def __init__(self, config: Dict[str, Any]) -> None:
         super().__init__(config)
         self.scan_in_progress = False
@@ -82,7 +63,16 @@ class BaseArpPlugin(BasePlugin):
         self.interfaces = None
         self.last_scan_time = 0
         self.scan_throttle = 60  # Minimum seconds between scans
-    
+        
+        # Get plugin-specific config
+        plugin_cfg = self.config.get("plugin_config", {})
+        self.scan_timeout = plugin_cfg.get("scan_timeout", 30)
+        self.auto_scan_new_network = plugin_cfg.get("auto_scan_new_network", True)
+        self.auto_scan_known_network = plugin_cfg.get("auto_scan_known_network", False)
+        self.router_vendor_name = plugin_cfg.get("router_vendor_name", "NetFang Router")
+        # Initialize interfaces in background
+        self.thread_pool.submit(self._init_interfaces)
+
     def _init_interfaces(self) -> None:
         """Initialize interfaces in background"""
         self.interfaces = self._detect_interfaces()
@@ -231,22 +221,6 @@ class BaseArpPlugin(BasePlugin):
             self.logger.error(f"Error notifying scan completion: {str(e)}")
             add_plugin_log(self.config["database_path"], self.name, f"Error notifying scan completion: {str(e)}")
 
-
-class ArpScanPlugin(BaseArpPlugin):
-    """Plugin for running arp-scan to discover devices on the network"""
-    name = "ArpScan"
-
-    def __init__(self, config: Dict[str, Any]) -> None:
-        super().__init__(config)
-        # Get plugin-specific config
-        plugin_cfg = self.config.get("plugin_config", {})
-        self.scan_timeout = plugin_cfg.get("scan_timeout", 30)
-        self.auto_scan_new_network = plugin_cfg.get("auto_scan_new_network", True)
-        self.auto_scan_known_network = plugin_cfg.get("auto_scan_known_network", False)
-        self.router_vendor_name = plugin_cfg.get("router_vendor_name", "NetFang Router")
-        # Initialize interfaces in background
-        self.thread_pool.submit(self._init_interfaces)
-
     def on_setup(self) -> None:
         self.logger.info(f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces or ['detecting...'])}")
         add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found ethernet interfaces: {', '.join(self.interfaces or ['detecting...'])}")
@@ -286,7 +260,7 @@ class ArpScanPlugin(BaseArpPlugin):
             # Run the scan
             self.perform_action([self.name, "localnet", "all"])
         except Exception as e:
-            self.logger.error(f"[{self.name}] Error in background scan: {str(e)}")
+            self.logger.error(f"Error in background scan: {str(e)}")
             self.scan_in_progress = False
 
     def on_new_network_connected(self, mac: str) -> None:
@@ -396,10 +370,9 @@ class ArpScanPlugin(BaseArpPlugin):
             # Try to use ArpCache plugin if available
             from netfang.plugin_manager import PluginManager
             manager = PluginManager.instance
-            if manager and manager.is_plugin_enabled("ArpCache"):
-                # Directly call the plugin's method
+            if manager:
                 for plugin in manager.plugins.values():
-                    if plugin.name == "ArpCache":
+                    if plugin.name == "ArpCache" and hasattr(plugin, "get_mac_for_ip"):
                         return plugin.get_mac_for_ip(ip)
             
             # Fallback to built-in method if ArpCache plugin is not available
