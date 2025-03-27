@@ -31,12 +31,12 @@ class StateMachine:
         self.return_state_after_scan: Optional[State] = None
         self.active_scans: Dict[str, bool] = {}  # Track active scans by plugin name
         self.scan_timeout: int = 120  # Safety timeout in seconds to avoid scan hang
+        self.action_threads: List[threading.Thread] = []  # Track action threads
 
     def set_loop(self, loop: asyncio.AbstractEventLoop) -> None:
         """Sets the event loop for scheduling state update tasks."""
         self.loop = loop
         self.logger.info("Event loop has been set in StateMachine")
-
     async def flow_loop(self) -> None:
         """
         Main loop that periodically notifies plugins about the current state.
@@ -59,6 +59,10 @@ class StateMachine:
                         await self.manage_scan_sequence()
                     
                     # Regularly broadcast dashboard updates
+                    await socketio_handler.broadcast_dashboard_update()
+                    
+                    # Clean up completed threads
+                    self.cleanup_completed_threads()
                     await socketio_handler.broadcast_dashboard_update()
                         
             except Exception as e:
@@ -235,19 +239,19 @@ class StateMachine:
             elif state == State.PERFORM_ACTION:
                 if not perform_action_data or len(perform_action_data) < 2:
                     self.logger.error("perform_action requires at least plugin_name and network_id")
-                    return
-                    
-                plugin = self.plugin_manager.get_plugin_by_name(perform_action_data[0])
-                if plugin and verify_network_id(self.db_path, perform_action_data[1]):
-                    # Run the action in a background thread
-                    thread = threading.Thread(target=self.plugin_manager.perform_action, args=perform_action_data)
-                    thread.daemon = True
-                    thread.start()
                 else:
+                    plugin = self.plugin_manager.get_plugin_by_name(perform_action_data[0])
                     if not plugin:
                         self.logger.error(f"Plugin not found: {perform_action_data[0]}")
-                    if not verify_network_id(self.db_path, perform_action_data[1]):
+                    elif not verify_network_id(self.db_path, perform_action_data[1]):
                         self.logger.error(f"Invalid network ID: {perform_action_data[1]}")
+                    else:
+                        # Run the action in a background thread
+                        thread = threading.Thread(target=self.plugin_manager.perform_action, args=perform_action_data)
+                        thread.daemon = True
+                        thread.start()
+                        self.action_threads.append(thread)
+                        self.cleanup_completed_threads()
             else:
                 self.logger.warning(f"Unhandled state: {state}")
                 
@@ -308,7 +312,19 @@ class StateMachine:
                 await socketio_handler.broadcast_state_change(self.current_state, self.state_context)
                 
                 await self.notify_plugins(self.current_state, self.state_context, mac, message, alert_data,
-                                          perform_action_data)
+                self.loop.create_task(update()))
+        
+        def cleanup_completed_threads(self) -> None:
+            """
+            Joins and removes completed action threads.
+            """
+            remaining_threads = []
+            for thread in self.action_threads:
+                if not thread.is_alive():
+                    thread.join()  # Join completed threads
+                else:
+                    remaining_threads.append(thread)
+            self.action_threads = remaining_threads
 
         if self.loop is None:
             self.logger.error("Event loop for StateMachine is not set!")

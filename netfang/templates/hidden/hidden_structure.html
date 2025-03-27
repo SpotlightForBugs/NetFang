@@ -40,8 +40,17 @@
                 <h1>{% block header_title %}NetFang Router{% endblock %}</h1>
             </div>
 
-            <!-- Badge in top-right corner -->
-            <span id="connectionBadge" class="badge disconnected">Unknown</span>
+            <!-- Right side controls -->
+            <div class="d-flex align-items-center">
+                <!-- Logout button -->
+                <a href="{{ url_for('logout') }}" class="btn btn-outline-danger btn-sm logout-btn me-3">
+                    <i class="fas fa-sign-out-alt"></i> 
+                    {{ 'Abmelden' if request.accept_languages.best_match(['de','en'])=='de' else 'Logout' }}
+                </a>
+                
+                <!-- Badge in top-right corner -->
+                <span id="connectionBadge" class="badge disconnected">Unknown</span>
+            </div>
         </div>
     </header>
 
