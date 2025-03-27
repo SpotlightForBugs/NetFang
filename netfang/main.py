@@ -194,6 +194,10 @@ def dashboard():
         return redirect(url_for('frontpage'))
     return render_template("hidden/index.html",hostname=platform.node(),state=NetworkManager.instance.state_machine.current_state.value)
 
+@app.route("/logout")
+def logout():
+    session.pop('logged_in', None)
+    return redirect(url_for('frontpage'))
 
 @app.route("/state")
 def get_current_state():
