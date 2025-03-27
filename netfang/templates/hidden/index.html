@@ -452,13 +452,13 @@
             }, 3000);
         }
         
-        // Listen for dashboard data from the server
+        // Listen for dashboard data from the server using the global socket
         socket.on('dashboard_data', (data) => {
             console.log(`[${new Date().toLocaleTimeString()}] Dashboard data received:`, data);
             updateDashboardData(data);
         });
         
-        // Listen for alert notifications from the server
+        // Listen for alert notifications from the server using the global socket
         socket.on('alert_sync', (data) => {
             console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, data);
             if (data.level === 'ERROR' || data.level === 'CRITICAL') {
