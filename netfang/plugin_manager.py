@@ -441,16 +441,20 @@ class PluginManager:
                             # No running event loop in this thread
                             self.logger.warning("No running event loop found, using alternative approach")
                             
-                            # Create a task for later execution, don't wait for completion
-                            async def transition_later():
-                                try:
-                                    await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
-                                    self.logger.info("Async state transition completed")
-                                except Exception as e:
-                                    self.logger.error(f"Error in async state transition: {str(e)}")
-                            
-                            # Schedule the task without creating a new event loop
-                            asyncio.create_task(transition_later())
+                            # Instead of creating a task without awaiting it, use a safer approach
+                            # Create a new event loop and run the coroutine in it
+                            async def transition_state():
+                                await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
+                                self.logger.info("Async state transition completed")
+                                
+                            # Run the coroutine in a new event loop
+                            asyncio_loop = asyncio.new_event_loop()
+                            try:
+                                asyncio_loop.run_until_complete(transition_state())
+                            except Exception as e:
+                                self.logger.error(f"Error in async state transition: {str(e)}")
+                            finally:
+                                asyncio_loop.close()
                         
                         # Reset scan tracking after scheduling transition
                         self.scanning_plugins = {}
