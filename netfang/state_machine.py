@@ -239,21 +239,19 @@ class StateMachine:
             elif state == State.PERFORM_ACTION:
                 if not perform_action_data or len(perform_action_data) < 2:
                     self.logger.error("perform_action requires at least plugin_name and network_id")
-                    # Run the action in a background thread
-                    thread = threading.Thread(target=self.plugin_manager.perform_action, args=perform_action_data)
-                    thread.daemon = True
-                    thread.start()
-                    self.action_threads.append(thread)
-                    self.cleanup_completed_threads()
-                    # Run the action in a background thread
-                    thread = threading.Thread(target=self.plugin_manager.perform_action, args=perform_action_data)
-                    thread.daemon = True
-                    thread.start()
                 else:
+                    plugin = self.plugin_manager.get_plugin_by_name(perform_action_data[0])
                     if not plugin:
                         self.logger.error(f"Plugin not found: {perform_action_data[0]}")
-                    if not verify_network_id(self.db_path, perform_action_data[1]):
+                    elif not verify_network_id(self.db_path, perform_action_data[1]):
                         self.logger.error(f"Invalid network ID: {perform_action_data[1]}")
+                    else:
+                        # Run the action in a background thread
+                        thread = threading.Thread(target=self.plugin_manager.perform_action, args=perform_action_data)
+                        thread.daemon = True
+                        thread.start()
+                        self.action_threads.append(thread)
+                        self.cleanup_completed_threads()
             else:
                 self.logger.warning(f"Unhandled state: {state}")
                 
