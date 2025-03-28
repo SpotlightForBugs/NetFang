@@ -238,9 +238,9 @@ def handle_sync_dashboard():
     
     # Create a debug log when dashboard is synced
     from netfang.db.database import add_plugin_log
+    global db_path  # Use the global db_path variable
     add_plugin_log(db_path, "Dashboard", "Dashboard sync requested")
     
-    db_path = PluginManager.config.get("database_path", "netfang.db")
     dashboard_data = get_dashboard_data(db_path)
     emit("dashboard_data", dashboard_data)
 

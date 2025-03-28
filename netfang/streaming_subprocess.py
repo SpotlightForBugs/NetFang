@@ -77,6 +77,25 @@ class StreamingSubprocess:
             # Clear the active processes tracking
             cls._active_processes = {}
 
+    @classmethod
+    async def send_cached_output_to_client(cls, client_id: str) -> None:
+        """
+        Send cached output of all active processes to a newly connected client.
+
+        Args:
+            client_id: The Socket.IO client ID to send the cached output to.
+        """
+        for process_id, cached_output in cls._output_cache.items():
+            for line in cached_output:
+                await handler.stream_command_output(
+                    line["plugin_name"],
+                    line["command"],
+                    line["output"],
+                    line["is_complete"],
+                    process_id,
+                    client_id=client_id
+                )
+
     async def run(self) -> Dict[str, Any]:
         """
         Run the subprocess command and stream output to the dashboard.
@@ -151,7 +170,7 @@ class StreamingSubprocess:
                 result = {
                     "status": "timeout",
                     "stdout": stdout_task.result(),
-                    "stderr": stderr_task.result(),
+                    "stderr": stdout_task.result(),
                     "return_code": -1,
                 }
 
