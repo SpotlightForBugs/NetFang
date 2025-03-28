@@ -443,6 +443,7 @@
     }
 
     function addPluginLog(log, animate = true) {
+        console.log('Adding plugin log:', log); // Debugging log
         // Clear placeholder if present
         if (pluginLogsTableBody.rows.length === 1 && pluginLogsTableBody.rows[0].cells.length > 1 && pluginLogsTableBody.rows[0].textContent.includes("Waiting")) {
             pluginLogsTableBody.innerHTML = '';
@@ -760,7 +761,7 @@
     });
 
     socket.on('register_action', (action) => {
-        console.log(`[${new Date().toLocaleTimeString()}] Action registered:`, action);
+        console.log('Registering action:', action); // Debugging log
         if (action && action.action_id) {
             registeredActions[action.action_id] = action;
             updateActionsPanel();
