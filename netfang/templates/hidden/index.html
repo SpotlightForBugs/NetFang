@@ -1,141 +1,153 @@
 {% extends "hidden/hidden_structure.html" %}
 
-{% block title %}NetFang Secured Router{% endblock %}
+{% block title %}NetFang Secured Router - Dashboard{% endblock %}
 
 {% block header_title %}NetFang Secured Router - {{ hostname }}{% endblock %}
 
 {% block main_content %}
-    <!-- State Indicator -->
-    <div class="state-indicator state-{{ state | lower | replace('_', '-') }}">
-        <strong>NetFang Status:</strong>
-        <span id="state">{{ state }}</span>
-        <div id="scanningIndicator" class="scanning-indicator">
-            <div class="scanning-pulse"></div>
-            <span>Scanning network...</span>
+    <!-- Status Bar - Now uses glass-panel style -->
+    <div class="state-indicator state-{{ state | lower | replace('_', '-') }} glass-panel mb-4">
+        <div class="status-header">
+            <h2><i class="fas fa-shield-alt"></i> NetFang Status</h2>
+            <span id="state" class="status-badge">{{ state }}</span>
         </div>
-        <div class="state-status-bar">
-            <div class="state-status-progress"></div>
+        <div class="status-progress">
+            <div id="scanningIndicator" class="scanning-indicator">
+                <div class="scanning-pulse"></div>
+                <span>Scanning network...</span>
+            </div>
+            <div class="state-status-bar">
+                <div class="state-status-progress"></div>
+            </div>
         </div>
-        <div id="stateDescription" class="state-description mt-2" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Current operational status and context.">
+        <div id="stateDescription" class="state-description" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Current operational status and context.">
             <!-- Description populated by JS -->
         </div>
     </div>
 
-    <!-- Current Processes Display -->
-    <div id="currentProcessesContainer" class="current-processes-container">
-        <!-- Dynamically added process boxes -->
+    <!-- Main Dashboard Container - Uses the layout from the base template -->
+    <div class="dashboard-layout">
+        <!-- Left Column - Core Information -->
+        <div class="dashboard-column">
+            <!-- Networks Information - Now uses glass-panel style -->
+            <div class="dashboard-panel glass-panel">
+                <div class="panel-header" data-bs-toggle="tooltip" title="Detected networks and their status.">
+                    <h3><i class="fas fa-network-wired"></i> Networks</h3>
+                    <span class="panel-toggle">▼</span>
+                </div>
+                <div class="panel-content">
+                    <div class="table-container">
+                        <table class="data-table" id="networksTable">
+                            <thead>
+                                <tr>
+                                    <th>MAC Address</th>
+                                    <th>Status</th>
+                                    <th>Last Seen</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="4" class="text-center p-3">Loading network data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Devices Information - Now uses glass-panel style -->
+            <div class="dashboard-panel glass-panel">
+                <div class="panel-header" data-bs-toggle="tooltip" title="Devices detected on the current or known networks.">
+                    <h3><i class="fas fa-laptop"></i> Devices</h3>
+                    <span class="panel-toggle">▼</span>
+                </div>
+                <div class="panel-content">
+                    <div class="table-container">
+                        <table class="data-table" id="devicesTable">
+                            <thead>
+                                <tr>
+                                    <th>IP Address</th>
+                                    <th>MAC Address</th>
+                                    <th>Vendor</th>
+                                    <th>Network</th>
+                                    <th>Details & Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="5" class="text-center p-3">Loading device data...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Actions and Logs -->
+        <div class="dashboard-column">
+            <!-- Current Processes Display -->
+            <div id="currentProcessesContainer" class="current-processes-container">
+                <!-- Dynamically added process boxes will use glass-panel -->
+            </div>
+
+            <!-- Plugin Actions - Now uses glass-panel style -->
+            <div class="dashboard-panel glass-panel">
+                <div class="panel-header" data-bs-toggle="tooltip" title="Global actions provided by plugins.">
+                    <h3><i class="fas fa-bolt"></i> Available Actions</h3>
+                    <span class="panel-toggle">▼</span>
+                </div>
+                <div class="panel-content">
+                    <div class="action-container" id="pluginActionsContainer">
+                        <p class="no-actions-message">No global actions available from plugins.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plugin Logs - Now uses glass-panel style -->
+            <div class="dashboard-panel glass-panel">
+                <div class="panel-header" data-bs-toggle="tooltip" title="Real-time logs generated by active plugins.">
+                    <h3><i class="fas fa-list-alt"></i> Plugin Logs</h3>
+                    <span class="panel-toggle collapsed">▼</span>
+                </div>
+                <div class="panel-content collapsed">
+                    <div class="table-container">
+                        <table class="data-table" id="pluginLogsTable">
+                            <thead>
+                                <tr>
+                                    <th>Plugin</th>
+                                    <th>Event</th>
+                                    <th>Timestamp</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td colspan="3" class="text-center p-3">Waiting for plugin logs...</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="table-actions">
+                        <button id="clearLogsButton" class="btn btn-outline-secondary btn-sm" data-bs-toggle="tooltip" title="Clear the log display (does not delete logs from server).">
+                            <i class="fas fa-eraser"></i> Clear Logs
+                        </button>
+                        <button id="autoScrollToggle" class="btn btn-outline-secondary btn-sm active" data-bs-toggle="tooltip" title="Toggle automatic scrolling to the latest log entry.">
+                            <i class="fas fa-scroll"></i> Auto-scroll: ON
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <!-- Dashboard Panels -->
-    <div class="dashboard-container dashboard-state-{{ state | lower | replace('_', '-') }}">
-        <!-- Network Information -->
-        <div class="dashboard-panel">
-            <div class="panel-header" data-bs-toggle="tooltip" title="Detected networks and their status.">
-                <h2>Networks</h2>
-                <span class="panel-toggle">▼</span>
-            </div>
-            <div class="panel-content">
-                <div class="table-container">
-                    <table class="data-table" id="networksTable">
-                        <thead>
-                            <tr>
-                                <th>MAC Address</th>
-                                <th>Status</th>
-                                <th>Last Seen</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Populated by JS -->
-                            <tr><td colspan="4" class="text-center p-3">Loading network data...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
+    <!-- Dashboard Controls - Now uses glass-panel style -->
+    <div class="dashboard-controls glass-panel mt-4">
+        <div class="control-buttons">
+            <button id="syncButton" class="btn btn-primary" data-bs-toggle="tooltip" title="Manually refresh all dashboard data.">
+                <i class="fas fa-sync-alt"></i> Sync Dashboard
+            </button>
+            <button id="restartServiceButton" class="btn btn-warning" data-bs-toggle="tooltip" title="Restart the core NetFang service.">
+                <i class="fas fa-power-off"></i> Restart Netfang Service
+            </button>
+            <button id="reInitNetfangButton" class="btn btn-danger" data-bs-toggle="tooltip" title="Delete the database and restart the NetFang service.">
+                <i class="fas fa-exclamation-triangle"></i> Delete Database and Restart
+            </button>
         </div>
-
-        <!-- Devices Information -->
-        <div class="dashboard-panel">
-            <div class="panel-header" data-bs-toggle="tooltip" title="Devices detected on the current or known networks.">
-                <h2>Devices</h2>
-                <span class="panel-toggle">▼</span>
-            </div>
-            <div class="panel-content">
-                <div class="table-container">
-                    <table class="data-table" id="devicesTable">
-                        <thead>
-                            <tr>
-                                <th>IP Address</th>
-                                <th>MAC Address</th>
-                                <th>Vendor</th>
-                                <th>Network</th>
-                                <th>Details & Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Populated by JS -->
-                            <tr><td colspan="5" class="text-center p-3">Loading device data...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Plugin Logs -->
-        <div class="dashboard-panel">
-            <div class="panel-header" data-bs-toggle="tooltip" title="Real-time logs generated by active plugins.">
-                <h2>Plugin Logs</h2>
-                <span class="panel-toggle collapsed">▼</span>
-            </div>
-            <div class="panel-content collapsed">
-                <div class="table-container">
-                    <table class="data-table" id="pluginLogsTable">
-                        <thead>
-                            <tr>
-                                <th>Plugin</th>
-                                <th>Event</th>
-                                <th>Timestamp</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Populated by JS -->
-                            <tr><td colspan="3" class="text-center p-3">Waiting for plugin logs...</td></tr>
-                        </tbody>
-                    </table>
-                </div>
-                <div class="table-actions">
-                    <button id="clearLogsButton" class="clear-logs-button btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="Clear the log display (does not delete logs from server).">Clear Log Display</button>
-                    <button id="autoScrollToggle" class="auto-scroll-button active btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="Toggle automatic scrolling to the latest log entry.">Auto-scroll: ON</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Plugin Actions -->
-        <div class="dashboard-panel">
-            <div class="panel-header" data-bs-toggle="tooltip" title="Global actions provided by plugins.">
-                <h2>Available Actions</h2>
-                <span class="panel-toggle">▼</span>
-            </div>
-            <div class="panel-content">
-                <div class="action-container" id="pluginActionsContainer">
-                    <p class="no-actions-message">No global actions available from plugins.</p>
-                    <!-- Populated by JS -->
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Dashboard Controls -->
-    <div class="dashboard-controls">
-        <button id="syncButton" class="sync-button btn btn-primary" data-bs-toggle="tooltip" title="Manually refresh all dashboard data.">
-            <i class="fas fa-sync-alt"></i> Sync Dashboard
-        </button>
-        <button id="restartServiceButton" class="service-button btn btn-warning" data-bs-toggle="tooltip" title="Restart the core NetFang service.">
-            <i class="fas fa-power-off"></i> Restart Netfang Service
-        </button>
-        <button id="reInitNetfangButton" class="service-button btn btn-danger" data-bs-toggle="tooltip" title="Delete the database and restart the NetFang service.">
-            <i class="fas fa-exclamation-triangle"></i> Delete Database and restart
-        </button>
         <div id="statusMessage" class="status-message"></div>
     </div>
 {% endblock %}
@@ -174,7 +186,6 @@
         'SCANNING_IN_PROGRESS': 'Network scan in progress. Discovering devices and assessing threats...',
         'SCAN_COMPLETED': 'Network scan finished. Analyzing results...',
         'PERFORM_ACTION': 'Executing requested security action...'
-        // Add more states as needed
     };
 
     // --- DOM Element References ---
@@ -183,7 +194,7 @@
     const stateIndicator = document.querySelector(".state-indicator");
     const stateStatusProgress = document.querySelector(".state-status-progress");
     const stateDescription = document.getElementById("stateDescription");
-    const dashboardContainer = document.querySelector(".dashboard-container");
+    // Note: dashboardContainer reference removed as layout is now handled by base template
     const currentProcessesContainer = document.getElementById('currentProcessesContainer');
     const pluginLogsTableBody = document.getElementById('pluginLogsTable').querySelector('tbody');
     const clearLogsButton = document.getElementById('clearLogsButton');
@@ -201,7 +212,6 @@
         if (!timestamp) return 'N/A';
         try {
             const date = new Date(timestamp);
-            // Use locale-sensitive formatting
             return date.toLocaleString(undefined, {
                 dateStyle: 'short',
                 timeStyle: 'medium'
@@ -214,7 +224,7 @@
 
     function showStatusMessage(message, duration = 3000, type = 'info') {
         statusMessage.textContent = message;
-        statusMessage.className = `status-message ${type}`; // Add type class for styling
+        statusMessage.className = `status-message ${type}`;
         statusMessage.style.opacity = 1;
         setTimeout(() => {
             statusMessage.style.opacity = 0;
@@ -223,17 +233,26 @@
 
     // Initialize Bootstrap Tooltips
     function initializeTooltips() {
+        // Dispose existing tooltips first to prevent duplicates
+        const existingTooltips = bootstrap.Tooltip.getInstance(document.body);
+        if (existingTooltips) {
+            existingTooltips.dispose();
+        }
         const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
         tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
+            // Ensure tooltips are re-initialized correctly
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                trigger: 'hover' // Ensure hover trigger
+            });
         });
     }
+
 
     // --- State Management ---
     function typeText(element, text) {
         if (currentTypewriterInterval) clearInterval(currentTypewriterInterval);
         let index = 0;
-        element.textContent = ''; // Use textContent for performance
+        element.textContent = '';
         currentTypewriterInterval = setInterval(() => {
             if (index < text.length) {
                 element.textContent += text.charAt(index);
@@ -242,43 +261,45 @@
                 clearInterval(currentTypewriterInterval);
                 currentTypewriterInterval = null;
             }
-        }, 30); // Slightly faster typing
+        }, 30);
     }
 
     function updateStateIndicator(state) {
         console.log(`Updating state indicator to: ${state}`);
         // Update classes for visual styling
-        stateIndicator.className = `state-indicator state-${state.toLowerCase().replace(/_/g, '-')}`;
-        dashboardContainer.className = `dashboard-container dashboard-state-${state.toLowerCase().replace(/_/g, '-')}`;
+        stateIndicator.className = `state-indicator state-${state.toLowerCase().replace(/_/g, '-')} glass-panel mb-4`; // Keep glass-panel
 
         // Handle scanning indicator and progress bar
         const isScanning = state === "SCANNING_IN_PROGRESS";
         const isConnecting = state === "CONNECTING" || state === "RECONNECTING";
         scanningIndicator.classList.toggle('active', isScanning || isConnecting);
         stateStatusProgress.style.animation = (isScanning || isConnecting) ? "progressAnim 2s infinite" : "none";
-        stateStatusProgress.style.background = ''; // Reset background
+        stateStatusProgress.style.background = '';
 
         // Clear previous scan completed timeout
         if (scanCompletedTimeout) clearTimeout(scanCompletedTimeout);
 
-        // Dismiss persistent notifications unless it's a critical state
+        // Dismiss persistent alertify notifications unless it's a critical state
+        // Note: The main alert panel is handled separately in the base template
         if (state !== "CONNECTED_BLACKLISTED") {
-            alertify.dismissAll(); // Consider being more selective if needed
+            alertify.dismissAll();
         }
 
         // Set progress bar width and specific styles
-        let progressWidth = "50%"; // Default
+        let progressWidth = "50%";
         if (state === "CONNECTED_HOME" || state === "CONNECTED_KNOWN" || state === "SCAN_COMPLETED") {
             progressWidth = "100%";
         } else if (state === "CONNECTED_NEW") {
             progressWidth = "75%";
         } else if (state === "CONNECTED_BLACKLISTED") {
             progressWidth = "100%";
-            stateStatusProgress.style.background = "linear-gradient(to right, #dc3545, #f8d7da)"; // Use Bootstrap danger colors
+            stateStatusProgress.style.background = "linear-gradient(to right, #dc3545, #f8d7da)";
+            // Use alertify for immediate, non-dismissible critical feedback here
             alertify.error('CRITICAL: Connected to a blacklisted network!', 0);
         } else if (state === "DISCONNECTED" || state === "WAITING_FOR_NETWORK") {
-            progressWidth = "10%"; // Lower for disconnected states
-            if (previousState !== state) { // Only show warning once on transition
+            progressWidth = "10%";
+            if (previousState !== state) {
+                // Use alertify for transient warning popup
                 alertify.warning('Network connection lost.');
             }
         }
@@ -286,25 +307,24 @@
 
         // Handle SCAN_COMPLETED transition
         if (previousState === "SCANNING_IN_PROGRESS" && state === "SCAN_COMPLETED") {
+            // Use alertify for transient success popup
             alertify.success('Network scan completed successfully!');
-            // Temporarily show SCAN_COMPLETED, then sync to get the actual connected state
             scanCompletedTimeout = setTimeout(window.syncDashboard, 4000);
         }
 
         // Update state description and tooltip
         const descriptionText = stateDescriptions[state] || 'Status unknown.';
         stateDescription.textContent = descriptionText;
-        stateDescription.setAttribute('data-bs-original-title', descriptionText); // Update tooltip content
+        stateDescription.setAttribute('data-bs-original-title', descriptionText);
 
         updateButtonStyles(state);
-        updateTableStyles(state); // Optional: Style tables based on state
 
         // Only type text if the state name actually changed
         if (stateElement.textContent !== state) {
             typeText(stateElement, state);
         }
 
-        previousState = state; // Update previous state *after* all updates
+        previousState = state;
     }
 
     function updateButtonStyles(state) {
@@ -312,43 +332,21 @@
         syncButton.classList.toggle('disabled', syncButton.disabled);
 
         // Reset restart button
-        restartServiceButton.className = 'service-button btn btn-warning'; // Base classes
+        restartServiceButton.className = 'btn btn-warning';
         restartServiceButton.innerHTML = '<i class="fas fa-power-off"></i> Restart Netfang Service';
         restartServiceButton.disabled = false;
 
         if (state === "CONNECTED_BLACKLISTED") {
             restartServiceButton.classList.remove('btn-warning');
-            restartServiceButton.classList.add('btn-danger'); // More emphasis
+            restartServiceButton.classList.add('btn-danger');
             restartServiceButton.innerHTML = '<i class="fas fa-shield-alt"></i> Security Reset';
             restartServiceButton.setAttribute('data-bs-original-title', 'Perform a security reset due to blacklisted network.');
         } else {
              restartServiceButton.setAttribute('data-bs-original-title', 'Restart the core NetFang service.');
         }
-        // Potentially disable restart during critical operations?
-        // if (state === "PERFORM_ACTION" || state === "SCANNING_IN_PROGRESS") {
-        //     restartServiceButton.disabled = true;
-        // }
-    }
-
-    function updateTableStyles(state) {
-        // Optional: Add subtle visual cues to tables based on state
-        const tables = document.querySelectorAll('.data-table');
-        tables.forEach(table => {
-            table.classList.remove('table-state-warning', 'table-state-critical', 'table-state-scanning');
-            if (state === "CONNECTED_BLACKLISTED") {
-                table.classList.add('table-state-critical');
-            } else if (state === "CONNECTED_NEW") {
-                 table.classList.add('table-state-warning');
-            } else if (state === "SCANNING_IN_PROGRESS") {
-                 table.classList.add('table-state-scanning');
-            }
-        });
-        // Add corresponding CSS rules in hidden.css for these classes
-        // e.g., .table-state-critical thead { background-color: #f8d7da; }
     }
 
     // --- Data Handling & UI Updates ---
-
     function updateDashboardData(data) {
         console.log(`[${new Date().toLocaleTimeString()}] Updating dashboard with data:`, data);
 
@@ -357,13 +355,13 @@
         deviceIdToInfo = {};
 
         // --- Populate Networks Table ---
-        networksTableBody.innerHTML = ''; // Clear placeholder/old data
+        networksTableBody.innerHTML = '';
         if (data.networks && data.networks.length > 0) {
             data.networks.forEach(network => {
-                networkIdToMac[network.id] = network.mac_address; // Store mapping
+                networkIdToMac[network.id] = network.mac_address;
 
                 const row = networksTableBody.insertRow();
-                row.className = network.is_blacklisted ? 'table-danger' : (network.is_home ? 'table-success-light' : ''); // Use CSS classes
+                row.className = network.is_blacklisted ? 'table-danger' : (network.is_home ? 'table-success-light' : '');
 
                 const statusText = network.is_home ? 'Home' : (network.is_blacklisted ? 'Blacklisted' : 'Known');
                 const statusClass = network.is_home ? 'status-home' : (network.is_blacklisted ? 'status-blacklisted' : 'status-known');
@@ -371,7 +369,7 @@
                 const actionButtonsHtml = getActionButtonsHtml('network', network.id);
 
                 row.innerHTML = `
-                    <td>${network.mac_address || 'N/A'}</td>
+                    <td><span class="mac-address">${network.mac_address || 'N/A'}</span></td>
                     <td><span class="status-badge ${statusClass}">${statusText}</span></td>
                     <td>${formatTimestamp(network.last_seen)}</td>
                     <td class="actions-cell">${actionButtonsHtml || 'None'}</td>
@@ -382,24 +380,21 @@
         }
 
         // --- Populate Devices Table ---
-        devicesTableBody.innerHTML = ''; // Clear placeholder/old data
+        devicesTableBody.innerHTML = '';
         if (data.devices && data.devices.length > 0) {
             data.devices.forEach(device => {
-                deviceIdToInfo[device.id] = { // Store mapping
+                deviceIdToInfo[device.id] = {
                     ip: device.ip_address,
                     mac: device.mac_address,
                     network_id: device.network_id
                 };
 
                 const row = devicesTableBody.insertRow();
-                // Add classes based on device properties if available (e.g., is_new, has_vulns)
-                // row.className = device.is_new ? 'table-info-light' : '';
 
                 const networkInfo = device.network_id && networkIdToMac[device.network_id]
                     ? `<span class="network-link" title="Network ID: ${device.network_id}">${networkIdToMac[device.network_id]}</span>`
                     : 'Unknown';
 
-                // Improved Fingerprint Display
                 const hasFingerprint = device.fingerprint && device.fingerprint !== 'None';
                 const fingerprintHtml = hasFingerprint ? `
                     <div class="fingerprint-container">
@@ -415,8 +410,8 @@
                 const actionButtonsHtml = getActionButtonsHtml('device', device.id);
 
                 row.innerHTML = `
-                    <td>${device.ip_address || 'N/A'}</td>
-                    <td>${device.mac_address || 'N/A'}</td>
+                    <td><span class="ip-address">${device.ip_address || 'N/A'}</span></td>
+                    <td><span class="mac-address">${device.mac_address || 'N/A'}</span></td>
                     <td>${device.vendor || 'Unknown'}</td>
                     <td>${networkInfo}</td>
                     <td class="actions-cell">${fingerprintHtml} ${actionButtonsHtml || ''}</td>
@@ -427,25 +422,22 @@
         }
 
         // --- Populate Plugin Logs ---
-        // Only do a full refresh if explicitly requested or on initial load
-        // Otherwise, rely on the real-time 'plugin_log' event
-        if (data.plugin_logs && pluginLogsTableBody.rows.length === 1 && pluginLogsTableBody.rows[0].cells.length > 1) { // Check if it's the placeholder
-             pluginLogsTableBody.innerHTML = ''; // Clear placeholder
+        if (data.plugin_logs && pluginLogsTableBody.rows.length === 1 && pluginLogsTableBody.rows[0].cells.length > 1 && pluginLogsTableBody.rows[0].textContent.includes("Waiting")) {
+             pluginLogsTableBody.innerHTML = '';
              data.plugin_logs
-                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)) // Sort newest first
-                .slice(0, 50) // Limit initial load size
-                .forEach(log => addPluginLog(log, false)); // Add without animation initially
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                .slice(0, 50)
+                .forEach(log => addPluginLog(log, false));
         } else if (!data.plugin_logs || data.plugin_logs.length === 0 && pluginLogsTableBody.rows.length === 0) {
              pluginLogsTableBody.innerHTML = '<tr><td colspan="3" class="text-center p-3">No plugin logs available.</td></tr>';
         }
 
-
         // --- Update Actions Panel ---
-        updateActionsPanel(); // Update global actions
+        updateActionsPanel();
 
         // --- Final Touches ---
-        setupActionButtons(); // Re-bind events for new buttons
-        initializeTooltips(); // Re-initialize tooltips for new elements
+        setupActionButtons();
+        initializeTooltips(); // Re-initialize tooltips for new/updated elements
 
         showStatusMessage(`Dashboard updated at ${new Date().toLocaleTimeString()}`, 3000, 'success');
     }
@@ -456,7 +448,7 @@
             pluginLogsTableBody.innerHTML = '';
         }
 
-        const row = pluginLogsTableBody.insertRow(0); // Insert at the top
+        const row = pluginLogsTableBody.insertRow(0);
         row.innerHTML = `
             <td>${log.plugin_name || 'System'}</td>
             <td>${log.event || 'Unknown event'}</td>
@@ -464,20 +456,19 @@
         `;
 
         if (animate) {
-            row.classList.add('new-log-entry'); // CSS class for flash animation
+            row.classList.add('new-log-entry');
             setTimeout(() => row.classList.remove('new-log-entry'), 2000);
         }
 
         if (autoScrollEnabled) {
-            // Scroll the *table container* if it exists and is scrollable
             const container = pluginLogsTableBody.closest('.table-container');
             if (container) {
-                container.scrollTop = 0; // Scroll to top since we prepend
+                container.scrollTop = 0;
             }
         }
 
         // Limit table size for performance
-        const MAX_LOG_ROWS = 500; // Reduced limit
+        const MAX_LOG_ROWS = 500;
         while (pluginLogsTableBody.rows.length > MAX_LOG_ROWS) {
             pluginLogsTableBody.deleteRow(pluginLogsTableBody.rows.length - 1);
         }
@@ -489,31 +480,26 @@
         Object.values(registeredActions)
             .filter(action => action.target_type === targetType)
             .forEach(action => {
-                // Check if action applies to this specific target or is generic for the type
-                // Assuming target_id=null means it applies to all items of target_type
-                // This logic might need adjustment based on backend implementation
-                // if (action.target_id === null || action.target_id === String(targetId)) {
-                    buttonsHtml += `
-                        <button
-                            class="plugin-action-button btn btn-sm btn-outline-primary"
-                            data-action-id="${action.action_id}"
-                            data-target-id="${targetId}"
-                            data-plugin-name="${action.plugin_name}"
-                            data-action-name="${action.action_name}"
-                            data-confirm="${action.requires_confirmation || 'false'}"
-                            data-bs-toggle="tooltip"
-                            title="${action.description || action.action_name}"
-                        >
-                            <i class="fas ${action.icon || 'fa-bolt'}"></i> ${action.action_name}
-                        </button>
-                    `;
-                // }
+                buttonsHtml += `
+                    <button
+                        class="plugin-action-button btn btn-sm btn-outline-primary m-1"
+                        data-action-id="${action.action_id}"
+                        data-target-id="${targetId}"
+                        data-plugin-name="${action.plugin_name}"
+                        data-action-name="${action.action_name}"
+                        data-confirm="${action.requires_confirmation || 'false'}"
+                        data-bs-toggle="tooltip"
+                        title="${action.description || action.action_name}"
+                    >
+                        <i class="fas ${action.icon || 'fa-bolt'}"></i> ${action.action_name}
+                    </button>
+                `;
             });
         return buttonsHtml;
     }
 
     function updateActionsPanel() {
-        pluginActionsContainer.innerHTML = ''; // Clear existing
+        pluginActionsContainer.innerHTML = '';
         const systemActions = Object.values(registeredActions).filter(a => a.target_type === 'system');
 
         if (systemActions.length === 0) {
@@ -533,7 +519,7 @@
             groupDiv.className = 'plugin-action-group mb-3';
             groupDiv.innerHTML = `<h5>${pluginName}</h5>`;
             const buttonsDiv = document.createElement('div');
-            buttonsDiv.className = 'action-buttons btn-group flex-wrap'; // Use btn-group for spacing
+            buttonsDiv.className = 'action-buttons'; // Removed btn-group, added m-1 to buttons
 
             actions.forEach(action => {
                 buttonsDiv.innerHTML += `
@@ -555,24 +541,23 @@
             pluginActionsContainer.appendChild(groupDiv);
         });
 
-        // Re-bind events and tooltips after updating HTML
         setupActionButtons();
         initializeTooltips();
     }
 
     function setupActionButtons() {
-        // Use event delegation on a parent container for dynamically added buttons
-        const dashboard = document.querySelector('.dashboard-container');
-        if (!dashboard) return;
+        // Use event delegation on a parent container that exists on load
+        const mainContent = document.querySelector('main'); // Or a more specific container if available
+        if (!mainContent) return;
 
         // Remove previous listener to avoid duplicates if called multiple times
-        dashboard.removeEventListener('click', handleActionButtonClick);
-        dashboard.addEventListener('click', handleActionButtonClick);
+        mainContent.removeEventListener('click', handleActionButtonClick);
+        mainContent.addEventListener('click', handleActionButtonClick);
     }
 
     async function handleActionButtonClick(event) {
         const button = event.target.closest('.plugin-action-button');
-        if (!button) return; // Click wasn't on an action button or its child
+        if (!button) return;
 
         const actionId = button.dataset.actionId;
         const targetId = button.dataset.targetId;
@@ -608,8 +593,6 @@
 
                 if (response.ok && data.status === 'success') {
                     alertify.success(data.message || `${actionName} executed successfully.`);
-                    // Optionally trigger a dashboard sync after successful action
-                    // setTimeout(window.syncDashboard, 1000);
                 } else {
                     alertify.error(data.message || `Failed to execute ${actionName}.`);
                 }
@@ -617,9 +600,8 @@
                 console.error('Error executing action:', error);
                 alertify.error(`Network or server error executing action: ${error.message}`);
             } finally {
-                // Restore button state
                 button.disabled = false;
-                 button.innerHTML = `<i class="fas ${action.icon || (action.target_type === 'system' ? 'fa-cogs' : 'fa-bolt')}"></i> ${actionName}`;
+                button.innerHTML = `<i class="fas ${action.icon || (action.target_type === 'system' ? 'fa-cogs' : 'fa-bolt')}"></i> ${actionName}`;
             }
         };
 
@@ -627,14 +609,13 @@
             alertify.confirm(
                 'Confirm Action',
                 `Are you sure you want to execute "${actionName}" on target "${targetId}"?`,
-                executeAction, // On OK
-                () => { alertify.message('Action cancelled.'); } // On Cancel
+                executeAction,
+                () => { alertify.message('Action cancelled.'); }
             ).set('labels', {ok:'Execute', cancel:'Cancel'});
         } else {
             await executeAction();
         }
     }
-
 
     // --- Process Output Handling ---
     function handleCommandOutput(data) {
@@ -644,17 +625,22 @@
         if (!processContainer) {
             processContainer = document.createElement('div');
             processContainer.id = `process-${process_id}`;
-            processContainer.className = 'current-process-container card mb-3'; // Use Bootstrap card
+            // Apply glass-panel style and consistent structure
+            processContainer.className = 'current-process-container glass-panel mb-3';
             processContainer.innerHTML = `
-                <div class="card-header current-process-header d-flex justify-content-between align-items-center">
-                    <span>Process: ${command} <small>(${plugin_name})</small></span>
+                <div class="process-header">
+                    <div class="process-title">
+                        <i class="fas fa-terminal"></i> ${command}
+                        <span class="plugin-badge">${plugin_name}</span>
+                    </div>
                     <button class="btn-close" aria-label="Close" onclick="closeProcess('${process_id}')"></button>
                 </div>
-                <div class="card-body">
-                    <pre class="current-process-output bg-light p-2" id="output-${process_id}"></pre>
+                <div class="process-body">
+                    <pre class="process-output" id="output-${process_id}"></pre>
                 </div>
             `;
-            currentProcessesContainer.appendChild(processContainer);
+            // Prepend to keep newest at the top, similar to logs
+            currentProcessesContainer.prepend(processContainer);
         }
 
         const outputContainer = document.getElementById(`output-${process_id}`);
@@ -662,79 +648,91 @@
             const outputLine = document.createElement('div');
             outputLine.textContent = output;
             outputContainer.appendChild(outputLine);
-            outputContainer.scrollTop = outputContainer.scrollHeight; // Auto-scroll
+            outputContainer.scrollTop = outputContainer.scrollHeight;
 
             if (is_complete) {
                 const completionLine = document.createElement('div');
-                completionLine.className = 'completion-line text-muted mt-2';
+                completionLine.className = 'completion-line';
                 completionLine.textContent = `--- Process completed (${formatTimestamp(new Date())}) ---`;
                 outputContainer.appendChild(completionLine);
-                // Optionally auto-close completed processes after a delay
-                // setTimeout(() => closeProcess(process_id), 10000);
+                processContainer.classList.add('process-completed');
             }
         }
     }
 
     function handleCurrentProcess(data) {
-        // This function might be redundant if handleCommandOutput creates the container
-        // Or it could be used to signal the *start* of a process before output arrives
+        // This function might signal the start, but handleCommandOutput creates the UI
         if (data) {
             const { process_id, plugin_name, command, start_time } = data;
             let processContainer = document.getElementById(`process-${process_id}`);
             if (!processContainer) {
-                 // Create container similar to handleCommandOutput if needed
-                 console.log(`Process started: ${command} (${plugin_name}) at ${formatTimestamp(start_time)}`);
-                 // Potentially add a placeholder until first output arrives
+                console.log(`Process started: ${command} (${plugin_name}) at ${formatTimestamp(start_time)}`);
+                // Optionally add a placeholder here if needed before first output
             }
         }
-        // If data is null, maybe clear *all* process containers? Or rely on is_complete?
-        // if (data === null) {
-        //     currentProcessesContainer.innerHTML = ''; // Clears all - maybe too aggressive
-        // }
     }
 
-    window.closeProcess = function(processId) { // Make it globally accessible for onclick
+    // Updated closeProcess function with animation
+    window.closeProcess = function(processId) {
         const processContainer = document.getElementById(`process-${processId}`);
         if (processContainer) {
-            processContainer.remove();
-            alertify.message(`Closed process view ${processId}`);
+            processContainer.classList.add('process-closing'); // Add class for animation
+            setTimeout(() => {
+                processContainer.remove();
+                alertify.message(`Closed process view ${processId}`);
+            }, 300); // Match CSS transition duration
         }
     }
 
     // --- Socket.IO Event Listeners ---
+    // Note: 'connect', 'disconnect', 'connect_error', 'reconnecting' are primarily handled
+    // by the base template for the global connection badge.
+    // These handlers provide additional local feedback (console, status message, alertify popups).
+
     socket.on('connect', () => {
-        console.log('Socket.IO: Connected');
+        console.log('Socket.IO (Dashboard): Connected');
         showStatusMessage('Connected to server', 2000, 'success');
+        // Use alertify for transient success popup
         alertify.success('Real-time connection established.');
-        window.syncDashboard(); // Sync data on connect/reconnect
+        window.syncDashboard();
         startAutoSync();
     });
 
     socket.on('connect_error', (error) => {
-        console.error('Socket.IO connection error:', error);
+        console.error('Socket.IO (Dashboard) connection error:', error);
         showStatusMessage('Connection error! Trying to reconnect...', 5000, 'error');
-        // Use alertify for persistent notification only if not already shown
+        // Use alertify for transient error popup
         if (!document.querySelector('.alertify .ajs-message.ajs-error') || !document.querySelector('.alertify .ajs-message.ajs-error').textContent.includes('Connection error')) {
-             alertify.error('Connection error! Trying to reconnect...', 0);
+             alertify.error('Connection error! Trying to reconnect...', 0); // Persistent popup for error
         }
         stopAutoSync();
     });
 
     socket.on('disconnect', (reason) => {
-        console.warn('Socket.IO: Disconnected. Reason:', reason);
+        console.warn('Socket.IO (Dashboard): Disconnected. Reason:', reason);
         showStatusMessage('Disconnected from server. Attempting to reconnect...', 5000, 'warning');
-        alertify.warning('Real-time connection lost. Reconnecting...', 0);
+        // Use alertify for transient warning popup
+        alertify.warning('Real-time connection lost. Reconnecting...', 0); // Persistent popup
         stopAutoSync();
     });
 
     socket.on('reconnect', (attemptNumber) => {
-        console.log(`Socket.IO: Reconnected after ${attemptNumber} attempts`);
+        console.log(`Socket.IO (Dashboard): Reconnected after ${attemptNumber} attempts`);
         showStatusMessage('Reconnected to server', 2000, 'success');
         alertify.dismissAll(); // Clear connection errors
+        // Use alertify for transient success popup
         alertify.success('Real-time connection re-established.');
-        window.syncDashboard(); // Sync data on reconnect
+        window.syncDashboard();
         startAutoSync();
     });
+
+    // Added handler for consistency with base template states
+    socket.on('reconnecting', (attemptNumber) => {
+        console.log(`Socket.IO (Dashboard): Attempting reconnect ${attemptNumber}`);
+        showStatusMessage('Attempting to reconnect...', 3000, 'warning');
+        // Base template handles the visual indicator change
+    });
+
 
     socket.on("state_update", (data) => {
         console.log(`[${new Date().toLocaleTimeString()}] State update:`, data);
@@ -745,7 +743,6 @@
 
     socket.on('dashboard_data', (data) => {
         updateDashboardData(data);
-        // Stop sync animation if it was running
         syncButton.classList.remove('syncing');
         syncButton.innerHTML = '<i class="fas fa-sync-alt"></i> Sync Dashboard';
     });
@@ -766,36 +763,15 @@
         console.log(`[${new Date().toLocaleTimeString()}] Action registered:`, action);
         if (action && action.action_id) {
             registeredActions[action.action_id] = action;
-            updateActionsPanel(); // Update UI with the new action
+            updateActionsPanel();
+            // Use alertify for transient info popup
             alertify.notify(`New action available: ${action.action_name}`, 'info', 3);
         } else {
             console.error("Invalid action registration data received:", action);
         }
     });
 
-    socket.on('alert_sync', (data) => {
-        console.log(`[${new Date().toLocaleTimeString()}] Alert received:`, data);
-        const level = data.level ? data.level.toUpperCase() : 'INFO';
-        const message = data.message || 'Received an unspecified alert.';
-        const duration = (level === 'ERROR' || level === 'CRITICAL') ? 0 : (level === 'WARNING' ? 10 : 5);
-
-        switch (level) {
-            case 'CRITICAL':
-            case 'ERROR':
-                alertify.error(message, duration);
-                break;
-            case 'WARNING':
-                alertify.warning(message, duration);
-                break;
-            case 'SUCCESS':
-                alertify.success(message, duration);
-                break;
-            case 'INFO':
-            default:
-                alertify.info(message, duration);
-                break;
-        }
-    });
+    // Removed socket.on('alert_sync') - Handled by base template's socket.on('alert')
 
     // --- Event Handlers ---
     window.syncDashboard = function() {
@@ -803,9 +779,10 @@
             console.log('Requesting dashboard sync...');
             socket.emit('sync_dashboard');
             showStatusMessage('Syncing dashboard data...', 2000, 'info');
-            syncButton.classList.add('syncing'); // Add visual feedback
+            syncButton.classList.add('syncing');
             syncButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Syncing...';
         } else {
+            // Use alertify for transient error popup
             alertify.error('Cannot sync: Not connected to server.');
         }
     };
@@ -817,7 +794,9 @@
 
     autoScrollToggle.addEventListener('click', () => {
         autoScrollEnabled = !autoScrollEnabled;
-        autoScrollToggle.textContent = autoScrollEnabled ? 'Auto-scroll: ON' : 'Auto-scroll: OFF';
+        autoScrollToggle.innerHTML = autoScrollEnabled ?
+            '<i class="fas fa-scroll"></i> Auto-scroll: ON' :
+            '<i class="fas fa-scroll"></i> Auto-scroll: OFF';
         autoScrollToggle.classList.toggle('active', autoScrollEnabled);
         alertify.message(`Auto-scroll ${autoScrollEnabled ? 'enabled' : 'disabled'}`);
     });
@@ -833,51 +812,46 @@
         alertify.confirm(
             isBlacklisted ? 'Confirm Security Reset' : 'Confirm Service Restart',
             confirmMessage,
-            async () => { // On OK
+            async () => {
                 showStatusMessage('Initiating restart...', 3000, 'info');
                 restartServiceButton.disabled = true;
                 restartServiceButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Restarting...';
 
                 try {
-                    const response = await fetch('/update', { // Assuming /update triggers restart
+                    const response = await fetch('/update', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' }
-                        // Add body if needed by the endpoint
                     });
                     const data = await response.json();
 
                     if (response.ok && data.status === 'success') {
                         showStatusMessage(data.message || 'Service restart initiated.', 5000, 'success');
                         alertify.success(data.message || 'Service restart initiated.');
-                        // State will likely change via socket update, no need to force UI change here
                     } else {
                         showStatusMessage(data.message || 'Failed to initiate restart.', 5000, 'error');
                         alertify.error(data.message || 'Failed to initiate restart.');
-                        restartServiceButton.disabled = false; // Re-enable on failure
-                        updateButtonStyles(previousState); // Restore original button text/style
+                        restartServiceButton.disabled = false;
+                        updateButtonStyles(previousState);
                     }
                 } catch (error) {
                     console.error("Error restarting service:", error);
                     showStatusMessage(`Error: ${error.message}`, 5000, 'error');
                     alertify.error(`Error initiating restart: ${error.message}`);
-                    restartServiceButton.disabled = false; // Re-enable on failure
-                    updateButtonStyles(previousState); // Restore original button text/style
+                    restartServiceButton.disabled = false;
+                    updateButtonStyles(previousState);
                 }
-                // Button state will be fully restored by state updates or if it fails
             },
-            () => { // On Cancel
+            () => {
                 alertify.message('Restart cancelled.');
             }
         ).set('labels', {ok:'Confirm', cancel:'Cancel'});
     });
 
-    // Add event listener for reInitNetfangButton
     reInitNetfangButton.addEventListener('click', () => {
-        // Show a confirmation dialog with warning about data loss
         alertify.confirm(
             'Confirm Database Reset',
             'WARNING: This will delete the entire NetFang database and restart the service. All network history, device information, and configuration will be lost. Are you sure you want to proceed?',
-            async () => { // On Confirm
+            async () => {
                 showStatusMessage('Resetting NetFang database...', 3000, 'info');
                 reInitNetfangButton.disabled = true;
                 reInitNetfangButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Resetting...';
@@ -892,28 +866,26 @@
                     if (response.ok && (data.status === 'success' || data.status === 'partial')) {
                         showStatusMessage(data.message || 'NetFang database reset successfully.', 5000, 'success');
                         alertify.success(data.message || 'NetFang database reset successfully.');
-                        
-                        // Force sync dashboard after a delay to get fresh data
                         setTimeout(window.syncDashboard, 3000);
                     } else {
                         showStatusMessage(data.message || 'Failed to reset NetFang database.', 5000, 'error');
                         alertify.error(data.message || 'Failed to reset NetFang database.');
                         reInitNetfangButton.disabled = false;
-                        reInitNetfangButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Delete Database and restart';
+                        reInitNetfangButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Delete Database and Restart';
                     }
                 } catch (error) {
                     console.error("Error resetting NetFang:", error);
                     showStatusMessage(`Error: ${error.message}`, 5000, 'error');
                     alertify.error(`Error resetting NetFang: ${error.message}`);
                     reInitNetfangButton.disabled = false;
-                    reInitNetfangButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Delete Database and restart';
+                    reInitNetfangButton.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Delete Database and Restart';
                 }
             },
-            () => { // On Cancel
+            () => {
                 alertify.message('Database reset cancelled.');
             }
         ).set('labels', {ok:'Reset Database', cancel:'Cancel'})
-        .set('closable', false); // Prevent clicking outside to dismiss
+        .set('closable', false);
     });
 
     // Panel Collapse Toggle (Using Bootstrap's built-in JS via data attributes is often easier)
@@ -921,20 +893,29 @@
     document.querySelectorAll('.panel-header').forEach(header => {
         header.addEventListener('click', (e) => {
             // Prevent toggling if click is on a button inside the header
-            if (e.target.closest('button')) return;
+            if (e.target.closest('button, a')) return;
 
             const toggle = header.querySelector('.panel-toggle');
             const content = header.nextElementSibling;
-            if (toggle && content) {
-                toggle.classList.toggle('collapsed');
-                content.classList.toggle('collapsed'); // Assumes CSS handles visibility
+            if (toggle && content && content.classList.contains('panel-content')) {
+                const isCollapsed = content.classList.contains('collapsed');
+                // Use Bootstrap's Collapse API if available, otherwise toggle classes
+                const collapseInstance = bootstrap.Collapse.getInstance(content);
+                if (collapseInstance) {
+                     collapseInstance.toggle();
+                } else {
+                    // Manual toggle as fallback
+                    content.classList.toggle('collapsed');
+                }
+                toggle.classList.toggle('collapsed', !isCollapsed); // Update arrow direction
             }
         });
     });
 
+
     // --- Initialization ---
     function startAutoSync() {
-        if (autoSyncIntervalId) clearInterval(autoSyncIntervalId); // Clear existing interval
+        if (autoSyncIntervalId) clearInterval(autoSyncIntervalId);
         autoSyncIntervalId = setInterval(window.syncDashboard, SYNC_INTERVAL);
         console.log(`Auto-sync started every ${SYNC_INTERVAL / 1000} seconds.`);
     }
@@ -948,21 +929,25 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM fully loaded and parsed');
-        updateStateIndicator(previousState); // Set initial state visuals
-        initializeTooltips(); // Initialize any static tooltips
-        setupActionButtons(); // Setup initial action button listeners
+        console.log('DOM fully loaded and parsed (Dashboard)');
+        updateStateIndicator(previousState);
+        initializeTooltips();
+        setupActionButtons(); // Setup initial action button listeners on main content area
+
+        // Initialize Bootstrap Collapse for panels that start collapsed
+        document.querySelectorAll('.panel-content.collapsed').forEach(el => {
+            new bootstrap.Collapse(el, { toggle: false }); // Initialize but don't toggle
+        });
+
 
         if (socket.connected) {
-            window.syncDashboard(); // Get initial data if already connected
+            window.syncDashboard();
             startAutoSync();
         } else {
             console.log('Socket not connected on DOMContentLoaded, waiting for connect event.');
-            // Show a loading state or message?
             networksTableBody.innerHTML = '<tr><td colspan="4" class="text-center p-3">Connecting to server...</td></tr>';
             devicesTableBody.innerHTML = '<tr><td colspan="5" class="text-center p-3">Connecting to server...</td></tr>';
         }
     });
-
 </script>
 {% endblock %}

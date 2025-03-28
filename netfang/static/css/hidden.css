@@ -1175,3 +1175,18 @@ button:disabled, .btn:disabled, .btn.disabled {
     z-index: 10001 !important; /* Same level as modal or slightly higher */
 }
 
+/* Add these to your CSS */
+.glass-panel {
+    background: rgba(255, 255, 255, 0.1);
+    /*backdrop-filter: blur(10px);*/
+    --webkit-backdrop-filter: blur(10px);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.process-closing {
+    opacity: 0;
+    transform: scale(0.95);
+    transition: opacity 0.3s, transform 0.3s;
+}

@@ -2,28 +2,27 @@
 <html lang="{{ 'de' if request.accept_languages.best_match(['de','en'])=='de' else 'en' }}">
 <head>
     <meta charset="UTF-8"/>
-    <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="NetFang Router Security Dashboard"/>
     <title>{% block title %}NetFang Router{% endblock %}</title>
 
-    <!-- Google Fonts -->
+    <!-- Google Fonts - Preconnect for performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
     
-    <!-- Bootstrap CSS (with custom styling overrides) -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
     
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" integrity="sha512-z3gLpd7yknf1YoNbCzqRKc4qyor8gaKU1qmn+CShxbuBusANI9QpRohGBreCFkKxLhei6S9CQXFEbbKuqLg0DA==" crossorigin="anonymous" referrerpolicy="no-referrer">
 
-    <!-- Include Socket.IO client library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.8.1/socket.io.js"
-            integrity="sha512-8BHxHDLsOHx+flIrQ0DrZcea7MkHqRU5GbTHmbdzMRnAaoCIkZ97PqZcXJkKZckMMhqfoeaJE+DNUVuyoQsO3Q=="
-            crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <!-- Socket.IO client library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.1/socket.io.min.js" integrity="sha512-AI5A3zIoeRSEEX9z3Vyir8NqSMC1pY7r5h2cE+9J6FLsoEmSSGLFaqMQw8SWvoONXogkfFrkQiJfLeHLz3+HOg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
-    <!-- AlertifyJS CSS -->
+    <!-- AlertifyJS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/alertify.min.css"/>
-    <!-- AlertifyJS JavaScript -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/css/themes/default.min.css"/>
     <script src="https://cdn.jsdelivr.net/npm/alertifyjs@1.13.1/build/alertify.min.js"></script>
 
     <!-- Custom CSS -->
@@ -32,88 +31,165 @@
     {% block additional_head %}{% endblock %}
 </head>
 <body>
-    <header>
+    <header class="main-header">
         <div class="header-content">
-            <!-- Router Logo + Title left-aligned -->
-            <div class="d-flex align-items-center">
-                <img src="{{ url_for('static', filename='router_logo.png') }}" alt="Router Logo" class="router-logo"/>
+            <!-- Logo and Title -->
+            <div class="header-brand">
+                <img src="{{ url_for('static', filename='router_logo.png') }}" alt="NetFang Router Logo" class="router-logo"/>
                 <h1>{% block header_title %}NetFang Router{% endblock %}</h1>
             </div>
-            <div class="exit-btn text-primary" style="cursor: pointer;" onclick="window.location.href='{{ url_for('logout') }}'">
-                <i class="fa-solid fa-arrow-right-from-bracket"></i>
+            
+            <!-- Header Actions -->
+            <div class="header-actions">
+                <button class="btn btn-link" id="alertToggleBtn" aria-label="Toggle notifications panel">
+                    <i class="fas fa-bell"></i>
+                    <span class="notification-badge" id="notificationBadge">0</span>
+                </button>
+                
+                <a href="{{ url_for('logout') }}" class="btn btn-link text-primary logout-btn" aria-label="Log out">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span class="d-none d-sm-inline">{{ 'Abmelden' if request.accept_languages.best_match(['de','en'])=='de' else 'Logout' }}</span>
+                </a>
+                
+                <!-- Connection status indicator -->
+                <div id="connectionBadge" class="connection-badge disconnected" role="status">
+                    <i class="fas fa-wifi"></i>
+                    <span class="status-text">{{ 'Verbindung wird hergestellt...' if request.accept_languages.best_match(['de','en'])=='de' else 'Connecting...' }}</span>
+                </div>
             </div>
-
-            <!-- Badge in top-right corner -->
-            <span id="connectionBadge" class="badge disconnected">Unknown</span>
         </div>
     </header>
 
-    <main>
+    <main class="container-fluid py-3">
         {% block main_content %}{% endblock %}
     </main>
 
-    <footer>
-        <p>&copy; 2025 NetFang.
-            {{ 'Alle Rechte vorbehalten.' if request.accept_languages.best_match(['de','en'])=='de' else 'All rights reserved.' }}
-        </p>
+    <footer class="main-footer">
+        <div class="container-fluid">
+            <p>&copy; {% now 'Y' %} NetFang.
+                <span class="small">{{ 'Alle Rechte vorbehalten' if request.accept_languages.best_match(['de','en'])=='de' else 'All rights reserved' }}</span>
+            </p>
+            <p class="version-info small">{{ 'Version' if request.accept_languages.best_match(['de','en'])=='de' else 'Version' }}: <span id="appVersion">1.0.0</span></p>
+        </div>
     </footer>
 
     <!-- Alert Panel -->
     {% block alerts_panel %}
-    <div id="alertPanel">
-        <div id="alertPanelHeader">
-            <h3>System Notifications <span class="notification-dot" id="newAlertDot"></span></h3>
-            <span id="alertCounter">0</span>
+    <div id="alertPanel" class="alert-panel">
+        <div class="alert-panel-header">
+            <h3>
+                <i class="fas fa-bell"></i> 
+                {{ 'Systembenachrichtigungen' if request.accept_languages.best_match(['de','en'])=='de' else 'System Notifications' }}
+                <span class="notification-dot" id="newAlertDot"></span>
+            </h3>
+            <span id="alertCounter" class="badge bg-primary">0</span>
+            <button id="closeAlertPanel" class="close-btn" aria-label="Close notifications panel">
+                <i class="fas fa-times"></i>
+            </button>
         </div>
-        <ul id="alertList"></ul>
-        <div id="alertControls">
-            <button class="alert-filter active" data-filter="all">All</button>
-            <button class="alert-filter" data-filter="active">Active</button>
-            <button class="alert-filter" data-filter="info">Info</button>
-            <button class="alert-filter" data-filter="warning">Warning</button>
-            <button class="alert-filter" data-filter="critical">Critical</button>
+        
+        <div class="alert-panel-content">
+            <div class="alert-filters">
+                <button class="alert-filter active" data-filter="all">{{ 'Alle' if request.accept_languages.best_match(['de','en'])=='de' else 'All' }}</button>
+                <button class="alert-filter" data-filter="active">{{ 'Aktiv' if request.accept_languages.best_match(['de','en'])=='de' else 'Active' }}</button>
+                <button class="alert-filter" data-filter="info">Info</button>
+                <button class="alert-filter" data-filter="warning">{{ 'Warnung' if request.accept_languages.best_match(['de','en'])=='de' else 'Warning' }}</button>
+                <button class="alert-filter" data-filter="critical">{{ 'Kritisch' if request.accept_languages.best_match(['de','en'])=='de' else 'Critical' }}</button>
+            </div>
+            
+            <ul id="alertList" class="alert-list"></ul>
+            
+            <div class="alert-panel-footer">
+                <button id="clearAllAlerts" class="btn btn-sm btn-outline-secondary">
+                    {{ 'Alle löschen' if request.accept_languages.best_match(['de','en'])=='de' else 'Clear All' }}
+                </button>
+            </div>
         </div>
     </div>
     {% endblock %}
 
     <!-- Bootstrap JS Bundle with Popper -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
 
     <!-- Common Socket.IO and Alerts Setup -->
     <script>
-        const socket = io();
+        // Initialize Socket.IO connection
+        const socket = io({
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            timeout: 10000
+        });
         
-        // Translations for the badge
-        const connectedText = "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}";
-        const disconnectedText = "{{ 'Verbindung getrennt' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected' }}";
+        // Translations
+        const translations = {
+            connected: "{{ 'Verbunden mit NetFang' if request.accept_languages.best_match(['de','en'])=='de' else 'Connected to NetFang' }}",
+            connecting: "{{ 'Verbindung wird hergestellt...' if request.accept_languages.best_match(['de','en'])=='de' else 'Connecting...' }}",
+            disconnected: "{{ 'Verbindung getrennt' if request.accept_languages.best_match(['de','en'])=='de' else 'Disconnected' }}",
+            connectionError: "{{ 'Verbindungsfehler' if request.accept_languages.best_match(['de','en'])=='de' else 'Connection Error' }}",
+            clearAllConfirm: "{{ 'Möchten Sie wirklich alle Benachrichtigungen löschen?' if request.accept_languages.best_match(['de','en'])=='de' else 'Are you sure you want to clear all notifications?' }}"
+        };
         
-        // Connect status badge
+        // Get DOM elements
         const connectionBadge = document.getElementById('connectionBadge');
-        
-        // Handle connection
-        socket.on('connect', function() {
-            connectionBadge.textContent = connectedText;
-            connectionBadge.className = 'badge connected';
-        });
-        
-        // Handle disconnection
-        socket.on('disconnect', function() {
-            connectionBadge.textContent = disconnectedText;
-            connectionBadge.className = 'badge disconnected';
-        });
-        
-        // Handle alerts
         const alertPanel = document.getElementById('alertPanel');
         const alertList = document.getElementById('alertList');
         const alertCounter = document.getElementById('alertCounter');
         const newAlertDot = document.getElementById('newAlertDot');
-        let alertCount = 0;
+        const notificationBadge = document.getElementById('notificationBadge');
+        const alertToggleBtn = document.getElementById('alertToggleBtn');
+        const closeAlertPanel = document.getElementById('closeAlertPanel');
+        const clearAllAlerts = document.getElementById('clearAllAlerts');
         
-        // Listen for alert events
+        // Alert management
+        let alertCount = 0;
+        let alerts = [];
+        
+        // Handle connection states
+        socket.on('connect', function() {
+            connectionBadge.className = 'connection-badge connected';
+            connectionBadge.querySelector('.status-text').textContent = translations.connected;
+            connectionBadge.querySelector('i').className = 'fas fa-wifi';
+        });
+        
+        socket.on('connect_error', function() {
+            connectionBadge.className = 'connection-badge error';
+            connectionBadge.querySelector('.status-text').textContent = translations.connectionError;
+            connectionBadge.querySelector('i').className = 'fas fa-exclamation-triangle';
+        });
+        
+        socket.on('disconnect', function() {
+            connectionBadge.className = 'connection-badge disconnected';
+            connectionBadge.querySelector('.status-text').textContent = translations.disconnected;
+            connectionBadge.querySelector('i').className = 'fas fa-wifi-slash';
+        });
+        
+        socket.on('reconnecting', function() {
+            connectionBadge.className = 'connection-badge connecting';
+            connectionBadge.querySelector('.status-text').textContent = translations.connecting;
+            connectionBadge.querySelector('i').className = 'fas fa-sync fa-spin';
+        });
+        
+        // Toggle alert panel visibility
+        function toggleAlertPanel() {
+            alertPanel.classList.toggle('active');
+            if (alertPanel.classList.contains('active')) {
+                newAlertDot.style.display = 'none';
+            }
+        }
+        
+        alertToggleBtn.addEventListener('click', toggleAlertPanel);
+        closeAlertPanel.addEventListener('click', toggleAlertPanel);
+        
+        // Handle alert events
         socket.on('alert', function(data) {
-            // Increment counter
+            // Add to alerts array
+            alerts.push(data);
+            
+            // Update counters
             alertCount++;
             alertCounter.textContent = alertCount;
+            notificationBadge.textContent = alertCount;
+            notificationBadge.style.display = 'flex';
             
             // Show notification dot
             newAlertDot.style.display = 'inline-block';
@@ -121,16 +197,21 @@
             // Create alert item
             const alertItem = document.createElement('li');
             alertItem.className = `alert-item alert-${data.level.toLowerCase()}`;
+            alertItem.dataset.id = data.id || Date.now(); // Use provided ID or timestamp
             
             // Format timestamp
-            const timestamp = new Date(data.timestamp);
+            const timestamp = new Date(data.timestamp || Date.now());
             const formattedTime = timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
             
             // Set alert HTML
             alertItem.innerHTML = `
                 <div class="alert-header">
-                    <span class="alert-title">${data.title}</span>
+                    <span class="alert-level-indicator"></span>
+                    <span class="alert-title">${data.title || 'Notification'}</span>
                     <span class="alert-timestamp">${formattedTime}</span>
+                    <button class="alert-dismiss" aria-label="Dismiss notification">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
                 <div class="alert-content">${data.message}</div>
             `;
@@ -138,42 +219,107 @@
             // Add to list
             alertList.prepend(alertItem);
             
-            // Show panel if this is first alert
-            if (alertCount === 1) {
+            // Set up dismiss button
+            alertItem.querySelector('.alert-dismiss').addEventListener('click', function(e) {
+                e.stopPropagation();
+                removeAlert(alertItem.dataset.id);
+            });
+            
+            // Show standard notification if panel is not visible
+            if (!alertPanel.classList.contains('active')) {
+                let notifyType = 'notify';
+                switch(data.level.toLowerCase()) {
+                    case 'critical': notifyType = 'error'; break;
+                    case 'warning': notifyType = 'warning'; break;
+                    case 'info': notifyType = 'info'; break;
+                    case 'success': notifyType = 'success'; break;
+                }
+                
+                alertify[notifyType](data.message, data.title || 'Notification', 5);
+            }
+        });
+        
+        // Remove individual alert
+        function removeAlert(id) {
+            const alertItem = document.querySelector(`.alert-item[data-id="${id}"]`);
+            if (alertItem) {
+                alertItem.classList.add('removing');
                 setTimeout(() => {
-                    alertPanel.classList.add('active');
-                }, 500);
+                    alertItem.remove();
+                    
+                    // Update arrays and counters
+                    alerts = alerts.filter(a => (a.id || '') != id);
+                    alertCount = Math.max(0, alertCount - 1);
+                    alertCounter.textContent = alertCount;
+                    notificationBadge.textContent = alertCount;
+                    
+                    if (alertCount === 0) {
+                        notificationBadge.style.display = 'none';
+                    }
+                }, 300);
+            }
+        }
+        
+        // Clear all alerts
+        clearAllAlerts.addEventListener('click', function() {
+            if (confirm(translations.clearAllConfirm)) {
+                alertList.innerHTML = '';
+                alerts = [];
+                alertCount = 0;
+                alertCounter.textContent = '0';
+                notificationBadge.textContent = '0';
+                notificationBadge.style.display = 'none';
+                newAlertDot.style.display = 'none';
             }
         });
         
         // Filter alerts
         document.querySelectorAll('.alert-filter').forEach(button => {
             button.addEventListener('click', function() {
-                // Remove active class from all buttons
+                // Update active button
                 document.querySelectorAll('.alert-filter').forEach(btn => {
                     btn.classList.remove('active');
                 });
-                
-                // Add active class to clicked button
                 this.classList.add('active');
                 
-                // Get filter value
-                const filter = this.dataset.filter;
-                
                 // Apply filter
+                const filter = this.dataset.filter;
                 document.querySelectorAll('.alert-item').forEach(item => {
                     if (filter === 'all') {
-                        item.style.display = 'block';
+                        item.style.display = '';
                     } else if (filter === 'active') {
                         const isInfo = item.classList.contains('alert-info');
-                        item.style.display = isInfo ? 'none' : 'block';
+                        item.style.display = isInfo ? 'none' : '';
                     } else {
                         const hasClass = item.classList.contains(`alert-${filter}`);
-                        item.style.display = hasClass ? 'block' : 'none';
+                        item.style.display = hasClass ? '' : 'none';
                     }
                 });
             });
         });
+        
+        // Keyboard shortcut for alert panel
+        document.addEventListener('keydown', function(e) {
+            // Alt+A to toggle alert panel
+            if (e.altKey && e.key === 'a') {
+                toggleAlertPanel();
+            }
+            
+            // Escape to close alert panel if open
+            if (e.key === 'Escape' && alertPanel.classList.contains('active')) {
+                alertPanel.classList.remove('active');
+            }
+        });
+        
+        // Try to get version from the server
+        fetch('/api/version')
+            .then(response => response.json())
+            .then(data => {
+                if (data.version) {
+                    document.getElementById('appVersion').textContent = data.version;
+                }
+            })
+            .catch(err => console.log('Could not fetch version'));
     </script>
     
     {% block additional_scripts %}{% endblock %}
