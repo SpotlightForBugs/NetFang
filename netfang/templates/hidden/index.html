@@ -889,7 +889,6 @@
     });
 
     // Panel Collapse Toggle (Using Bootstrap's built-in JS via data attributes is often easier)
-    // If manual control is needed:
     document.querySelectorAll('.panel-header').forEach(header => {
         header.addEventListener('click', (e) => {
             // Prevent toggling if click is on a button inside the header
@@ -898,20 +897,17 @@
             const toggle = header.querySelector('.panel-toggle');
             const content = header.nextElementSibling;
             if (toggle && content && content.classList.contains('panel-content')) {
-                const isCollapsed = content.classList.contains('collapsed');
-                // Use Bootstrap's Collapse API if available, otherwise toggle classes
-                const collapseInstance = bootstrap.Collapse.getInstance(content);
-                if (collapseInstance) {
-                     collapseInstance.toggle();
-                } else {
-                    // Manual toggle as fallback
-                    content.classList.toggle('collapsed');
-                }
-                toggle.classList.toggle('collapsed', !isCollapsed); // Update arrow direction
+                // Properly use Bootstrap's Collapse API
+                const bsCollapse = new bootstrap.Collapse(content, {
+                    toggle: true
+                });
+                
+                // Update arrow direction based on the current state
+                // We need to use a different approach because Bootstrap's collapse events
+                toggle.classList.toggle('collapsed');
             }
         });
     });
-
 
     // --- Initialization ---
     function startAutoSync() {

@@ -394,14 +394,18 @@ footer {
 
 .panel-content {
     padding: 15px 20px;
-    /* overflow: auto; */ /* Let table container handle overflow */
-    transition: padding 0.3s ease; /* Add transition for collapse */
+    transition: all 0.3s ease; /* Add transition for collapse */
 }
 
-.panel-content.collapsed {
-    display: none; /* Use display none for collapse */
-    padding-top: 0;
-    padding-bottom: 0;
+/* Bootstrap collapse compatibility */
+.collapse:not(.show) {
+    display: none;
+}
+
+.collapsing {
+    height: 0;
+    overflow: hidden;
+    transition: height 0.35s ease;
 }
 
 /* State-specific panel headers (from original) */
@@ -1147,33 +1151,6 @@ button:disabled, .btn:disabled, .btn.disabled {
     /* Center status message on mobile */
 }
 
-/* --- Alertify z-index Fixes --- */
-
-/* Ensure the modal dialog itself is on top */
-.alertify.ajs-modal {
-    z-index: 10001 !important; /* Higher than alert panel (9999) and dimmer (9998) */
-}
-
-/* Ensure the footer containing buttons is also high */
-.alertify .ajs-footer {
-    z-index: 10002 !important; /* Above the main dialog body */
-}
-
-/* Ensure buttons are clickable */
-.alertify .ajs-buttons .ajs-button {
-    z-index: 10003 !important; /* Above the footer */
-    position: relative; /* Sometimes helps ensure z-index applies */
-}
-
-/* Adjust dimmer if needed, though 9998 should be okay */
-.alertify .ajs-dimmer {
-    z-index: 10000 !important; /* Below the modal */
-}
-
-/* Ensure notifier is above dimmer but potentially below modal if needed */
-.alertify-notifier {
-    z-index: 10001 !important; /* Same level as modal or slightly higher */
-}
 
 /* Add these to your CSS */
 .glass-panel {
