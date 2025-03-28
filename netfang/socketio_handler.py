@@ -155,10 +155,20 @@ class SocketIOHandler:
                 "event": event,
                 "timestamp": datetime.now().isoformat()
             }
+            # Use direct emit without checking for async context
             self.socketio.emit("plugin_log", log_data)
             self.logger.debug(f"Streamed plugin log (sync): {plugin_name} - {event}")
+            
+            # Also immediately emit dashboard_data to update the UI
+            from netfang.db.database import get_dashboard_data
+            if self.db_path:
+                dashboard_data = get_dashboard_data(self.db_path, plugin_log_limit=100)
+                self.socketio.emit("dashboard_data", dashboard_data)
+                
         except Exception as e:
             self.logger.error(f"Error streaming plugin log (sync): {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             
     async def stream_command_output(self, plugin_name: str, command: str, output: str, is_complete: bool = False, process_id: str = None) -> None:
         """
@@ -292,6 +302,51 @@ class SocketIOHandler:
             self.logger.debug(f"Registered dashboard action: {plugin_name} - {action_name}")
         except Exception as e:
             self.logger.error(f"Error registering dashboard action: {str(e)}")
+            
+    def sync_register_dashboard_action(self, plugin_name: str, action_id: str, action_name: str, 
+                                       description: str, target_type: str, target_id: str = None) -> None:
+        """
+        Synchronous version of register_dashboard_action for use in non-async contexts.
+        
+        Args:
+            plugin_name: The name of the plugin registering the action
+            action_id: Unique identifier for the action
+            action_name: Display name for the action
+            description: Description of what the action does
+            target_type: Type of target (network, device, system)
+            target_id: Optional ID of the specific target
+        """
+        if not self.socketio:
+            self.logger.warning("Cannot register dashboard action: SocketIO instance not set")
+            return
+            
+        try:
+            # Create action data
+            action_data = {
+                "plugin_name": plugin_name,
+                "action_id": action_id,
+                "action_name": action_name,
+                "description": description,
+                "target_type": target_type,
+                "target_id": target_id,
+                "registration_time": datetime.now().isoformat()
+            }
+            
+            # Directly emit without async context
+            self.socketio.emit("register_action", action_data)
+            
+            # Log the action registration
+            self.logger.debug(f"Registered dashboard action (sync): {plugin_name} - {action_name}")
+            
+            # For debugging, also add this to plugin logs
+            from netfang.db.database import add_plugin_log
+            if self.db_path:
+                add_plugin_log(self.db_path, plugin_name, f"Registered action: {action_name}")
+                
+        except Exception as e:
+            self.logger.error(f"Error registering dashboard action (sync): {str(e)}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             
     async def send_cached_output_to_client(self, sid: str = None) -> None:
         """

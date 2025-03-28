@@ -1,4 +1,5 @@
 import asyncio
+import datetime
 import os
 import platform
 import subprocess
@@ -70,12 +71,17 @@ def alert_callback(alert: Alert):
 # Instantiate PluginManager and NetworkManager
 PluginManager = PluginManager(CONFIG_PATH)
 PluginManager.load_config()
-NetworkManager = NetworkManager(PluginManager, PluginManager.config, state_change_callback)
 
-# Get the database path from config
+# Get the database path from config before initializing NetworkManager
 db_path = PluginManager.config.get("database_path", "netfang.db")
-# Set the database path in the SocketIO handler
+
+# Important: Set the database path in the SocketIO handler BEFORE initializing other components
+socketio_handler.set_socketio(socketio)
 socketio_handler.set_db_path(db_path)
+print(f"SocketIO handler initialized with DB path: {db_path}")
+
+# Now initialize NetworkManager after handler is configured
+NetworkManager = NetworkManager(PluginManager, PluginManager.config, state_change_callback)
 
 init_db(db_path)
 PluginManager.load_plugins()
@@ -229,6 +235,10 @@ def handle_sync_dashboard():
     """
     if not session.get('logged_in'):
         return False
+    
+    # Create a debug log when dashboard is synced
+    from netfang.db.database import add_plugin_log
+    add_plugin_log(db_path, "Dashboard", "Dashboard sync requested")
     
     db_path = PluginManager.config.get("database_path", "netfang.db")
     dashboard_data = get_dashboard_data(db_path)
@@ -432,6 +442,44 @@ def api():
     else:
         return jsonify({"error": "Invalid event type", "event_type": event_type, "interface_name": interface_name}), 400
     return jsonify({"status": "Event processed", "event_type": event_type, "interface_name": interface_name}), 200
+
+
+@app.route("/test/register-action", methods=["GET"])
+@admin_required
+def test_register_action():
+    """
+    Test endpoint to register a simple action.
+    This helps diagnose UI action display issues.
+    """
+    try:
+        # Create a simple test action
+        action_data = {
+            "plugin_name": "TestPlugin",
+            "action_id": "test_action_" + str(int(datetime.datetime.now().timestamp())),
+            "action_name": "Test Action",
+            "description": "This is a test action to verify the action registration system",
+            "target_type": "system",
+            "icon": "fa-vial"
+        }
+        
+        # Emit the action registration event
+        socketio.emit('register_action', action_data)
+        
+        # Also log this action registration for debugging
+        from netfang.db.database import add_plugin_log
+        add_plugin_log(db_path, "TestPlugin", f"Registered test action: {action_data['action_id']}")
+        
+        return jsonify({
+            "status": "success",
+            "message": "Test action registered successfully",
+            "action": action_data
+        })
+    except Exception as e:
+        app.logger.error(f"Error registering test action: {str(e)}")
+        return jsonify({
+            "status": "error",
+            "message": f"Error: {str(e)}"
+        }), 500
 
 
 if __name__ == "__main__":
