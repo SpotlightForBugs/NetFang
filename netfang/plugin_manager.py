@@ -388,7 +388,7 @@ class PluginManager:
         """
         try:
             # Mark the specific plugin as complete
-            if plugin_name == "all":
+            if (plugin_name == "all"):
                 # All processes completed notification from streaming subprocess
                 if not self.scanning_plugins:
                     # No plugins were actively scanning
@@ -426,31 +426,25 @@ class PluginManager:
                             # Get the current event loop
                             loop = asyncio.get_running_loop()
                             
-                            # Create a future that can be used to track completion
-                            future = asyncio.run_coroutine_threadsafe(
+                            # Schedule the coroutine to run in the existing loop
+                            asyncio.run_coroutine_threadsafe(
                                 NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED),
                                 loop
-                            )
-                            
-                            # Optional: Add a callback to handle completion
-                            future.add_done_callback(
-                                lambda f: self.logger.info("State transition completed" if not f.exception() else 
-                                                          f"State transition failed: {f.exception()}")
                             )
                         except RuntimeError:
                             # No running event loop in this thread
                             self.logger.warning("No running event loop found, using alternative approach")
                             
-                            # Instead of creating a task without awaiting it, use a safer approach
                             # Create a new event loop and run the coroutine in it
-                            async def transition_state():
-                                await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
-                                self.logger.info("Async state transition completed")
-                                
-                            # Run the coroutine in a new event loop
                             asyncio_loop = asyncio.new_event_loop()
                             try:
+                                # Create a coroutine that calls update_state
+                                async def transition_state():
+                                    await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
+                                    
+                                # Run the coroutine in the new event loop
                                 asyncio_loop.run_until_complete(transition_state())
+                                self.logger.info("Async state transition completed")
                             except Exception as e:
                                 self.logger.error(f"Error in async state transition: {str(e)}")
                             finally:

@@ -100,7 +100,7 @@ class StateMachine:
         """
         if not self.scanning_plugins:
             self.logger.info("No scanning plugins registered")
-            self.update_state(State.SCAN_COMPLETED)
+            await self.update_state(State.SCAN_COMPLETED)
             return
             
         # Check if all plugins have been executed
@@ -111,7 +111,7 @@ class StateMachine:
                 return
                 
             self.logger.info("All scanning plugins completed, moving to SCAN_COMPLETED state")
-            self.update_state(State.SCAN_COMPLETED)
+            await self.update_state(State.SCAN_COMPLETED)
             # Reset for next scan sequence
             self.current_scan_index = 0
             return
@@ -213,7 +213,7 @@ class StateMachine:
                 self.last_network_mac = network_mac
                 self.already_scanned[network_mac] = True
                 # Save the connection state to return to after scanning
-                self.start_scan_sequence(state)
+                await self.start_scan_sequence(state)
                 return
             else:
                 self.logger.info(f"Network already scanned ({state}, MAC: {network_mac}), skipping scan")
@@ -294,7 +294,7 @@ class StateMachine:
             self.logger.error(f"Error notifying plugins about state {state}: {str(e)}")
             add_plugin_log(self.db_path, "StateMachine", f"Error in notify_plugins: {str(e)}")
 
-    def start_scan_sequence(self, return_state: Optional[State] = None) -> None:
+    async def start_scan_sequence(self, return_state: Optional[State] = None) -> None:
         """
         Starts a scan sequence and sets the state to return to after scanning.
         
@@ -309,7 +309,7 @@ class StateMachine:
         self.return_state_after_scan = return_state
         self.current_scan_index = 0
         self.register_scanning_plugins()
-        self.update_state(State.SCANNING_IN_PROGRESS)
+        await self.update_state(State.SCANNING_IN_PROGRESS)
 
     def reset_network_tracking(self) -> None:
         """
@@ -319,7 +319,7 @@ class StateMachine:
         self.already_scanned = {}
         self.logger.info("Network tracking reset, next connection will trigger a scan")
 
-    def update_state(self, new_state: State, mac: str = "", message: str = "",
+    async def update_state(self, new_state: State, mac: str = "", message: str = "",
                      alert_data: Optional[Dict[str, Any]] = None,
                      perform_action_data: list[Union[str, int]] = None, ) -> None:
         """
@@ -335,34 +335,27 @@ class StateMachine:
         if perform_action_data is None:
             perform_action_data = []
 
-        async def update() -> None:
-            async with self.state_lock:
-                if self.current_state == new_state:
-                    return
-                    
-                self.previous_state = self.current_state
-                self.current_state = new_state
-                self.state_context = {"mac": mac, "message": message, "alert_data": alert_data, }
-                self.logger.info(f"State transition: {self.previous_state.value} -> {new_state.value}")
+        async with self.state_lock:
+            if self.current_state == new_state:
+                return
                 
-                # Log state transition
-                add_plugin_log(self.db_path, "StateMachine", f"State changed: {self.previous_state.value} -> {new_state.value}")
-                
-                if self.state_change_callback:
-                    self.state_change_callback(self.current_state, self.state_context)
-                
-                # Broadcast state change using SocketIO
-                await socketio_handler.broadcast_state_change(self.current_state, self.state_context)
-                
-                # Reset network tracking on disconnect states to ensure scan on next connection
-                if new_state in [State.DISCONNECTED, State.WAITING_FOR_NETWORK]:
-                    self.reset_network_tracking()
-                
-                await self.notify_plugins(self.current_state, self.state_context, mac, message, alert_data,
-                                          perform_action_data)
-
-        if self.loop is None:
-            self.logger.error("Event loop for StateMachine is not set!")
-            return
+            self.previous_state = self.current_state
+            self.current_state = new_state
+            self.state_context = {"mac": mac, "message": message, "alert_data": alert_data, }
+            self.logger.info(f"State transition: {self.previous_state.value} -> {new_state.value}")
             
-        self.loop.create_task(update())
+            # Log state transition
+            add_plugin_log(self.db_path, "StateMachine", f"State changed: {self.previous_state.value} -> {new_state.value}")
+            
+            if self.state_change_callback:
+                self.state_change_callback(self.current_state, self.state_context)
+            
+            # Broadcast state change using SocketIO
+            await socketio_handler.broadcast_state_change(self.current_state, self.state_context)
+            
+            # Reset network tracking on disconnect states to ensure scan on next connection
+            if new_state in [State.DISCONNECTED, State.WAITING_FOR_NETWORK]:
+                self.reset_network_tracking()
+            
+            await self.notify_plugins(self.current_state, self.state_context, mac, message, alert_data,
+                                      perform_action_data)

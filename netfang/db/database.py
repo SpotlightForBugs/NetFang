@@ -391,17 +391,27 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
     :param plugin_name: Name of the plugin logging the event.
     :param event: Description of the event.
     """
+    # Print to console for direct visibility during debugging
+    print(f"PLUGIN LOG: {plugin_name} - {event}")
+    
     _ensure_db_initialized(db_path)
 
     # Store in database
-    conn: sqlite3.Connection = sqlite3.connect(db_path)
-    cursor: sqlite3.Cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO plugin_logs (plugin_name, event)
-        VALUES (?, ?)
-    """, (plugin_name, event))
-    conn.commit()
-    conn.close()
+    try:
+        conn: sqlite3.Connection = sqlite3.connect(db_path)
+        cursor: sqlite3.Cursor = conn.cursor()
+        cursor.execute("""
+            INSERT INTO plugin_logs (plugin_name, event)
+            VALUES (?, ?)
+        """, (plugin_name, event))
+        log_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        print(f"Successfully added plugin log to database with ID: {log_id}")
+    except Exception as e:
+        print(f"ERROR storing plugin log in database: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
     
     # Stream to dashboard in real-time if SocketIO handler is available
     try:
@@ -419,12 +429,22 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
                 asyncio.create_task(stream_log())
             else:
                 loop.run_until_complete(stream_log())
+            print(f"Successfully streamed plugin log via SocketIO: {plugin_name} - {event}")
         except RuntimeError:
-            # If no event loop is available in this thread, just log without streaming
-            pass
+            # If no event loop is available in this thread, use the sync version
+            handler.sync_stream_plugin_log(plugin_name, event)
+            print(f"Used sync method to stream plugin log: {plugin_name} - {event}")
+        except Exception as e:
+            print(f"Error in asyncio handling for plugin log: {str(e)}")
+            # Try the sync version as fallback
+            handler.sync_stream_plugin_log(plugin_name, event)
     except ImportError:
         # SocketIO handler not available, just log without streaming
-        pass
+        print(f"SocketIO handler not available, skipping real-time streaming for: {plugin_name} - {event}")
+    except Exception as e:
+        print(f"Unexpected error in plugin log streaming: {str(e)}")
+        import traceback
+        print(traceback.format_exc())
 
 
 def get_alerts(
