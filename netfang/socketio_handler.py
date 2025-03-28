@@ -319,7 +319,11 @@ class SocketIOHandler:
             
             # For each active process, send its cached output
             for process_id, process in active_processes.items():
-                # Get cached output for this process
+                if not isinstance(process, StreamingSubprocess):
+                    self.logger.warning(f"Invalid process object for {process_id}: {type(process)}")
+                    continue
+                    
+                # Get cached output for this process using the class method which returns a list of dicts
                 cached_output = StreamingSubprocess.get_cached_output(process_id)
                 
                 if not cached_output:
@@ -340,17 +344,38 @@ class SocketIOHandler:
                     self.socketio.emit("current_process", process_data)
                 
                 # Send all cached output lines
-                for output_line in cached_output:
-                    # Use the existing socket.io event but specific to this client
-                    if sid:
-                        self.socketio.emit("command_output", output_line, to=sid)
+                for output_item in cached_output:
+                    # Process each output item based on its type
+                    if isinstance(output_item, dict) and all(k in output_item for k in ["plugin_name", "command", "output"]):
+                        # The output is already in the correct format (a dictionary with required fields)
+                        output_data = output_item
+                        # Ensure process_id is present
+                        if "process_id" not in output_data:
+                            output_data["process_id"] = process_id
                     else:
-                        self.socketio.emit("command_output", output_line)
+                        # Convert string or other format to proper output data structure
+                        output_data = {
+                            "plugin_name": process.plugin_name,
+                            "command": process.cmd_str,
+                            "output": str(output_item),
+                            "is_complete": False,
+                            "timestamp": datetime.now().isoformat(),
+                            "process_id": process_id
+                        }
+                    
+                    # Send to specific client or broadcast
+                    if sid:
+                        self.socketio.emit("command_output", output_data, to=sid)
+                    else:
+                        self.socketio.emit("command_output", output_data)
                 
                 self.logger.debug(f"Sent {len(cached_output)} cached output lines for process {process_id}")
                 
         except Exception as e:
             self.logger.error(f"Error sending cached output to client: {str(e)}")
+            # Log the full exception traceback for better debugging
+            import traceback
+            self.logger.error(traceback.format_exc())
             
     async def notify_scanning_complete(self) -> None:
         """
