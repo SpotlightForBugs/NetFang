@@ -397,13 +397,20 @@ class PluginManager:
                 # Mark all plugins as complete
                 for name in self.scanning_plugins:
                     self.scanning_plugins[name] = True
-            elif plugin_name in self.scanning_plugins:
-                # Mark this specific plugin as complete
-                self.scanning_plugins[plugin_name] = True
             else:
-                # Unknown plugin or not being tracked
-                self.logger.warning(f"Received scan completion for unknown plugin: {plugin_name}")
-                return
+                # Make case-insensitive lookup for plugin name
+                plugin_found = False
+                for tracked_name in self.scanning_plugins:
+                    if tracked_name.lower() == plugin_name.lower():
+                        # Mark this specific plugin as complete using its original case
+                        self.scanning_plugins[tracked_name] = True
+                        plugin_found = True
+                        break
+                
+                if not plugin_found:
+                    # Unknown plugin or not being tracked
+                    self.logger.warning(f"Received scan completion for unknown plugin: {plugin_name}")
+                    return
                 
             # Check if all tracked plugins have completed
             if all(self.scanning_plugins.values()) and self.scanning_plugins:
