@@ -573,19 +573,21 @@ def get_plugin_logs(db_path: str, plugin_name: Optional[str] = None, limit: Opti
     return [dict(row) for row in rows]
 
 
-def get_dashboard_data(db_path: str,alert_limit=50,plugin_log_limit=20) -> Dict[str, Any]:
+def get_dashboard_data(db_path: str, alert_limit=50, plugin_log_limit=20) -> Dict[str, Any]:
     """
     Retrieves all relevant data for the dashboard in a single call.
     This reduces the number of database connections needed for syncing.
 
     :param db_path: Path to the database file.
+    :param alert_limit: Maximum number of alerts to retrieve.
+    :param plugin_log_limit: Maximum number of plugin logs to retrieve.
     :return: A dictionary with all dashboard data.
     """
     return {
         "networks": get_networks(db_path),
         "devices": get_devices(db_path),
         "alerts": get_alerts(db_path, alert_limit),
-        "plugin_logs": get_plugin_logs(db_path, plugin_log_limit)
+        "plugin_logs": get_plugin_logs(db_path, None, plugin_log_limit)  # Fixed: Pass None for plugin_name, plugin_log_limit as limit
     }
 
 

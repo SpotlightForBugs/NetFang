@@ -90,7 +90,8 @@ class SocketIOHandler:
         
         try:
             # Get dashboard data from database using the configured db_path
-            dashboard_data = get_dashboard_data(self.db_path)
+            # Use consistent defaults for log limits to ensure complete data is sent
+            dashboard_data = get_dashboard_data(self.db_path, alert_limit=50, plugin_log_limit=100)
             
             # Emit the dashboard update
             self.socketio.emit("dashboard_data", dashboard_data)
@@ -162,6 +163,7 @@ class SocketIOHandler:
             # Also immediately emit dashboard_data to update the UI
             from netfang.db.database import get_dashboard_data
             if self.db_path:
+                # Fixed: Pass plugin_log_limit as a proper named parameter
                 dashboard_data = get_dashboard_data(self.db_path, plugin_log_limit=100)
                 self.socketio.emit("dashboard_data", dashboard_data)
                 
