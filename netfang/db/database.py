@@ -1,6 +1,7 @@
 import sqlite3
 from typing import Any, Dict, Optional, List, Set, Tuple, cast
 import datetime
+import mac_vendor_lookup
 
 # Global variable to track if the database has been initialized
 db_init: bool = False
@@ -440,7 +441,6 @@ def add_or_update_network(
     _ensure_db_initialized(db_path)
     # Ensure MAC address is uppercase for consistent storage and lookups
     mac_address = mac_address.upper()
-
     conn: sqlite3.Connection = sqlite3.connect(db_path)
     cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute("SELECT id FROM networks WHERE mac_address = ?", (mac_address,))
@@ -468,7 +468,27 @@ def add_or_update_network(
             (is_blacklisted, is_home, vendor, services, mac_address),
         )
     conn.commit()
+    
+    
+    #check if a vendor is there for the network, if not use the mac address with mac_address_lookup
+    has_vendor = cursor.execute("SELECT vendor FROM networks WHERE mac_address = ?", (mac_address,)).fetchone()[0]
+    if has_vendor is None or has_vendor == "":
+        try:
+            vendor = mac_vendor_lookup.MacLookup().lookup(mac_address)
+            cursor.execute(
+                """
+                UPDATE networks
+                SET vendor = ?
+                WHERE mac_address = ?
+            """,
+                (vendor, mac_address),
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"Failed to look up vendor for {mac_address}: {e}")
     conn.close()
+    
+        
 
 
 def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
@@ -777,4 +797,22 @@ def add_or_update_device(
             ),
         )
     conn.commit()
+    
+    # Check if a vendor is there for the device, if not use mac_vendor_lookup
+    has_vendor = cursor.execute("SELECT vendor FROM devices WHERE ip_address = ? AND mac_address = ?", (ip_address, mac_address)).fetchone()[0]
+    if has_vendor is None or has_vendor == "":
+        try:
+            vendor = mac_vendor_lookup.MacLookup().lookup(mac_address)
+            cursor.execute(
+                """
+                UPDATE devices
+                SET vendor = ?
+                WHERE ip_address = ? AND mac_address = ?
+            """,
+                (vendor, ip_address, mac_address),
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"Failed to look up vendor for {mac_address}: {e}")
+    
     conn.close()
