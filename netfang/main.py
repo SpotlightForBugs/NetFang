@@ -385,6 +385,32 @@ def favicon():
     return send_from_directory(os.path.join(app.root_path, 'static'), 'router_logo.png',
                                mimetype='image/vnd.microsoft.icon')
 
+
+@app.route('/api/version', methods=['GET'])
+@admin_required
+def get_version():
+    """
+    API endpoint to fetch the current git commit hash and return it as JSON.
+    """
+    try:
+        # Run the git command to get the commit hash
+        result = subprocess.run(
+            ['git', 'rev-parse', 'HEAD'],
+            capture_output=True,
+            text=True,
+            check=True, # Raise an exception if the command fails
+            encoding='utf-8'
+        )
+        # Get the hash, removing any trailing newline
+        commit_hash = result.stdout.strip()
+        return jsonify({'version': commit_hash})
+    except (subprocess.CalledProcessError, FileNotFoundError) as e:
+        # Handle cases where git command fails or git is not installed
+        print(f"Error getting git hash: {e}")
+        # Return an error response if the hash couldn't be retrieved
+        return jsonify({'error': 'Could not retrieve version information'}), 500
+
+
 @app.route("/logout")
 def logout():
     session.pop('logged_in', None)

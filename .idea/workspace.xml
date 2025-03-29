@@ -4,13 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling">
-      <change afterPath="$PROJECT_DIR$/.idea/dataSources.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.gitignore" beforeDir="false" afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: implement database schema migration for MAC address normalization and add vendor/services fields">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/db/database.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/db/database.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/plugins/defaults/plugin_arpfingerprint.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugins/defaults/plugin_arpfingerprint.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/plugins/defaults/plugin_arpscan.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugins/defaults/plugin_arpscan.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/netfang/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/main.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -49,7 +45,7 @@
   }
 }</component>
   <component name="ProblemsViewState">
-    <option name="selectedTabId" value="ProjectErrors" />
+    <option name="selectedTabId" value="DEPENDENCY_CHECKER_PROBLEMS_TAB" />
   </component>
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 3
@@ -185,6 +181,7 @@
       <workItem from="1743238296690" duration="1928000" />
       <workItem from="1743240757753" duration="350000" />
       <workItem from="1743241182368" duration="79000" />
+      <workItem from="1743241390811" duration="979000" />
     </task>
     <task id="LOCAL-00001" summary="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity">
       <option name="closed" value="true" />
@@ -442,14 +439,21 @@
       <option name="project" value="LOCAL" />
       <updated>1743099052141</updated>
     </task>
-    <option name="localTasksCounter" value="33" />
+    <task id="LOCAL-00033" summary="feat: implement database schema migration for MAC address normalization and add vendor/services fields">
+      <option name="closed" value="true" />
+      <created>1743241919449</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1743241919449</updated>
+    </task>
+    <option name="localTasksCounter" value="34" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: Implement INITIAL alert system with custom styling and notification panel in index.html and hidden.css" />
     <MESSAGE value="feat: Add battery and power connection alert actions and conditions in actions.py and conditions.py" />
     <MESSAGE value="feat: Remove debug print statement from LED control subprocess in plugin_waveshare_rgb_led_hat.py" />
     <MESSAGE value="feat: Add debug print statements for battery and power connection checks in conditions.py" />
@@ -474,7 +478,8 @@
     <MESSAGE value="feat: merge and refine styles for improved layout and responsiveness" />
     <MESSAGE value="feat: refine CSS styles for improved layout, responsiveness, and state indicators" />
     <MESSAGE value="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling" />
+    <MESSAGE value="feat: implement database schema migration for MAC address normalization and add vendor/services fields" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: implement database schema migration for MAC address normalization and add vendor/services fields" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$database.coverage" NAME="database Coverage Results" MODIFIED="1743239143834" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/netfang/db" />
