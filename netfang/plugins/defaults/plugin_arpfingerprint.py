@@ -172,7 +172,7 @@ class ArpFingerprintPlugin(BasePlugin):
                                 services=device.get("services"),
                                 network_id=device.get("network_id"),
                                 vendor=device.get("vendor"),
-                                deviceclass=device.get("deviceclass"),
+                                device_class=device.get("deviceclass"),
                                 fingerprint=fingerprint_str
                             )
                             

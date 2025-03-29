@@ -467,7 +467,7 @@ class ArpScanPlugin(BasePlugin):
                                 services=None,
                                 network_id=router_network_id,
                                 vendor=self.router_vendor_name,
-                                deviceclass="Router",
+                                device_class="Router",
                                 fingerprint=None
                             )
                             add_plugin_log(db_path, self.name, f"Stored router info: IP={router_ip}, MAC={router_mac}")
@@ -501,7 +501,7 @@ class ArpScanPlugin(BasePlugin):
                                 services=None,
                                 network_id=router_network_id, 
                                 vendor=vendor,
-                                deviceclass=None,
+                                device_class=None,
                                 fingerprint=None
                             )
                             

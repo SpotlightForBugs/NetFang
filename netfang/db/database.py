@@ -18,12 +18,50 @@ def _ensure_db_initialized(db_path: str) -> None:
         init_db(db_path)
 
 
+def apply_migrations(db_path):
+    """
+    Apply any necessary migrations to the database schema.
+    """
+
+    # ---- Migration 1: make all MAC addresses uppercase ----
+    # 1.1 Inside networks table:
+    conn: sqlite3.Connection = sqlite3.connect(db_path)
+    cursor: sqlite3.Cursor = conn.cursor()
+    cursor.execute("SELECT id, mac_address FROM networks")
+    rows: List[Tuple[int, str]] = cursor.fetchall()
+    for row in rows:
+        network_id, mac_address = row
+        # Update the MAC address to be uppercase
+        cursor.execute(
+            "UPDATE networks SET mac_address = ? WHERE id = ?",
+            (mac_address.upper(), network_id),
+        )
+    conn.commit()
+    conn.close()
+    # 1.2 Inside devices table:
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, mac_address FROM devices")
+    rows = cursor.fetchall()
+    for row in rows:
+        device_id, mac_address = row
+        # Update the MAC address to be uppercase
+        cursor.execute(
+            "UPDATE devices SET mac_address = ? WHERE id = ?",
+            (mac_address.upper(), device_id),
+        )
+    conn.commit()
+    conn.close()
+    # ---- End of Migration 1 ----
+
+
+
 def init_db(db_path: str) -> None:
     """
     Creates the initial schema if not present, and ensures all necessary columns
     exist in each table.
     Tables:
-      - networks: known networks with MAC, blacklist and home flags.
+      - networks: known networks with MAC, blacklist and home flags, vendor, services.
       - devices: scanned hosts and their services.
       - plugin_logs: record plugin events.
       - alerts: record alerts.
@@ -34,6 +72,7 @@ def init_db(db_path: str) -> None:
     cursor: sqlite3.Cursor = conn.cursor()
 
     # Create networks table if it does not exist.
+    # Added vendor and services columns.
     cursor.execute(
         """
         CREATE TABLE IF NOT EXISTS networks (
@@ -42,7 +81,9 @@ def init_db(db_path: str) -> None:
             is_blacklisted BOOLEAN,
             is_home BOOLEAN,
             first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
-            last_seen DATETIME DEFAULT CURRENT_TIMESTAMP
+            last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+            vendor TEXT,
+            services TEXT
         )
         """
     )
@@ -98,6 +139,7 @@ def init_db(db_path: str) -> None:
     conn.close()
 
     # Ensure that each table contains all required columns.
+    # Updated expected columns for 'networks' table.
     _ensure_table_columns(
         db_path,
         "networks",
@@ -108,6 +150,8 @@ def init_db(db_path: str) -> None:
             "is_home": "BOOLEAN",
             "first_seen": "DATETIME DEFAULT CURRENT_TIMESTAMP",
             "last_seen": "DATETIME DEFAULT CURRENT_TIMESTAMP",
+            "vendor": "TEXT",
+            "services": "TEXT",
         },
     )
     _ensure_table_columns(
@@ -162,7 +206,7 @@ def init_db(db_path: str) -> None:
         "networks": "CREATE TABLE networks",
         "devices": "CREATE TABLE devices",
         "plugin_logs": "CREATE TABLE plugin_logs",
-        "alerts": "CREATE TABLE alerts"
+        "alerts": "CREATE TABLE alerts",
     }
 
     # Check that all required tables exist
@@ -175,13 +219,16 @@ def init_db(db_path: str) -> None:
             raise RuntimeError(f"Table {table_name} has unexpected definition")
     conn.close()
 
+    #apply migrations from previous versions
+    apply_migrations(db_path)
+
     # Set the global flag indicating that the database has been initialized
     global db_init
     db_init = True
 
 
 def _ensure_table_columns(
-        db_path: str, table: str, expected_columns: Dict[str, str]
+    db_path: str, table: str, expected_columns: Dict[str, str]
 ) -> None:
     """
     Ensures that the given table has all the expected columns.
@@ -200,21 +247,24 @@ def _ensure_table_columns(
     for col, definition in expected_columns.items():
         if col not in existing_columns:
             # Note: SQLite's ALTER TABLE only supports adding a column.
+            # Add default values for new columns if appropriate, e.g., NULL
+            # For TEXT columns, NULL is the default default.
+            print(f"Adding column {col} to table {table}")
             cursor.execute(f"ALTER TABLE {table} ADD COLUMN {col} {definition}")
     conn.commit()
     conn.close()
 
 
 def add_or_update_alert(
-        db_path: str,
-        message: str,
-        category: str,
-        level: str,
-        is_resolved: bool = False,
-        resolved_at: Optional[str] = None,
-        network_id: Optional[int] = None,
-        session_id: Optional[str] = None,
-        alert_id: Optional[int] = None,
+    db_path: str,
+    message: str,
+    category: str,
+    level: str,
+    is_resolved: bool = False,
+    resolved_at: Optional[str] = None,
+    network_id: Optional[int] = None,
+    session_id: Optional[str] = None,
+    alert_id: Optional[int] = None,
 ) -> int:
     """
     Inserts a new alert or updates an existing alert in the database.
@@ -241,7 +291,15 @@ def add_or_update_alert(
             INSERT INTO alerts (message, category, level, is_resolved, resolved_at, network_id, session_id)
             VALUES (?, ?, ?, ?, ?, ?, ?)
             """,
-            (message, category, level, int(is_resolved), resolved_at, network_id, session_id),
+            (
+                message,
+                category,
+                level,
+                int(is_resolved),
+                resolved_at,
+                network_id,
+                session_id,
+            ),
         )
         new_alert_id: int = cast(int, cursor.lastrowid)
         conn.commit()
@@ -260,7 +318,16 @@ def add_or_update_alert(
                 session_id = ?
             WHERE id = ?
             """,
-            (message, category, level, int(is_resolved), resolved_at, network_id, session_id, alert_id),
+            (
+                message,
+                category,
+                level,
+                int(is_resolved),
+                resolved_at,
+                network_id,
+                session_id,
+                alert_id,
+            ),
         )
         conn.commit()
         conn.close()
@@ -277,7 +344,9 @@ def resolve_alert(db_path: str, alert_id: int) -> None:
     """
     _ensure_db_initialized(db_path)
 
-    resolved_time: str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+    resolved_time: str = datetime.datetime.now(
+        datetime.timezone.utc
+    ).isoformat()
     conn: sqlite3.Connection = sqlite3.connect(db_path)
     cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute(
@@ -329,13 +398,15 @@ def verify_network_id(db_path: str, network_id: int) -> bool:
 
 def get_network_by_mac(db_path: str, mac_address: str) -> Optional[Dict[str, Any]]:
     """
-    Retrieve network details by MAC address.
+    Retrieve network details by MAC address. Ensures MAC address is uppercase.
 
     :param db_path: Path to the database file.
     :param mac_address: MAC address to look up.
     :return: Dictionary of network details if found, None otherwise.
     """
     _ensure_db_initialized(db_path)
+    # Ensure MAC address is uppercase for consistent lookups
+    mac_address = mac_address.upper()
 
     conn: sqlite3.Connection = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
@@ -347,38 +418,55 @@ def get_network_by_mac(db_path: str, mac_address: str) -> Optional[Dict[str, Any
 
 
 def add_or_update_network(
-        db_path: str,
-        mac_address: str,
-        is_blacklisted: bool = False,
-        is_home: bool = False
+    db_path: str,
+    mac_address: str,
+    is_blacklisted: bool = False,
+    is_home: bool = False,
+    vendor: Optional[str] = None,
+    services: Optional[str] = None,
 ) -> None:
     """
     Insert a new network or update an existing one by MAC address.
+    Updates vendor and services if provided, otherwise keeps existing values.
+    Ensures MAC address is stored in uppercase.
 
     :param db_path: Path to the database file.
     :param mac_address: MAC address of the network.
     :param is_blacklisted: Whether the network is blacklisted.
     :param is_home: Whether the network is a home network.
+    :param vendor: Optional vendor information for the network.
+    :param services: Optional services information for the network.
     """
     _ensure_db_initialized(db_path)
+    # Ensure MAC address is uppercase for consistent storage and lookups
+    mac_address = mac_address.upper()
 
     conn: sqlite3.Connection = sqlite3.connect(db_path)
     cursor: sqlite3.Cursor = conn.cursor()
     cursor.execute("SELECT id FROM networks WHERE mac_address = ?", (mac_address,))
     row: Optional[Tuple[Any, ...]] = cursor.fetchone()
     if row is None:
-        cursor.execute("""
-            INSERT INTO networks (mac_address, is_blacklisted, is_home)
-            VALUES (?, ?, ?)
-        """, (mac_address, is_blacklisted, is_home))
+        cursor.execute(
+            """
+            INSERT INTO networks (mac_address, is_blacklisted, is_home, vendor, services)
+            VALUES (?, ?, ?, ?, ?)
+        """,
+            (mac_address, is_blacklisted, is_home, vendor, services),
+        )
     else:
-        cursor.execute("""
+        # Use COALESCE to update vendor/services only if a new value is provided
+        cursor.execute(
+            """
             UPDATE networks
             SET is_blacklisted = ?,
                 is_home = ?,
-                last_seen = CURRENT_TIMESTAMP
+                last_seen = CURRENT_TIMESTAMP,
+                vendor = COALESCE(?, vendor),
+                services = COALESCE(?, services)
             WHERE mac_address = ?
-        """, (is_blacklisted, is_home, mac_address))
+        """,
+            (is_blacklisted, is_home, vendor, services, mac_address),
+        )
     conn.commit()
     conn.close()
 
@@ -393,17 +481,20 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
     """
     # Print to console for direct visibility during debugging
     print(f"PLUGIN LOG: {plugin_name} - {event}")
-    
+
     _ensure_db_initialized(db_path)
 
     # Store in database
     try:
         conn: sqlite3.Connection = sqlite3.connect(db_path)
         cursor: sqlite3.Cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO plugin_logs (plugin_name, event)
             VALUES (?, ?)
-        """, (plugin_name, event))
+        """,
+            (plugin_name, event),
+        )
         log_id = cursor.lastrowid
         conn.commit()
         conn.close()
@@ -411,17 +502,18 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
     except Exception as e:
         print(f"ERROR storing plugin log in database: {str(e)}")
         import traceback
+
         print(traceback.format_exc())
-    
+
     # Stream to dashboard in real-time if SocketIO handler is available
     try:
         from netfang.socketio_handler import handler
         import asyncio
-        
+
         # Create and run a coroutine to stream the log
         async def stream_log():
             await handler.stream_plugin_log(plugin_name, event)
-            
+
         # Get the current event loop or create one if it doesn't exist
         try:
             loop = asyncio.get_event_loop()
@@ -429,30 +521,37 @@ def add_plugin_log(db_path: str, plugin_name: str, event: str) -> None:
                 asyncio.create_task(stream_log())
             else:
                 loop.run_until_complete(stream_log())
-            print(f"Successfully streamed plugin log via SocketIO: {plugin_name} - {event}")
+            print(
+                f"Successfully streamed plugin log via SocketIO: {plugin_name} - {event}"
+            )
         except RuntimeError:
             # If no event loop is available in this thread, use the sync version
             handler.sync_stream_plugin_log(plugin_name, event)
-            print(f"Used sync method to stream plugin log: {plugin_name} - {event}")
+            print(
+                f"Used sync method to stream plugin log: {plugin_name} - {event}"
+            )
         except Exception as e:
             print(f"Error in asyncio handling for plugin log: {str(e)}")
             # Try the sync version as fallback
             handler.sync_stream_plugin_log(plugin_name, event)
     except ImportError:
         # SocketIO handler not available, just log without streaming
-        print(f"SocketIO handler not available, skipping real-time streaming for: {plugin_name} - {event}")
+        print(
+            f"SocketIO handler not available, skipping real-time streaming for: {plugin_name} - {event}"
+        )
     except Exception as e:
         print(f"Unexpected error in plugin log streaming: {str(e)}")
         import traceback
+
         print(traceback.format_exc())
 
 
 def get_alerts(
-        db_path: str,
-        limit: Optional[int] = None,
-        only_unresolved: bool = False,
-        only_resolved: bool = False,
-        session_id: Optional[str] = None,
+    db_path: str,
+    limit: Optional[int] = None,
+    only_unresolved: bool = False,
+    only_resolved: bool = False,
+    session_id: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Retrieves alerts from the database with optional filtering.
@@ -515,7 +614,9 @@ def get_networks(db_path: str, limit: Optional[int] = None) -> List[Dict[str, An
     return [dict(row) for row in rows]
 
 
-def get_devices(db_path: str, network_id: Optional[int] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+def get_devices(
+    db_path: str, network_id: Optional[int] = None, limit: Optional[int] = None
+) -> List[Dict[str, Any]]:
     """
     Retrieves devices from the database, optionally filtered by network ID.
 
@@ -544,7 +645,9 @@ def get_devices(db_path: str, network_id: Optional[int] = None, limit: Optional[
     return [dict(row) for row in rows]
 
 
-def get_plugin_logs(db_path: str, plugin_name: Optional[str] = None, limit: Optional[int] = None) -> List[Dict[str, Any]]:
+def get_plugin_logs(
+    db_path: str, plugin_name: Optional[str] = None, limit: Optional[int] = None
+) -> List[Dict[str, Any]]:
     """
     Retrieves plugin logs from the database, optionally filtered by plugin name.
 
@@ -573,7 +676,9 @@ def get_plugin_logs(db_path: str, plugin_name: Optional[str] = None, limit: Opti
     return [dict(row) for row in rows]
 
 
-def get_dashboard_data(db_path: str, alert_limit=50, plugin_log_limit=20) -> Dict[str, Any]:
+def get_dashboard_data(
+    db_path: str, alert_limit=50, plugin_log_limit=20
+) -> Dict[str, Any]:
     """
     Retrieves all relevant data for the dashboard in a single call.
     This reduces the number of database connections needed for syncing.
@@ -587,23 +692,26 @@ def get_dashboard_data(db_path: str, alert_limit=50, plugin_log_limit=20) -> Dic
         "networks": get_networks(db_path),
         "devices": get_devices(db_path),
         "alerts": get_alerts(db_path, alert_limit),
-        "plugin_logs": get_plugin_logs(db_path, None, plugin_log_limit)  # Fixed: Pass None for plugin_name, plugin_log_limit as limit
+        "plugin_logs": get_plugin_logs(
+            db_path, None, plugin_log_limit
+        ),  # Fixed: Pass None for plugin_name, plugin_log_limit as limit
     }
 
 
 def add_or_update_device(
-        db_path: str,
-        ip_address: str,
-        mac_address: str,
-        hostname: Optional[str] = None,
-        services: Optional[str] = None,
-        network_id: Optional[int] = None,
-        vendor: Optional[str] = None,
-        deviceclass: Optional[str] = None,
-        fingerprint: Optional[str] = None
+    db_path: str,
+    ip_address: str,
+    mac_address: str,
+    hostname: Optional[str] = None,
+    services: Optional[str] = None,
+    network_id: Optional[int] = None,
+    vendor: Optional[str] = None,
+    device_class: Optional[str] = None,
+    fingerprint: Optional[str] = None,
 ) -> None:
     """
-    Insert a new device or update an existing one by IP address.
+    Insert a new device or update an existing one by IP address and MAC address.
+    Ensures MAC address is stored in uppercase.
 
     :param db_path: Path to the database file.
     :param ip_address: IP address of the device.
@@ -612,23 +720,42 @@ def add_or_update_device(
     :param services: Optional services information.
     :param network_id: Optional associated network ID.
     :param vendor: Optional vendor information.
-    :param deviceclass: Optional device class/type.
+    :param device_class: Optional device class/type.
     :param fingerprint: Optional ARP fingerprint data.
     """
     _ensure_db_initialized(db_path)
+    # Ensure MAC address is uppercase for consistent storage and lookups
+    mac_address = mac_address.upper()
 
     conn: sqlite3.Connection = sqlite3.connect(db_path)
     cursor: sqlite3.Cursor = conn.cursor()
-    cursor.execute("SELECT id FROM devices WHERE ip_address = ? AND mac_address = ?", 
-                  (ip_address, mac_address))
+    # Check for existing device using both IP and MAC for better uniqueness
+    cursor.execute(
+        "SELECT id FROM devices WHERE ip_address = ? AND mac_address = ?",
+        (ip_address, mac_address),
+    )
     row: Optional[Tuple[Any, ...]] = cursor.fetchone()
     if row is None:
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO devices (ip_address, mac_address, hostname, services, network_id, vendor, deviceclass, fingerprint)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (ip_address, mac_address, hostname, services, network_id, vendor, deviceclass, fingerprint))
+        """,
+            (
+                ip_address,
+                mac_address,
+                hostname,
+                services,
+                network_id,
+                vendor,
+                device_class,
+                fingerprint,
+            ),
+        )
     else:
-        cursor.execute("""
+        # Use COALESCE to update fields only if a new value is provided
+        cursor.execute(
+            """
             UPDATE devices
             SET hostname = COALESCE(?, hostname),
                 services = COALESCE(?, services),
@@ -637,6 +764,17 @@ def add_or_update_device(
                 deviceclass = COALESCE(?, deviceclass),
                 fingerprint = COALESCE(?, fingerprint)
             WHERE ip_address = ? AND mac_address = ?
-        """, (hostname, services, network_id, vendor, deviceclass, fingerprint, ip_address, mac_address))
+        """,
+            (
+                hostname,
+                services,
+                network_id,
+                vendor,
+                device_class,
+                fingerprint,
+                ip_address,
+                mac_address,
+            ),
+        )
     conn.commit()
     conn.close()
