@@ -8,7 +8,7 @@ except ImportError:
         class smbus:
             class SMBus:
                 def __init__(self, *args, **kwargs):
-                    print("USING THE DUMMY CLASS FOR SMBUS (INIT)")
+                    print("USING THE FAKE CLASS FOR SMBUS (INIT)")
 
                 def read_i2c_block_data(self, *args, **kwargs):
                     print("USING THE DUMMY CLASS FOR SMBUS (read_i2c_block_data)")
