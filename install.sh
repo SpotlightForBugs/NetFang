@@ -45,6 +45,13 @@ else
     echo "Ownership of $SCRIPT_DIR is already set to $RUN_USER"
 fi
 
+#make sure that the §RUN_USER owns its own home directory
+if [ "$(stat -c '%U' /home/"$RUN_USER")" != "$RUN_USER" ]; then
+    echo "Changing ownership of /home/$RUN_USER to $RUN_USER"
+    sudo chown -R "$RUN_USER":"$RUN_USER" /home/"$RUN_USER"
+else
+    echo "Ownership of /home/$RUN_USER is already set to $RUN_USER"
+fi
 
 echo "adding the git repo to the safe directory list in case of bad permissions with the downloadable images"
 git config --global --add safe.directory /home/"$RUN_USER"/"$SCRIPT_DIR" # eg /home/whitehat/netfang
