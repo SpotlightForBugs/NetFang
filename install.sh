@@ -18,6 +18,12 @@ RUN_SCRIPT="$SCRIPT_DIR/run.sh"
         echo "Additional tools installed."
     fi
 
+#check if pip is installed, if not, install it
+if ! command -v pip &> /dev/null; then
+    echo "pip not found. Installing pip..."
+    sudo apt-get install -y python3-pip
+    echo "pip installed."
+fi
 
 
 # Automatically get the non-elevated username
