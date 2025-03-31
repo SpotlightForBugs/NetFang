@@ -25,6 +25,12 @@ if ! command -v pip &> /dev/null; then
     echo "pip installed."
 fi
 
+#check if python3-venv is installed, if not, install it
+if ! dpkg -l | grep python3-venv; then
+    echo "python3-venv not found. Installing python3-venv..."
+    sudo apt-get install -y python3-venv
+    echo "python3-venv installed."
+fi
 
 # Automatically get the non-elevated username
 if [ -n "$SUDO_USER" ]; then

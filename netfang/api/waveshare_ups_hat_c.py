@@ -36,8 +36,8 @@ _REG_CALIBRATION = 0x05
 
 class BusVoltageRange:
     """Constants for ``bus_voltage_range``"""
-    RANGE_16V = 0x00  # set bus voltage range to 16V
-    RANGE_32V = 0x01  # set bus voltage range to 32V (default)
+    RANGE_16V = 0x00  # set bus voltage range to 16 V
+    RANGE_32V = 0x01  # set bus voltage range to 32 V (default)
 
 
 class Gain:
