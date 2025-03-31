@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="docs: Replaced a possibly ableist word 'dummy' with 'fake'">
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: add check for python3-venv installation in install.sh">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/install.sh" beforeDir="false" afterPath="$PROJECT_DIR$/install.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/api/waveshare_ups_hat_c.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/api/waveshare_ups_hat_c.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/netfang/plugins/defaults/plugin_arpscan.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugins/defaults/plugin_arpscan.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -219,7 +218,7 @@
       <workItem from="1743449663419" duration="462000" />
       <workItem from="1743450195742" duration="75000" />
       <workItem from="1743450325502" duration="2737000" />
-      <workItem from="1743455455285" duration="1496000" />
+      <workItem from="1743455455285" duration="2085000" />
     </task>
     <task id="LOCAL-00001" summary="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity">
       <option name="closed" value="true" />
@@ -557,7 +556,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743456702749</updated>
     </task>
-    <option name="localTasksCounter" value="43" />
+    <task id="LOCAL-00043" summary="feat: add check for python3-venv installation in install.sh">
+      <option name="closed" value="true" />
+      <created>1743456989337</created>
+      <option name="number" value="00043" />
+      <option name="presentableId" value="LOCAL-00043" />
+      <option name="project" value="LOCAL" />
+      <updated>1743456989337</updated>
+    </task>
+    <option name="localTasksCounter" value="44" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -575,7 +582,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: add POWER category to alert types in alert_manager.py" />
     <MESSAGE value="fix: update action_alert_power_connected to resolve battery alerts instead of raising new ones" />
     <MESSAGE value="fix: update action_alert_power_connected to check for duplicate battery alerts" />
     <MESSAGE value="refactor: remove debug print statements from conditions and trigger manager" />
@@ -600,7 +606,8 @@
     <MESSAGE value="feat: enhance install.sh to ensure RUN_USER owns their home directory" />
     <MESSAGE value="feat: add pip installation check in install.sh" />
     <MESSAGE value="docs: Replaced a possibly ableist word 'dummy' with 'fake'" />
-    <option name="LAST_COMMIT_MESSAGE" value="docs: Replaced a possibly ableist word 'dummy' with 'fake'" />
+    <MESSAGE value="feat: add check for python3-venv installation in install.sh" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: add check for python3-venv installation in install.sh" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$database.coverage" NAME="database Coverage Results" MODIFIED="1743239143834" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/netfang/db" />

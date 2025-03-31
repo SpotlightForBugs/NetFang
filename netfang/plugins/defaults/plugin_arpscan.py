@@ -222,6 +222,35 @@ class ArpScanPlugin(BasePlugin):
             add_plugin_log(self.config["database_path"], self.name, f"Error notifying scan completion: {str(e)}")
 
     def on_setup(self) -> None:
+        #test if arp-scan is installed, if not, install it with apt and sudo
+        try:
+            subprocess.run(["sudo", "apt", "install", "-y", "arp-scan"], check=True)
+            self.logger.info("arp-scan installed successfully")
+            add_plugin_log(self.config["database_path"], self.name, "arp-scan installed successfully")
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"Error installing arp-scan: {str(e)}")
+            add_plugin_log(self.config["database_path"], self.name, f"Error installing arp-scan: {str(e)}")
+        except FileNotFoundError:
+            self.logger.error("apt command not found. Please install arp-scan manually.")
+            add_plugin_log(self.config["database_path"], self.name, "apt command not found. Please install arp-scan manually.")
+        except Exception as e:
+            self.logger.error(f"Unexpected error during arp-scan installation: {str(e)}")
+            add_plugin_log(self.config["database_path"], self.name, f"Unexpected error during arp-scan installation: {str(e)}")
+        # Check if arp-scan is available
+        try:
+            subprocess.run(["sudo", "arp-scan", "--version"], check=True, capture_output=True)
+            self.logger.info("arp-scan is available")
+            add_plugin_log(self.config["database_path"], self.name, "arp-scan is available")
+        except subprocess.CalledProcessError as e:
+            self.logger.error(f"arp-scan is not available: {str(e)}")
+            add_plugin_log(self.config["database_path"], self.name, f"arp-scan is not available: {str(e)}")
+        except FileNotFoundError:
+            self.logger.error("arp-scan command not found. Please install arp-scan.")
+            add_plugin_log(self.config["database_path"], self.name, "arp-scan command not found. Please install arp-scan.")
+        except Exception as e:
+            self.logger.error(f"Unexpected error checking arp-scan: {str(e)}")
+            add_plugin_log(self.config["database_path"], self.name, f"Unexpected error checking arp-scan: {str(e)}")
+
         self.logger.info(f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces or ['detecting...'])}")
         add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found ethernet interfaces: {', '.join(self.interfaces or ['detecting...'])}")
         # Initial scan on setup - run in background
