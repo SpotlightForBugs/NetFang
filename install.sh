@@ -37,8 +37,18 @@ if [ -z "$RUN_USER" ]; then
     echo "Please run this script with sudo directly (not through su or other methods)."
     exit 1
 fi
+
+# check who owns the repository, if it's not the $RUN_USER, change the ownership to $RUN_USER
+if [ "$(stat -c '%U' "$SCRIPT_DIR")" != "$RUN_USER" ]; then
+    echo "Changing ownership of $SCRIPT_DIR to $RUN_USER"
+    chown -R "$RUN_USER":"$RUN_USER" "$SCRIPT_DIR"
+else
+    echo "Ownership of $SCRIPT_DIR is already set to $RUN_USER"
+fi
+
+
 echo "adding the git repo to the safe directory list in case of bad permissions with the downloadable images"
-sudo git config --global --add safe.directory /home/"$RUN_USER"/"$SCRIPT_DIR" # eg /home/whitehat/netfang
+git config --global --add safe.directory /home/"$RUN_USER"/"$SCRIPT_DIR" # eg /home/whitehat/netfang
 
 usage() {
   cat <<EOF

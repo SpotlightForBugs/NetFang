@@ -4,7 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: improve run.sh script for virtual environment management and error handling">
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: enhance install.sh to optionally install additional tools and configure safe directory for git">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/install.sh" beforeDir="false" afterPath="$PROJECT_DIR$/install.sh" afterDir="false" />
     </list>
@@ -218,7 +218,7 @@
       <workItem from="1743442844944" duration="1214000" />
       <workItem from="1743449663419" duration="462000" />
       <workItem from="1743450195742" duration="75000" />
-      <workItem from="1743450325502" duration="1951000" />
+      <workItem from="1743450325502" duration="2245000" />
     </task>
     <task id="LOCAL-00001" summary="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity">
       <option name="closed" value="true" />
@@ -500,7 +500,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743443059543</updated>
     </task>
-    <option name="localTasksCounter" value="36" />
+    <task id="LOCAL-00036" summary="feat: enhance install.sh to optionally install additional tools and configure safe directory for git">
+      <option name="closed" value="true" />
+      <created>1743454654829</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1743454654829</updated>
+    </task>
+    <option name="localTasksCounter" value="37" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -518,7 +526,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: Add debug print statements for battery and power connection checks in conditions.py" />
     <MESSAGE value="fix: Correct key name for UPS HAT configuration in network_manager.py" />
     <MESSAGE value="feat: Add Sentry event logging for UPS HAT C plugin status in network_manager.py" />
     <MESSAGE value="feat: move Sentry logging (debug)" />
@@ -543,7 +550,8 @@
     <MESSAGE value="feat: implement database schema migration for MAC address normalization and add vendor/services fields" />
     <MESSAGE value="feat: add API endpoint to fetch current git commit hash as JSON" />
     <MESSAGE value="feat: improve run.sh script for virtual environment management and error handling" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: improve run.sh script for virtual environment management and error handling" />
+    <MESSAGE value="feat: enhance install.sh to optionally install additional tools and configure safe directory for git" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: enhance install.sh to optionally install additional tools and configure safe directory for git" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$database.coverage" NAME="database Coverage Results" MODIFIED="1743239143834" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/netfang/db" />
