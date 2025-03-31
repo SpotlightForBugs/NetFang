@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: add API endpoint to fetch current git commit hash as JSON">
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: improve run.sh script for virtual environment management and error handling">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/run.sh" beforeDir="false" afterPath="$PROJECT_DIR$/run.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/install.sh" beforeDir="false" afterPath="$PROJECT_DIR$/install.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -38,6 +38,35 @@
     &quot;assignee&quot;: &quot;SpotlightForBugs&quot;
   }
 }</component>
+  <component name="GitToolBoxStore">
+    <option name="branchesCleanupHistory">
+      <BranchesCleanupHistory>
+        <option name="history">
+          <list>
+            <BranchCleanupEntry>
+              <option name="deletions">
+                <list>
+                  <BranchDeletion>
+                    <option name="hash" value="1f8030997ec1d3ba64db6512737d1886ecba39fc" />
+                    <option name="name" value="jh-branch-1" />
+                  </BranchDeletion>
+                  <BranchDeletion>
+                    <option name="hash" value="e14f359bdbdd0742385d76ebd33e3bd993b7f081" />
+                    <option name="name" value="gitbutler/workspace" />
+                  </BranchDeletion>
+                  <BranchDeletion>
+                    <option name="hash" value="0f5a4e3a218ef084262d5deb05b84c3aeba02bd7" />
+                    <option name="name" value="gitbutler/target" />
+                  </BranchDeletion>
+                </list>
+              </option>
+              <option name="timestamp" value="1743452474819" />
+            </BranchCleanupEntry>
+          </list>
+        </option>
+      </BranchesCleanupHistory>
+    </option>
+  </component>
   <component name="GithubPullRequestsUISettings">{
   &quot;selectedUrlAndAccountId&quot;: {
     &quot;url&quot;: &quot;https://github.com/SpotlightForBugs/NetFang.git&quot;,
@@ -64,8 +93,9 @@
     &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
     &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
     &quot;SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;app.teamhub.selectedTeam&quot;: &quot;https://github.com/SpotlightForBugs/NetFang&quot;,
     &quot;git-widget-placeholder&quot;: &quot;master&quot;,
-    &quot;last_opened_file_path&quot;: &quot;C:/Users/Johannes/PycharmProjects/NetFang/netfang.db&quot;,
+    &quot;last_opened_file_path&quot;: &quot;E:/Downloads/intellij-micropython-1.4.6-2024.2.zip&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
     &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
     &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
@@ -185,6 +215,10 @@
       <workItem from="1743249136989" duration="2706000" />
       <workItem from="1743423628161" duration="139000" />
       <workItem from="1743423831294" duration="2093000" />
+      <workItem from="1743442844944" duration="1214000" />
+      <workItem from="1743449663419" duration="462000" />
+      <workItem from="1743450195742" duration="75000" />
+      <workItem from="1743450325502" duration="1951000" />
     </task>
     <task id="LOCAL-00001" summary="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity">
       <option name="closed" value="true" />
@@ -458,14 +492,32 @@
       <option name="project" value="LOCAL" />
       <updated>1743242608039</updated>
     </task>
-    <option name="localTasksCounter" value="35" />
+    <task id="LOCAL-00035" summary="feat: improve run.sh script for virtual environment management and error handling">
+      <option name="closed" value="true" />
+      <created>1743443059543</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1743443059543</updated>
+    </task>
+    <option name="localTasksCounter" value="36" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: Remove debug print statement from LED control subprocess in plugin_waveshare_rgb_led_hat.py" />
     <MESSAGE value="feat: Add debug print statements for battery and power connection checks in conditions.py" />
     <MESSAGE value="fix: Correct key name for UPS HAT configuration in network_manager.py" />
     <MESSAGE value="feat: Add Sentry event logging for UPS HAT C plugin status in network_manager.py" />
@@ -490,10 +542,11 @@
     <MESSAGE value="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling" />
     <MESSAGE value="feat: implement database schema migration for MAC address normalization and add vendor/services fields" />
     <MESSAGE value="feat: add API endpoint to fetch current git commit hash as JSON" />
-    <option name="LAST_COMMIT_MESSAGE" value="feat: add API endpoint to fetch current git commit hash as JSON" />
+    <MESSAGE value="feat: improve run.sh script for virtual environment management and error handling" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: improve run.sh script for virtual environment management and error handling" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$database.coverage" NAME="database Coverage Results" MODIFIED="1743239143834" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/netfang/db" />
-    <SUITE FILE_PATH="coverage/NetFang$NetFang.coverage" NAME="NetFang Coverage Results" MODIFIED="1742590330433" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
+    <SUITE FILE_PATH="coverage/NetFang$NetFang.coverage" NAME="NetFang Coverage Results" MODIFIED="1743450499012" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="" />
   </component>
 </project>

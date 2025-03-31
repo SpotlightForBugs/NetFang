@@ -8,6 +8,19 @@ SUDOERS_FILE="/etc/sudoers.d/netfang-setup-manager"
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 RUN_SCRIPT="$SCRIPT_DIR/run.sh"
 
+
+#if the flag --without-additional-tools is not passed, do the following:
+    # Install additional tools
+    if [[ "$1" != "--without-additional-tools" ]]; then
+        echo "Installing additional tools..."
+        sudo apt-get update
+        sudo apt-get install -y btop htop curl
+        echo "Additional tools installed."
+    fi
+
+
+
+
 # Automatically get the non-elevated username
 if [ -n "$SUDO_USER" ]; then
     RUN_USER="$SUDO_USER"
@@ -24,6 +37,8 @@ if [ -z "$RUN_USER" ]; then
     echo "Please run this script with sudo directly (not through su or other methods)."
     exit 1
 fi
+echo "adding the git repo to the safe directory list in case of bad permissions with the downloadable images"
+sudo git config --global --add safe.directory /home/"$RUN_USER"/"$SCRIPT_DIR" # eg /home/whitehat/netfang
 
 usage() {
   cat <<EOF
