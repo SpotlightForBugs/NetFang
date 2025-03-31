@@ -37,13 +37,32 @@ if [ "$update_repo" = true ]; then
   fi
 fi
 
+# Check if either python3 or python is installed
+if command -v python3 &> /dev/null; then
+  py_exec="python3"
+  echo "Python3 is installed."
+elif command -v python &> /dev/null; then
+  if python -V 2>&1 | grep -q "Python 3"; then
+    py_exec="python"
+    echo "Python 3.x is installed as python."
+  else
+    sudo apt-get install -y python3
+    py_exec="python3"
+    echo "Installed Python3."
+  fi
+else
+  sudo apt-get install -y python3
+  py_exec="python3"
+  echo "Installed Python3."
+fi
+
 # Check if the virtual environment exists
 if [ ! -d "$VENV_DIR" ] || [ ! -f "$VENV_DIR/bin/activate" ]; then
   echo "Virtual environment not found or corrupted. Creating a new one..."
   # Remove any existing venv
   rm -rf "$VENV_DIR"
   # Create a fresh virtual environment
-  python3 -m venv "$VENV_DIR"
+  $py_exec -m venv "$VENV_DIR"
   echo "Virtual environment created."
 else
   echo "Using existing virtual environment."
@@ -54,8 +73,8 @@ source "$VENV_DIR/bin/activate"
 echo "Virtual environment activated."
 
 # Ensure pip is installed and up to date
-python -m ensurepip --upgrade
-python -m pip install --upgrade pip
+$py_exec -m ensurepip --upgrade
+$py_exec -m pip install --upgrade pip
 echo "Pip installed and updated."
 
 # Check if requirements.txt exists
@@ -78,13 +97,13 @@ echo "Running setup manager..."
 sudo python netfang/setup/setup_manager.py &
 
 echo "Starting network monitor..."
-python netfang/api/netfang_monitor.py &
+$py_exec netfang/api/netfang_monitor.py &
 
 # Run the main application, optionally in the background
 echo "Starting main application..."
 if [ "$run_hidden" = true ]; then
-  nohup python -m netfang.main > netfang.log 2>&1 &
+  nohup $py_exec -m netfang.main > netfang.log 2>&1 &
   echo "Application running in background. Check netfang.log for output."
 else
-  python -m netfang.main
+  $py_exec -m netfang.main
 fi

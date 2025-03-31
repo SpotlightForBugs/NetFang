@@ -20,7 +20,6 @@ RUN_SCRIPT="$SCRIPT_DIR/run.sh"
 
 
 
-
 # Automatically get the non-elevated username
 if [ -n "$SUDO_USER" ]; then
     RUN_USER="$SUDO_USER"
