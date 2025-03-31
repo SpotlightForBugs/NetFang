@@ -3,7 +3,7 @@
 
 **WORK IN PROGRESS, NOT READY FOR USE**
 
-[![wakatime](https://wakatime.com/badge/github/SpotlightForBugs/NetFang.svg?q=cachebusting_is_great)](https://wakatime.com/badge/github/SpotlightForBugs/NetFang)
+[![wakatime](https://wakatime.com/badge/github/SpotlightForBugs/NetFang.svg)](https://wakatime.com/badge/github/SpotlightForBugs/NetFang)
 
 ## Description
 
