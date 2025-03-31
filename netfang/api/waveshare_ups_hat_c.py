@@ -4,7 +4,7 @@ try:
     import smbus
 except ImportError:
     if not netfang.api.pi_utils.is_pi():
-        # make smbus a dummy class (mainly for windows)
+        # make smbus a fake class (mainly for windows)
         class smbus:
             class SMBus:
                 def __init__(self, *args, **kwargs):
