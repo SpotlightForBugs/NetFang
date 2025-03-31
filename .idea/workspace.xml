@@ -4,7 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: add API endpoint to fetch current git commit hash as JSON" />
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: add API endpoint to fetch current git commit hash as JSON">
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/run.sh" beforeDir="false" afterPath="$PROJECT_DIR$/run.sh" afterDir="false" />
+    </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -150,8 +153,8 @@
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
-        <option value="bundled-js-predefined-d6986cc7102b-1632447f56bf-JavaScript-PY-243.25659.43" />
-        <option value="bundled-python-sdk-181015f7ab06-4df51de95216-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-243.25659.43" />
+        <option value="bundled-js-predefined-d6986cc7102b-1632447f56bf-JavaScript-PY-243.26053.29" />
+        <option value="bundled-python-sdk-b1dbf8ef85a6-4df51de95216-com.jetbrains.pycharm.pro.sharedIndexes.bundled-PY-243.26053.29" />
       </set>
     </attachedChunks>
   </component>
@@ -179,6 +182,9 @@
       <workItem from="1743240757753" duration="350000" />
       <workItem from="1743241182368" duration="79000" />
       <workItem from="1743241390811" duration="1290000" />
+      <workItem from="1743249136989" duration="2706000" />
+      <workItem from="1743423628161" duration="139000" />
+      <workItem from="1743423831294" duration="2093000" />
     </task>
     <task id="LOCAL-00001" summary="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity">
       <option name="closed" value="true" />
