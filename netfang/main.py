@@ -243,7 +243,9 @@ def handle_sync_dashboard():
     from netfang.db.database import add_plugin_log
     global db_path  # Use the global db_path variable
     last_log = get_plugin_logs(db_path, "Dashboard", 1)
-    if not last_log.event == "Dashboard sync requested":
+
+    # Ensure last_log is not empty and access the first element if it's a list
+    if last_log and hasattr(last_log[0], 'event') and last_log[0].event != "Dashboard sync requested":
         add_plugin_log(db_path, "Dashboard", "Dashboard sync requested")
     
     dashboard_data = get_dashboard_data(db_path)

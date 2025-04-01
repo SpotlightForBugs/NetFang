@@ -4,10 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="fix: remove unused method and improve comments in streaming_subprocess.py">
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/plugins/optional/plugin_waveshare_rgb_led_hat.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugins/optional/plugin_waveshare_rgb_led_hat.py" afterDir="false" />
-    </list>
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="feat: emit cached actions from PluginManager and add method to retrieve registered actions" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -220,22 +217,7 @@
       <workItem from="1743450325502" duration="2737000" />
       <workItem from="1743455455285" duration="2925000" />
       <workItem from="1743505587947" duration="3424000" />
-    </task>
-    <task id="LOCAL-00004" summary="feat: Improve user handling in install.sh by dynamically determining the non-elevated username">
-      <option name="closed" value="true" />
-      <created>1742577468040</created>
-      <option name="number" value="00004" />
-      <option name="presentableId" value="LOCAL-00004" />
-      <option name="project" value="LOCAL" />
-      <updated>1742577468040</updated>
-    </task>
-    <task id="LOCAL-00005" summary="feat: Enhance index.html and main.py to display dynamic hostname and state information in the dashboard">
-      <option name="closed" value="true" />
-      <created>1742578035364</created>
-      <option name="number" value="00005" />
-      <option name="presentableId" value="LOCAL-00005" />
-      <option name="project" value="LOCAL" />
-      <updated>1742578035364</updated>
+      <workItem from="1743512686670" duration="675000" />
     </task>
     <task id="LOCAL-00006" summary="feat: Implement INITIAL alert system with custom styling and notification panel in index.html and hidden.css">
       <option name="closed" value="true" />
@@ -613,7 +595,23 @@
       <option name="project" value="LOCAL" />
       <updated>1743508200838</updated>
     </task>
-    <option name="localTasksCounter" value="53" />
+    <task id="LOCAL-00053" summary="feat: add action registration method and improve logging in plugin manager">
+      <option name="closed" value="true" />
+      <created>1743512745306</created>
+      <option name="number" value="00053" />
+      <option name="presentableId" value="LOCAL-00053" />
+      <option name="project" value="LOCAL" />
+      <updated>1743512745306</updated>
+    </task>
+    <task id="LOCAL-00054" summary="feat: emit cached actions from PluginManager and add method to retrieve registered actions">
+      <option name="closed" value="true" />
+      <created>1743513267228</created>
+      <option name="number" value="00054" />
+      <option name="presentableId" value="LOCAL-00054" />
+      <option name="project" value="LOCAL" />
+      <updated>1743513267228</updated>
+    </task>
+    <option name="localTasksCounter" value="55" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -631,8 +629,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: add project configuration files for NetFang setup" />
-    <MESSAGE value="feat: improve socket connection error handling and prevent duplicate alerts" />
     <MESSAGE value="feat: merge and refine styles for improved layout and responsiveness" />
     <MESSAGE value="feat: refine CSS styles for improved layout, responsiveness, and state indicators" />
     <MESSAGE value="feat: update Bootstrap and Font Awesome versions, enhance async state transition handling" />
@@ -656,7 +652,9 @@
     <MESSAGE value="fix: improve logging in plugin_waveshare_rgb_led_hat and update workspace.xml" />
     <MESSAGE value="fix: remove dashboard action registration from plugin_waveshare_rgb_led_hat" />
     <MESSAGE value="fix: remove unused method and improve comments in streaming_subprocess.py" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: remove unused method and improve comments in streaming_subprocess.py" />
+    <MESSAGE value="feat: add action registration method and improve logging in plugin manager" />
+    <MESSAGE value="feat: emit cached actions from PluginManager and add method to retrieve registered actions" />
+    <option name="LAST_COMMIT_MESSAGE" value="feat: emit cached actions from PluginManager and add method to retrieve registered actions" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$database.coverage" NAME="database Coverage Results" MODIFIED="1743239143834" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/netfang/db" />
