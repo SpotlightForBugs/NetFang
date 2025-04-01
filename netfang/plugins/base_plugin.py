@@ -4,7 +4,9 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional
 
 from netfang.alert_manager import Alert
-from netfang.main import PluginManager
+
+# Remove the circular import
+# from netfang.main import PluginManager
 
 
 class BasePlugin(ABC):
@@ -13,10 +15,10 @@ class BasePlugin(ABC):
     """
     name: str = "BasePlugin"
 
-    def __init__(self, config: Dict[str, Any],p) -> None:
+    def __init__(self, config: Dict[str, Any]) -> None:
         self.config: Dict[str, Any] = config
         self.callbacks: List[Callable] = []
-        self.plugin_manager = PluginManager.instance
+        self.plugin_manager = None  # Will be set by PluginManager when the plugin is loaded
 
     def register_callback(self, callback: Callable) -> None:
         """Register a callback function to be executed by the plugin."""

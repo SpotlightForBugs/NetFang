@@ -209,7 +209,7 @@ def dashboard():
 def get_current_state():
     if not session.get('logged_in'):
         return jsonify({"error": "Unauthorized"}), 401
-    return jsonify({"state": NetworkManager.instance.state_machine.current_state.value})
+    return jsonify({"state": NetworkManager.state_machine.current_state.value})
 
 
 @socketio.on("connect")

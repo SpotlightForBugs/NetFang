@@ -104,8 +104,11 @@ class PluginManager:
                         if "plugin_config" not in conf_entry:
                             conf_entry["plugin_config"] = {}
                         conf_entry["database_path"] = db_path
-                        instance = plugin_class(conf_entry)
-                        self.plugins[plugin_class.name] = instance
+                        plugin_instance = plugin_class(conf_entry)
+                        # Set the plugin_manager attribute directly - this fixes the circular import
+                        plugin_instance.plugin_manager = self
+                        self.plugins[plugin_class.name] = plugin_instance
+                        self.logger.debug(f"Loaded plugin: {plugin_class.name} from {module_path}")
 
     def _apply_enable_disable(self) -> None:
         # For default plugins
