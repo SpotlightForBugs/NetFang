@@ -1,24 +1,17 @@
+import logging
 import re
 import subprocess
 import time
-import logging
-import threading
-from typing import Any, Dict, List, Optional, Set, Tuple
 from concurrent.futures import ThreadPoolExecutor
+from typing import Any, Dict, List, Optional
 
-import netfang.db
 from netfang.db.database import add_plugin_log, add_or_update_device, add_or_update_network, get_network_by_mac
 from netfang.plugins.base_plugin import BasePlugin
 
 
 def parse_arp_scan(output: str, mode: str) -> Dict[str, Any]:
     """Parse the output of arp-scan command."""
-    parsed_result = {
-        "interface": None,
-        "mac_address": None,
-        "ipv4": None,
-        "devices": []
-    }
+    parsed_result = {"interface": None, "mac_address": None, "ipv4": None, "devices": []}
 
     lines = output.strip().split("\n")
     if not lines:
@@ -63,7 +56,7 @@ class ArpScanPlugin(BasePlugin):
         self.interfaces = None
         self.last_scan_time = 0
         self.scan_throttle = 60  # Minimum seconds between scans
-        
+
         # Get plugin-specific config
         plugin_cfg = self.config.get("plugin_config", {})
         self.scan_timeout = plugin_cfg.get("scan_timeout", 30)
@@ -82,16 +75,15 @@ class ArpScanPlugin(BasePlugin):
         """Detect available ethernet network interfaces (never WiFi)"""
         interfaces = []
         db_path = self.config.get("database_path", "netfang.db")
-        
+
         try:
             # First get all interfaces
             try:
-                result = subprocess.run(["sudo", "ip", "-o", "link", "show"], 
-                                       capture_output=True, text=True, timeout=5)
-                
+                result = subprocess.run(["sudo", "ip", "-o", "link", "show"], capture_output=True, text=True, timeout=5)
+
                 # Log the command output to database
                 add_plugin_log(db_path, self.name, f"Command output [sudo ip -o link show]: {result.stdout}")
-                
+
                 all_interfaces = []
                 for line in result.stdout.split("\n"):
                     if line.strip():
@@ -103,55 +95,51 @@ class ArpScanPlugin(BasePlugin):
                 self.logger.error(f"Error running ip command: {str(e)}")
                 add_plugin_log(db_path, self.name, f"Error running ip command: {str(e)}")
                 all_interfaces = []
-            
+
             # Filter out WiFi interfaces - improved approach
             for interface in all_interfaces:
                 # Skip this interface if it's clearly a WiFi interface based on name
-                if (interface.startswith(("wlan", "wlp", "wifi", "wl")) or
-                    "wifi" in interface.lower() or 
-                    "wlan" in interface.lower() or
-                    "wireless" in interface.lower()):
+                if (interface.startswith(("wlan", "wlp", "wifi",
+                                          "wl")) or "wifi" in interface.lower() or "wlan" in interface.lower() or "wireless" in interface.lower()):
                     self.logger.info(f"Skipping WiFi interface: {interface}")
                     continue
-                
+
                 # Additional check for wireless capability
                 try:
                     # Check if interface is in /sys/class/net/{interface}/wireless/ directory
                     try:
-                        wireless_check = subprocess.run(
-                            ["sudo", "test", "-d", f"/sys/class/net/{interface}/wireless"],
-                            capture_output=True, text=True, timeout=2
-                        )
-                        
+                        wireless_check = subprocess.run(["sudo", "test", "-d", f"/sys/class/net/{interface}/wireless"],
+                                                        capture_output=True, text=True, timeout=2)
+
                         # Log test command output
-                        add_plugin_log(db_path, self.name, f"Command [sudo test -d /sys/class/net/{interface}/wireless] returned code: {wireless_check.returncode}")
-                        
+                        add_plugin_log(db_path, self.name,
+                                       f"Command [sudo test -d /sys/class/net/{interface}/wireless] returned code: {wireless_check.returncode}")
+
                         if wireless_check.returncode == 0:
                             self.logger.info(f"Skipping WiFi interface detected via sysfs: {interface}")
                             continue
                     except (subprocess.SubprocessError, FileNotFoundError) as e:
                         self.logger.debug(f"Error checking wireless via sysfs: {str(e)}")
-                    
+
                     # Try using iw to check if interface is wireless
                     try:
-                        iw_check = subprocess.run(
-                            ["sudo", "iw", "dev", interface, "info"],
-                            capture_output=True, text=True, timeout=2
-                        )
-                        
+                        iw_check = subprocess.run(["sudo", "iw", "dev", interface, "info"], capture_output=True,
+                                                  text=True, timeout=2)
+
                         # Log iw command output
-                        add_plugin_log(db_path, self.name, f"Command output [sudo iw dev {interface} info]: {iw_check.stdout}")
-                        
+                        add_plugin_log(db_path, self.name,
+                                       f"Command output [sudo iw dev {interface} info]: {iw_check.stdout}")
+
                         if iw_check.returncode == 0:
                             self.logger.info(f"Skipping WiFi interface detected via iw: {interface}")
                             continue
                     except (subprocess.SubprocessError, FileNotFoundError) as e:
                         self.logger.debug(f"Error checking wireless via iw: {str(e)}")
-                        
+
                     # Only add to our list if we're sure it's ethernet
                     interfaces.append(interface)
                     self.logger.info(f"Using ethernet interface: {interface}")
-                    
+
                 except Exception as e:
                     # If we can't determine for sure, check if it looks like ethernet
                     if (interface.startswith(("eth", "en", "em", "eno", "ens"))):
@@ -159,21 +147,21 @@ class ArpScanPlugin(BasePlugin):
                         self.logger.info(f"Using likely ethernet interface: {interface}")
                     else:
                         self.logger.info(f"Skipping interface of unknown type: {interface}")
-            
+
             # If no ethernet interfaces found, log a warning
             if not interfaces:
                 self.logger.warning("No ethernet interfaces found!")
                 add_plugin_log(db_path, self.name, "No ethernet interfaces found during detection")
-                
+
         except Exception as e:
             self.logger.error(f"Error detecting interfaces: {str(e)}")
             # Log the error to database
             add_plugin_log(db_path, self.name, f"Error during interface detection: {str(e)}")
-            
+
             # Fallback to common ethernet interface names if detection fails
             interfaces = ["eth0"]
             self.logger.info("Falling back to default ethernet interface: eth0")
-        
+
         return interfaces
 
     def _get_or_create_network_id(self, db_path: str, mac_address: str) -> Optional[int]:
@@ -183,15 +171,15 @@ class ArpScanPlugin(BasePlugin):
             Network ID if available, otherwise None
         """
         try:
-            # First try to get existing network
+            # First, try to get existing network
             network = get_network_by_mac(db_path, mac_address)
             if network:
                 return network.get('id')
-                
+
             # If not found, create a new network entry
             add_or_update_network(db_path, mac_address)
             add_plugin_log(db_path, self.name, f"Created new network entry for MAC: {mac_address}")
-            
+
             # Get the newly created network
             network = get_network_by_mac(db_path, mac_address)
             if network:
@@ -222,7 +210,7 @@ class ArpScanPlugin(BasePlugin):
             add_plugin_log(self.config["database_path"], self.name, f"Error notifying scan completion: {str(e)}")
 
     def on_setup(self) -> None:
-        #test if arp-scan is installed, if not, install it with apt and sudo
+        # test if arp-scan is installed, if not, install it with apt and sudo
         try:
             subprocess.run(["sudo", "apt", "install", "-y", "arp-scan"], check=True)
             self.logger.info("arp-scan installed successfully")
@@ -232,10 +220,12 @@ class ArpScanPlugin(BasePlugin):
             add_plugin_log(self.config["database_path"], self.name, f"Error installing arp-scan: {str(e)}")
         except FileNotFoundError:
             self.logger.error("apt command not found. Please install arp-scan manually.")
-            add_plugin_log(self.config["database_path"], self.name, "apt command not found. Please install arp-scan manually.")
+            add_plugin_log(self.config["database_path"], self.name,
+                           "apt command not found. Please install arp-scan manually.")
         except Exception as e:
             self.logger.error(f"Unexpected error during arp-scan installation: {str(e)}")
-            add_plugin_log(self.config["database_path"], self.name, f"Unexpected error during arp-scan installation: {str(e)}")
+            add_plugin_log(self.config["database_path"], self.name,
+                           f"Unexpected error during arp-scan installation: {str(e)}")
         # Check if arp-scan is available
         try:
             subprocess.run(["sudo", "arp-scan", "--version"], check=True, capture_output=True)
@@ -246,13 +236,16 @@ class ArpScanPlugin(BasePlugin):
             add_plugin_log(self.config["database_path"], self.name, f"arp-scan is not available: {str(e)}")
         except FileNotFoundError:
             self.logger.error("arp-scan command not found. Please install arp-scan.")
-            add_plugin_log(self.config["database_path"], self.name, "arp-scan command not found. Please install arp-scan.")
+            add_plugin_log(self.config["database_path"], self.name,
+                           "arp-scan command not found. Please install arp-scan.")
         except Exception as e:
             self.logger.error(f"Unexpected error checking arp-scan: {str(e)}")
             add_plugin_log(self.config["database_path"], self.name, f"Unexpected error checking arp-scan: {str(e)}")
 
-        self.logger.info(f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces or ['detecting...'])}")
-        add_plugin_log(self.config["database_path"], self.name, f"Setup complete. Found ethernet interfaces: {', '.join(self.interfaces or ['detecting...'])}")
+        self.logger.info(
+            f"[{self.name}] Setup complete. Available interfaces: {', '.join(self.interfaces or ['detecting...'])}")
+        add_plugin_log(self.config["database_path"], self.name,
+                       f"Setup complete. Found ethernet interfaces: {', '.join(self.interfaces or ['detecting...'])}")
         # Initial scan on setup - run in background
         self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
 
@@ -265,7 +258,7 @@ class ArpScanPlugin(BasePlugin):
     def on_disable(self) -> None:
         self.logger.info(f"[{self.name}] Disabled.")
         add_plugin_log(self.config["database_path"], self.name, "ArpScan disabled")
-        
+
     def on_scanning_in_progress(self) -> None:
         """Handle scanning state"""
         current_time = time.time()
@@ -279,8 +272,9 @@ class ArpScanPlugin(BasePlugin):
         elif self.scan_in_progress:
             self.logger.debug(f"[{self.name}] Scan already in progress")
         else:
-            self.logger.debug(f"[{self.name}] Scan throttled - last scan was {current_time - self.last_scan_time:.1f}s ago")
-    
+            self.logger.debug(
+                f"[{self.name}] Scan throttled - last scan was {current_time - self.last_scan_time:.1f}s ago")
+
     def _run_scan_in_background(self) -> None:
         """Run the scan in a background thread"""
         try:
@@ -296,9 +290,10 @@ class ArpScanPlugin(BasePlugin):
         """Handle new network connection by scanning it"""
         if not self.auto_scan_new_network:
             self.logger.info(f"[{self.name}] New network connected with MAC {mac} - auto-scan disabled")
-            add_plugin_log(self.config["database_path"], self.name, f"New network connected - auto-scan disabled: {mac}")
+            add_plugin_log(self.config["database_path"], self.name,
+                           f"New network connected - auto-scan disabled: {mac}")
             return
-            
+
         self.logger.info(f"[{self.name}] New network connected with MAC {mac} - initiating scan...")
         # Scan on new network connection - run in background
         self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
@@ -307,13 +302,14 @@ class ArpScanPlugin(BasePlugin):
         """Handle known network connection - DO NOT scan unless specified in UI/config"""
         if not self.auto_scan_known_network:
             self.logger.info(f"[{self.name}] Known network connected with MAC {mac} - auto-scan disabled")
-            add_plugin_log(self.config["database_path"], self.name, f"Known network connected - auto-scan disabled: {mac}")
+            add_plugin_log(self.config["database_path"], self.name,
+                           f"Known network connected - auto-scan disabled: {mac}")
             return
-            
+
         self.logger.info(f"[{self.name}] Known network connected with MAC {mac} - initiating scan...")
         # Scan on known network connection - run in background
         self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
-        
+
     def on_connected_blacklisted(self, mac: str) -> None:
         """Handle blacklisted network connection - DO NOT scan blacklisted networks"""
         self.logger.info(f"[{self.name}] Blacklisted network connected with MAC {mac} - not scanning")
@@ -329,7 +325,7 @@ class ArpScanPlugin(BasePlugin):
         if not self.auto_scan_new_network:
             self.logger.info(f"[{self.name}] New connection detected - auto-scan disabled")
             return
-            
+
         self.logger.info(f"[{self.name}] New connection detected - initiating scan...")
         # Scan on any new connection - run in background
         self.thread_pool.submit(self.perform_action, [self.name, "localnet", "all"])
@@ -347,39 +343,37 @@ class ArpScanPlugin(BasePlugin):
             Parsed scan results
         """
         db_path = self.config.get("database_path", "netfang.db")
-        
+
         try:
             cmd = ["sudo", "arp-scan", "-l", f"--interface={interface}"]
             cmd_str = " ".join(cmd)
             self.logger.debug(f"Running arp-scan command: {cmd_str}")
-            
+
             # Use the new streaming subprocess functionality for real-time output
             from netfang.streaming_subprocess import run_subprocess_sync
-            
+
             # Run the command with streaming output to dashboard
-            result = run_subprocess_sync(
-                self.name,
-                cmd,
-                db_path=db_path,
-                timeout=self.scan_timeout
-            )
-            
+            result = run_subprocess_sync(self.name, cmd, db_path=db_path, timeout=self.scan_timeout)
+
             if result["status"] == "completed" and result["return_code"] == 0:
                 # Parse the output
                 parsed_data = parse_arp_scan(result["stdout"], mode="localnet")
                 self.logger.info(f"arp-scan found {len(parsed_data['devices'])} devices on {interface}")
-                
+
                 # Log the parsed data summary
                 device_macs = [dev["mac"] for dev in parsed_data.get("devices", [])]
-                add_plugin_log(db_path, self.name, f"arp-scan found {len(parsed_data['devices'])} devices on {interface}: {', '.join(device_macs)}")
+                add_plugin_log(db_path, self.name,
+                               f"arp-scan found {len(parsed_data['devices'])} devices on {interface}: {', '.join(device_macs)}")
                 return parsed_data
             else:
                 # Handle error
-                error_message = result["stderr"] if result["stderr"] else f"arp-scan failed with code {result['return_code']}"
+                error_message = result["stderr"] if result[
+                    "stderr"] else f"arp-scan failed with code {result['return_code']}"
                 self.logger.warning(f"arp-scan error: {error_message}")
-                add_plugin_log(db_path, self.name, f"arp-scan error (return code {result['return_code']}): {error_message}")
+                add_plugin_log(db_path, self.name,
+                               f"arp-scan error (return code {result['return_code']}): {error_message}")
                 return {"devices": []}
-                
+
         except Exception as e:
             self.logger.error(f"Error in run_arp_scan: {str(e)}")
             add_plugin_log(db_path, self.name, f"Error in run_arp_scan: {str(e)}")
@@ -396,20 +390,20 @@ class ArpScanPlugin(BasePlugin):
                 for plugin in manager.plugins.values():
                     if plugin.name == "ArpCache" and hasattr(plugin, "get_mac_for_ip"):
                         return plugin.get_mac_for_ip(ip)
-            
+
             # Fallback to built-in method if ArpCache plugin is not available
             db_path = self.config.get("database_path", "netfang.db")
             cmd = ["sudo", "arp", "-n", ip]
             cmd_str = " ".join(cmd)
             self.logger.debug(f"Using built-in ARP method: {cmd_str}")
             add_plugin_log(db_path, self.name, f"Using built-in ARP method: {cmd_str}")
-            
+
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=5)
             mac_match = re.search(r"([0-9a-fA-F]{2}(?::[0-9a-fA-F]{2}){5})", result.stdout)
             if mac_match:
                 return mac_match.group(1)
             return None
-            
+
         except Exception as e:
             self.logger.error(f"Error in get_mac_for_ip for {ip}: {str(e)}")
             return None
@@ -435,31 +429,31 @@ class ArpScanPlugin(BasePlugin):
                 try:
                     all_ips = set()
                     all_devices = []
-                    
+
                     # Make sure interfaces are detected
                     if self.interfaces is None:
                         self.logger.info(f"[{self.name}] Waiting for interface detection...")
                         self.interfaces = self._detect_interfaces()
-                    
+
                     # Check if we have interfaces to scan
                     if not self.interfaces:
                         self.logger.warning("No ethernet interfaces available for scanning")
                         add_plugin_log(db_path, self.name, "No ethernet interfaces available for scanning")
                         self.scan_in_progress = False
-                        
+
                         # Notify that our scan is complete even though it didn't do anything
                         self._notify_scan_complete()
                         return
-                    
+
                     # Run scans in parallel for each interface
                     arp_scan_results = {}
                     futures = {}
-                    
+
                     # Start scans in parallel
                     for interface in self.interfaces:
                         self.logger.debug(f"[{self.name}] Starting scan on interface {interface}")
                         futures[interface] = self.thread_pool.submit(self.run_arp_scan, interface)
-                    
+
                     # Collect results
                     for interface, future in futures.items():
                         try:
@@ -471,13 +465,14 @@ class ArpScanPlugin(BasePlugin):
                         except Exception as e:
                             self.logger.error(f"[{self.name}] Error scanning interface {interface}: {str(e)}")
                             add_plugin_log(db_path, self.name, f"Error scanning interface {interface}: {str(e)}")
-                    
+
                     self.logger.info(f"[{self.name}] Scan found {len(all_ips)} unique devices")
-                    add_plugin_log(db_path, self.name, f"Found {len(all_ips)} unique devices across all ethernet interfaces")
-                    
+                    add_plugin_log(db_path, self.name,
+                                   f"Found {len(all_ips)} unique devices across all ethernet interfaces")
+
                     # Create mapping of IP to devices for easy lookup
                     ip_to_device = {device["ip"]: device for device in all_devices}
-                    
+
                     # Store router network info if we have it
                     router_network_id = None
                     for interface, result in arp_scan_results.items():
@@ -486,26 +481,18 @@ class ArpScanPlugin(BasePlugin):
                         if router_mac and router_ip:
                             # Create or update the network for the router
                             router_network_id = self._get_or_create_network_id(db_path, router_mac)
-                            
+
                             # Add router as a device too
-                            add_or_update_device(
-                                db_path,
-                                router_ip,
-                                router_mac,
-                                hostname="Router",
-                                services=None,
-                                network_id=router_network_id,
-                                vendor=self.router_vendor_name,
-                                device_class="Router",
-                                fingerprint=None
-                            )
+                            add_or_update_device(db_path, router_ip, router_mac, hostname="Router", services=None,
+                                                 network_id=router_network_id, vendor=self.router_vendor_name,
+                                                 device_class="Router", fingerprint=None)
                             add_plugin_log(db_path, self.name, f"Stored router info: IP={router_ip}, MAC={router_mac}")
-                    
+
                     # Process and save all discovered devices
                     for ip in all_ips:
                         try:
                             device = ip_to_device.get(ip)
-                            
+
                             if device:
                                 # We have detailed info from arp-scan
                                 mac = device["mac"]
@@ -514,44 +501,39 @@ class ArpScanPlugin(BasePlugin):
                                 # We only have the IP, get MAC from ARP cache
                                 mac = self.get_mac_for_ip(ip) or "Unknown"
                                 vendor = "Unknown vendor"
-                            
+
                             # Skip if we couldn't determine a MAC address
                             if mac == "Unknown":
                                 self.logger.warning(f"Skipping device with IP {ip} - could not determine MAC address")
-                                add_plugin_log(db_path, self.name, f"Skipping device with IP {ip} - could not determine MAC address")
+                                add_plugin_log(db_path, self.name,
+                                               f"Skipping device with IP {ip} - could not determine MAC address")
                                 continue
-                            
+
                             # Add device to database - router fingerprinting will be done by the fingerprint plugin
-                            add_or_update_device(
-                                db_path, 
-                                ip, 
-                                mac, 
-                                hostname=None,
-                                services=None,
-                                network_id=router_network_id, 
-                                vendor=vendor,
-                                device_class=None,
-                                fingerprint=None
-                            )
-                            
-                            self.logger.debug(f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={router_network_id}")
-                            add_plugin_log(db_path, self.name, f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={router_network_id}")
+                            add_or_update_device(db_path, ip, mac, hostname=None, services=None,
+                                                 network_id=router_network_id, vendor=vendor, device_class=None,
+                                                 fingerprint=None)
+
+                            self.logger.debug(
+                                f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={router_network_id}")
+                            add_plugin_log(db_path, self.name,
+                                           f"Stored device: IP={ip}, MAC={mac}, vendor={vendor}, network_id={router_network_id}")
                         except Exception as e:
                             self.logger.error(f"[{self.name}] Error processing device {ip}: {str(e)}")
                             add_plugin_log(db_path, self.name, f"Error processing device {ip}: {str(e)}")
-                    
+
                     # Scan complete
                     self.scan_in_progress = False
                     self.logger.info(f"[{self.name}] Network scan complete - saved {len(all_ips)} devices to database")
                     add_plugin_log(db_path, self.name, f"Scan complete - stored {len(all_ips)} devices in database")
-                    
+
                     # Notify StateMachine that our scan is complete
                     self._notify_scan_complete()
-                
+
                 except Exception as e:
                     self.scan_in_progress = False
                     self.logger.error(f"[{self.name}] Error during scan: {str(e)}")
                     add_plugin_log(db_path, self.name, f"Scan error: {str(e)}")
-                    
+
                     # Notify scan completion even if there was an error
                     self._notify_scan_complete()

@@ -375,27 +375,29 @@ class PluginManager:
                 p.perform_action(args)
 
     def is_device_enabled(self, param):
-        # following structure is assumed: "hardware": {"device_name": {"enabled": true|false}}
+        # the following structure is assumed: "hardware": {"device_name": {"enabled": true|false}}
         return self.config.get("hardware", {}).get(param, {}).get("enabled", False)
 
     def notify_scan_complete(self, plugin_name: str) -> None:
         """
         Notify the system that a scan has completed.
-        This should be called by plugins when they finish scanning.
+        Plugins should call this when they finish scanning.
         
         Args:
             plugin_name: Name of the plugin that completed scanning or "all" for a collective completion
         """
         try:
             # Mark the specific plugin as complete
-            if (plugin_name == "all"):
+            if plugin_name == "all":
                 # All processes completed notification from streaming subprocess
                 if not self.scanning_plugins:
                     # No plugins were actively scanning
                     return
+                self.logger.info(self.scanning_plugins)
                 
                 # Mark all plugins as complete
                 for name in self.scanning_plugins:
+                    self.logger.info(f"Scanning plugin {name}")
                     self.scanning_plugins[name] = True
             else:
                 # Make case-insensitive lookup for plugin name
@@ -410,6 +412,7 @@ class PluginManager:
                 if not plugin_found:
                     # Unknown plugin or not being tracked
                     self.logger.warning(f"Received scan completion for unknown plugin: {plugin_name}")
+                    self.logger.warning(f"Currently tracked plugins: {self.scanning_plugins}")
                     return
                 
             # Check if all tracked plugins have completed
