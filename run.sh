@@ -33,7 +33,6 @@ if [ "$update_repo" = true ]; then
   if [ -f "/tmp/config.json" ]; then
     mv /tmp/config.json netfang/config.json
     echo "Restored config.json"
-    rm /tmp/config.json
   fi
 fi
 
@@ -94,7 +93,7 @@ chmod +x netfang/setup/setup_manager.py
 
 # Run the setup_manager with sudo
 echo "Running setup manager..."
-sudo python netfang/setup/setup_manager.py &
+sudo $py_exec netfang/setup/setup_manager.py &
 
 echo "Starting network monitor..."
 $py_exec netfang/api/netfang_monitor.py &
