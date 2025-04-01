@@ -465,16 +465,3 @@ class WaveshareRGBLEDHat(BasePlugin):
             self.logger.error(f"Error registering dashboard actions: {str(e)}")
             add_plugin_log(self.db_path, self.name, f"Error registering dashboard actions: {str(e)}")
             
-    # Register dashboard actions when the plugin is enabled
-    def on_enable(self) -> None:
-        # Green pulse animation indicates successful enablement
-        if self.animations_enabled:
-            self.animation_controller.start_animation(
-                AnimationEnum.PULSE, ColorEnum.GREEN, 
-                self.default_duration, self.default_brightness, 
-                speed=self.default_speed
-            )
-        add_plugin_log(self.db_path, self.name, "Plugin enabled")
-        
-        # Register dashboard actions
-        self.register_dashboard_actions()
