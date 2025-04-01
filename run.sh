@@ -28,7 +28,7 @@ done
 
 # Update the repository if requested
 if [ "$update_repo" = true ]; then
-  [ -f "netfang/config.json" ] && mv netfang/config.json /tmp/config.json && git stash
+  [ -f "netfang/config.json" ] && mv netfang/config.json /tmp/config.json &&git stash && git stash clear
   git pull
   if [ -f "/tmp/config.json" ]; then
     mv /tmp/config.json netfang/config.json
@@ -92,7 +92,7 @@ echo "Requirements installed."
 chmod +x netfang/scripts/arp_helper.py
 chmod +x netfang/setup/setup_manager.py
 
-# Run setup manager with sudo
+# Run the setup_manager with sudo
 echo "Running setup manager..."
 sudo python netfang/setup/setup_manager.py &
 

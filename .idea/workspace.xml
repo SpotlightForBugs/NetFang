@@ -4,10 +4,10 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="docs: Replaced a possibly ableist word 'DUMMY' with 'FAKE'">
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="fix: add more verbose logging">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/netfang/plugin_manager.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugin_manager.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/plugins/defaults/plugin_arpscan.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugins/defaults/plugin_arpscan.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/run.sh" beforeDir="false" afterPath="$PROJECT_DIR$/run.sh" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -220,7 +220,7 @@
       <workItem from="1743450195742" duration="75000" />
       <workItem from="1743450325502" duration="2737000" />
       <workItem from="1743455455285" duration="2925000" />
-      <workItem from="1743505587947" duration="440000" />
+      <workItem from="1743505587947" duration="892000" />
     </task>
     <task id="LOCAL-00001" summary="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity">
       <option name="closed" value="true" />
@@ -582,7 +582,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743457615855</updated>
     </task>
-    <option name="localTasksCounter" value="46" />
+    <task id="LOCAL-00046" summary="fix: add more verbose logging">
+      <option name="closed" value="true" />
+      <created>1743506082626</created>
+      <option name="number" value="00046" />
+      <option name="presentableId" value="LOCAL-00046" />
+      <option name="project" value="LOCAL" />
+      <updated>1743506082626</updated>
+    </task>
+    <option name="localTasksCounter" value="47" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -600,7 +608,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="refactor: remove debug print statements from conditions and trigger manager" />
     <MESSAGE value="feat: add headless setup script and update README with detailed setup instructions for NetFang" />
     <MESSAGE value="feat: add Raspberry Pi Zero 2 compatibility check and update README with hardware decision tree" />
     <MESSAGE value="fix: update install script to use bash for headless setup execution" />
@@ -625,7 +632,8 @@
     <MESSAGE value="feat: add check for python3-venv installation in install.sh" />
     <MESSAGE value="feat: add installation and availability check for arp-scan in plugin_arpscan.py" />
     <MESSAGE value="docs: Replaced a possibly ableist word 'DUMMY' with 'FAKE'" />
-    <option name="LAST_COMMIT_MESSAGE" value="docs: Replaced a possibly ableist word 'DUMMY' with 'FAKE'" />
+    <MESSAGE value="fix: add more verbose logging" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: add more verbose logging" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$database.coverage" NAME="database Coverage Results" MODIFIED="1743239143834" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/netfang/db" />

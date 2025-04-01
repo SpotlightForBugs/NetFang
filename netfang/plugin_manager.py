@@ -378,89 +378,71 @@ class PluginManager:
         # the following structure is assumed: "hardware": {"device_name": {"enabled": true|false}}
         return self.config.get("hardware", {}).get(param, {}).get("enabled", False)
 
+    # Python
     def notify_scan_complete(self, plugin_name: str) -> None:
         """
         Notify the system that a scan has completed.
         Plugins should call this when they finish scanning.
-        
+
         Args:
             plugin_name: Name of the plugin that completed scanning or "all" for a collective completion
         """
         try:
-            # Mark the specific plugin as complete
             if plugin_name == "all":
-                # All processes completed notification from streaming subprocess
                 if not self.scanning_plugins:
-                    # No plugins were actively scanning
                     return
                 self.logger.info(self.scanning_plugins)
-                
-                # Mark all plugins as complete
                 for name in self.scanning_plugins:
                     self.logger.info(f"Scanning plugin {name}")
                     self.scanning_plugins[name] = True
             else:
-                # Make case-insensitive lookup for plugin name
                 plugin_found = False
+                # Try to find the plugin using case-insensitive match.
                 for tracked_name in self.scanning_plugins:
                     if tracked_name.lower() == plugin_name.lower():
-                        # Mark this specific plugin as complete using its original case
                         self.scanning_plugins[tracked_name] = True
                         plugin_found = True
                         break
-                
+                # If not tracked but plugin exists and is enabled, add it now.
                 if not plugin_found:
-                    # Unknown plugin or not being tracked
-                    self.logger.warning(f"Received scan completion for unknown plugin: {plugin_name}")
-                    self.logger.warning(f"Currently tracked plugins: {self.scanning_plugins}")
-                    return
-                
-            # Check if all tracked plugins have completed
-            if all(self.scanning_plugins.values()) and self.scanning_plugins:
+                    plugin_obj = self.get_plugin_by_name(plugin_name)
+                    if plugin_obj and self.enabled_plugins.get(plugin_obj.name, False):
+                        self.logger.info(f"Plugin {plugin_name} was not tracked. Marking as complete.")
+                        self.scanning_plugins[plugin_obj.name] = True
+                    else:
+                        self.logger.warning(f"Received scan completion for unknown plugin: {plugin_name}")
+                        self.logger.warning(f"Currently tracked plugins: {self.scanning_plugins}")
+                        return
+
+            # Transition state when all scanning plugins are complete.
+            if self.scanning_plugins and all(self.scanning_plugins.values()):
                 self.logger.info("All scanning plugins have completed their scans")
-                
-                # Get the StateMachine instance from NetworkManager
                 from netfang.network_manager import NetworkManager
                 from netfang.state_machine import State
-                
+
                 if NetworkManager.instance and NetworkManager.instance.state_machine:
-                    # Get the current state
                     current_state = NetworkManager.instance.state_machine.current_state
-                    
-                    # Only transition if we're in the SCANNING_IN_PROGRESS state
                     if current_state and current_state.name == "SCANNING_IN_PROGRESS":
-                        # Safe way to schedule the state update without creating new event loops
                         self.logger.info("Scheduling transition to SCAN_COMPLETED state")
-                        
                         try:
-                            # Get the current event loop
                             loop = asyncio.get_running_loop()
-                            
-                            # Schedule the coroutine to run in the existing loop
                             asyncio.run_coroutine_threadsafe(
                                 NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED),
                                 loop
                             )
                         except RuntimeError:
-                            # No running event loop in this thread
                             self.logger.warning("No running event loop found, using alternative approach")
-                            
-                            # Create a new event loop and run the coroutine in it
                             asyncio_loop = asyncio.new_event_loop()
                             try:
-                                # Create a coroutine that calls update_state
                                 async def transition_state():
                                     await NetworkManager.instance.state_machine.update_state(State.SCAN_COMPLETED)
-                                    
-                                # Run the coroutine in the new event loop
+
                                 asyncio_loop.run_until_complete(transition_state())
                                 self.logger.info("Async state transition completed")
                             except Exception as e:
                                 self.logger.error(f"Error in async state transition: {str(e)}")
                             finally:
                                 asyncio_loop.close()
-                        
-                        # Reset scan tracking after scheduling transition
                         self.scanning_plugins = {}
                 else:
                     self.logger.warning("Cannot transition state: NetworkManager instance not available")
