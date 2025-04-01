@@ -216,9 +216,10 @@ def handle_connect():
     emit("state_update", {"state": NetworkManager.instance.state_machine.current_state.value,
                           "context": NetworkManager.instance.state_machine.state_context})
     emit("all_alerts", AlertManager.get_alerts(limit_to_this_session=True))
-    
-    emit("register_action",socketio_handler.get_actions())
-    
+
+    # Emit cached actions from PluginManager
+    emit("register_action", PluginManager.instance.get_registered_actions())
+
     # Send cached output of active processes to the newly connected client
     asyncio.run(socketio_handler.send_cached_output_to_client(request.sid))
 

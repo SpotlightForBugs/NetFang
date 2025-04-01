@@ -477,7 +477,7 @@ class PluginManager:
         action_id = action_data["action_id"]
 
         # Ensure the plugin has a registry
-        if plugin_name not in self.registered_actions:
+        if (plugin_name not in self.registered_actions):
             self.registered_actions[plugin_name] = {}
 
         # Check for duplicate action_id
@@ -502,4 +502,8 @@ class PluginManager:
 
         self.logger.info(f"Registered action '{action_id}' for plugin '{plugin_name}'.")
         return action_data
+
+    def get_registered_actions(self) -> Dict[str, Dict[str, Any]]:
+        """Retrieve all registered actions grouped by plugin."""
+        return self.registered_actions
 
