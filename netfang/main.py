@@ -88,6 +88,9 @@ PluginManager.load_plugins()
 
 AlertManager = AlertManager(PluginManager, db_path, alert_callback)
 
+
+PluginManager.set_action_callback(lambda action: socketio.emit("register_action", action))
+
 # Register plugin routes (for plugins that provide blueprints) immediately
 for plugin in PluginManager.plugins.values():
     if hasattr(plugin, "register_routes"):
@@ -217,8 +220,8 @@ def handle_connect():
                           "context": NetworkManager.instance.state_machine.state_context})
     emit("all_alerts", AlertManager.get_alerts(limit_to_this_session=True))
 
-    # Emit cached actions from PluginManager
-    emit("register_action", PluginManager.instance.get_registered_actions())
+    # Emit cached actions from the PluginManager
+    emit("plugin_actions", NetworkManager.instance.plugin_manager.instance.get_registered_actions())
 
     # Send cached output of active processes to the newly connected client
     asyncio.run(socketio_handler.send_cached_output_to_client(request.sid))
@@ -412,10 +415,15 @@ def get_version():
         commit_hash = result.stdout.strip()
         return jsonify({'version': commit_hash})
     except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        # Handle cases where git command fails or git is not installed
+        # Handle cases where the git command fails or git is not installed
         print(f"Error getting git hash: {e}")
         # Return an error response if the hash couldn't be retrieved
         return jsonify({'error': 'Could not retrieve version information'}), 500
+
+@app.route("/api/actions", methods=["GET"])
+@app.route("/api/actions")
+def api_actions():
+    return jsonify(NetworkManager.instance.plugin_manager.instance.get_registered_actions())
 
 
 @app.route("/logout")

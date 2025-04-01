@@ -34,10 +34,11 @@ class PluginManager:
         self.config_path: str = config_path
         self.config: Dict[str, Any] = {}
         self.plugins: Dict[str, BasePlugin] = {}
-        self.enabled_plugins: Dict[str, bool] = {}  # Track enabled status of plugins
+        self.enabled_plugins: Dict[str, bool] = {}  # Track the enabled status of plugins
         self.logger = logging.getLogger(__name__)
         self.scanning_plugins: Dict[str, bool] = {}  # track completion status
-        self.registered_actions: Dict[str, Dict[str, Any]] = {}  # Track registered actions by plugin
+        self.actions = []
+        self._action_callback = None
         
         # Set the class instance
         PluginManager.instance = self
@@ -463,47 +464,20 @@ class PluginManager:
         self.logger.debug(f"Marking scan complete for plugin: {plugin_name}")
         self.notify_scan_complete(plugin_name)
 
-    def register_action(self, action_data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Register an action for a plugin. Ensures no duplicate actions are registered.
 
-        Args:
-            action_data: Dictionary containing action details (plugin_name, action_id, etc.)
 
-        Returns:
-            The registered action data.
-        """
-        plugin_name = action_data["plugin_name"]
-        action_id = action_data["action_id"]
+    def register_plugin_action(self, action: Dict[str, Any]):
+        # De-duplication by ID
+        if not any(existing["id"] == action["id"] for existing in self.actions):
+            self.actions.append(action)
+            if self._action_callback:
+                self._action_callback(action)
 
-        # Ensure the plugin has a registry
-        if (plugin_name not in self.registered_actions):
-            self.registered_actions[plugin_name] = {}
+    def get_registered_actions(self) -> List[Dict[str, Any]]:
+        return self.actions
 
-        # Check for duplicate action_id
-        if action_id in self.registered_actions[plugin_name]:
-            self.logger.warning(f"Action '{action_id}' already registered for plugin '{plugin_name}'.")
-            return self.registered_actions[plugin_name][action_id]
+    def set_action_callback(self, callback: Any):
+        self._action_callback = callback
 
-        # Register the action
-        self.registered_actions[plugin_name][action_id] = action_data
 
-        # Notify the UI via SocketIO
-        from netfang.socketio_handler import handler
-        if handler and handler.socketio:
-            handler.sync_register_dashboard_action(
-                plugin_name=plugin_name,
-                action_id=action_id,
-                action_name=action_data["action_name"],
-                description=action_data["description"],
-                target_type=action_data["target_type"],
-                target_id=action_data.get("target_id"),
-            )
-
-        self.logger.info(f"Registered action '{action_id}' for plugin '{plugin_name}'.")
-        return action_data
-
-    def get_registered_actions(self) -> Dict[str, Dict[str, Any]]:
-        """Retrieve all registered actions grouped by plugin."""
-        return self.registered_actions
 

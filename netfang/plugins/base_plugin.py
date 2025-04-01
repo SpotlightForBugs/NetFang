@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Callable, Dict, List, Optional
 
 from netfang.alert_manager import Alert
+from netfang.main import PluginManager
 
 
 class BasePlugin(ABC):
@@ -12,9 +13,10 @@ class BasePlugin(ABC):
     """
     name: str = "BasePlugin"
 
-    def __init__(self, config: Dict[str, Any]) -> None:
+    def __init__(self, config: Dict[str, Any],p) -> None:
         self.config: Dict[str, Any] = config
         self.callbacks: List[Callable] = []
+        self.plugin_manager = PluginManager.instance
 
     def register_callback(self, callback: Callable) -> None:
         """Register a callback function to be executed by the plugin."""
@@ -106,39 +108,12 @@ class BasePlugin(ABC):
         """
         pass
 
-    def register_action(self, action_id: str, action_name: str, description: str, 
-                       target_type: str = "system", target_id: Optional[str] = None, 
-                       icon: Optional[str] = None) -> Dict[str, Any]:
-        """
-        Register an action that can be performed by this plugin.
-        This action will be displayed in the UI and can be triggered by the user.
-        
-        Args:
-            action_id: Unique identifier for the action
-            action_name: Display name for the action
-            description: Description of what the action does
-            target_type: Type of target (network, device, system)
-            target_id: Optional ID of the specific target
-            icon: Optional icon name (FontAwesome class)
-            
-        Returns:
-            Dict containing the action data that was registered
-        """
-        action_data = {
-            "plugin_name": self.name,
-            "action_id": action_id,
-            "action_name": action_name,
-            "description": description,
-            "target_type": target_type,
-            "target_id": target_id,
-        }
-        
-        if icon:
-            action_data["icon"] = icon
-            
-        # Let the plugin manager handle the registration
-        from netfang.plugin_manager import PluginManager
-        if PluginManager.instance:
-            return PluginManager.instance.register_action(action_data)
-        
-        return action_data
+    def register_action(self, action_id: str, action_name: str, description: str, target_type: str = "system"):
+        if self.plugin_manager:
+            self.plugin_manager.register_plugin_action({
+                "plugin": self.name,
+                "id": action_id,
+                "name": action_name,
+                "description": description,
+                "target_type": target_type
+            })
