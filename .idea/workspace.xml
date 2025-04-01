@@ -4,10 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="fix: remove redundant file deletion in run.sh and use variable for python execution">
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="fix: update install script to check and install usb-modeswitch if missing">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/headless.sh" beforeDir="false" afterPath="$PROJECT_DIR$/headless.sh" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/install.sh" beforeDir="false" afterPath="$PROJECT_DIR$/install.sh" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/netfang/plugins/optional/plugin_waveshare_rgb_led_hat.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugins/optional/plugin_waveshare_rgb_led_hat.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -220,7 +219,7 @@
       <workItem from="1743450195742" duration="75000" />
       <workItem from="1743450325502" duration="2737000" />
       <workItem from="1743455455285" duration="2925000" />
-      <workItem from="1743505587947" duration="1465000" />
+      <workItem from="1743505587947" duration="2025000" />
     </task>
     <task id="LOCAL-00001" summary="refactor: Reorder Raspberry Pi dependencies in requirements.txt for clarity">
       <option name="closed" value="true" />
@@ -606,7 +605,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743506778262</updated>
     </task>
-    <option name="localTasksCounter" value="49" />
+    <task id="LOCAL-00049" summary="fix: update install script to check and install usb-modeswitch if missing">
+      <option name="closed" value="true" />
+      <created>1743507097517</created>
+      <option name="number" value="00049" />
+      <option name="presentableId" value="LOCAL-00049" />
+      <option name="project" value="LOCAL" />
+      <updated>1743507097517</updated>
+    </task>
+    <option name="localTasksCounter" value="50" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -624,7 +631,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="fix: update install script to use bash for headless setup execution" />
     <MESSAGE value="fix: update LED control check to use pi_utils for Raspberry Pi Zero 2 compatibility" />
     <MESSAGE value="feat: add CPU temperature resolution handling and safety check triggers" />
     <MESSAGE value="feat: enhance LED color indications for network events and states to reflect the readme" />
@@ -649,7 +655,8 @@
     <MESSAGE value="fix: add more verbose logging" />
     <MESSAGE value="fix: improve plugin scan completion handling and logging" />
     <MESSAGE value="fix: remove redundant file deletion in run.sh and use variable for python execution" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: remove redundant file deletion in run.sh and use variable for python execution" />
+    <MESSAGE value="fix: update install script to check and install usb-modeswitch if missing" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: update install script to check and install usb-modeswitch if missing" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$database.coverage" NAME="database Coverage Results" MODIFIED="1743239143834" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/netfang/db" />

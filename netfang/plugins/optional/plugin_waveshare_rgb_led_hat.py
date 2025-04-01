@@ -1,5 +1,4 @@
 import os
-import subprocess
 import sys
 import time
 import threading
@@ -211,12 +210,13 @@ class WaveshareRGBLEDHat(BasePlugin):
             self.logger.info(f"[{self.name}] Initialized with brightness={self.default_brightness}, "
                           f"speed={self.default_speed}, animations_enabled={self.animations_enabled}")
         
-        # Only log to database if the plugin is enabled
+        # Only log to the database if the plugin is enabled
         if is_enabled:
             add_plugin_log(self.db_path, self.name, "Plugin initialized")
 
     def on_setup(self) -> None:
         # Blue pulse animation indicates initialization
+        add_plugin_log(self.db_path, self.name, f"{self.name=}, {self.animations_enabled}, {self=}" )
         if self.animations_enabled:
             self.animation_controller.start_animation(
                 AnimationEnum.PULSE, ColorEnum.BLUE, 
