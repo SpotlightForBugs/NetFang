@@ -152,7 +152,7 @@ class AnimationController:
         Run the animation in a background thread.
         
         For indefinite animations (duration=0), will run until stop_event is set.
-        For timed animations, will run for specified duration or until stop_event.
+        For timed animations, will run for a specified duration or until stop_event.
         """
         start_time = time.time()
         try:
@@ -301,7 +301,7 @@ class WaveshareRGBLEDHat(BasePlugin):
         add_plugin_log(self.db_path, self.name, f"Alert triggered: {alert.message}")
 
     def on_alert_resolved(self, alert) -> None:
-        # Green blink pattern indicates alert resolution
+        # The green blink pattern indicates alert resolution
         if self.animations_enabled:
             self.animation_controller.start_animation(
                 AnimationEnum.BLINK, ColorEnum.GREEN, 
@@ -413,55 +413,48 @@ class WaveshareRGBLEDHat(BasePlugin):
         try:
             from netfang.socketio_handler import handler
             import asyncio
-            
+
             # Define available animations for quick access
             animations = [
-                {"name": "Solid Color", "id": AnimationEnum.SOLID, "description": "Display a solid color"},
-                {"name": "Pulse", "id": AnimationEnum.PULSE, "description": "Pulsing effect"},
-                {"name": "Blink", "id": AnimationEnum.BLINK, "description": "Blinking on/off"},
-                {"name": "Rainbow", "id": AnimationEnum.RAINBOW, "description": "Cycle through colors"},
-                {"name": "Chase", "id": AnimationEnum.CHASE, "description": "Running light effect"},
-                {"name": "Alternating", "id": AnimationEnum.ALTERNATING, "description": "Alternate between colors"}
+                {"name": "Solid Color", "id": "solid", "description": "Display a solid color"},
+                {"name": "Pulse", "id": "pulse", "description": "Pulsing effect"},
+                {"name": "Blink", "id": "blink", "description": "Blinking on/off"},
+                {"name": "Rainbow", "id": "rainbow", "description": "Cycle through colors"},
+                {"name": "Chase", "id": "chase", "description": "Running light effect"},
+                {"name": "Alternating", "id": "alternating", "description": "Alternate between colors"}
             ]
-            
+
             # Define available colors
             colors = [
-                {"name": "Red", "id": ColorEnum.RED},
-                {"name": "Green", "id": ColorEnum.GREEN},
-                {"name": "Blue", "id": ColorEnum.BLUE},
-                {"name": "Yellow", "id": ColorEnum.YELLOW},
-                {"name": "Magenta", "id": ColorEnum.MAGENTA},
-                {"name": "Cyan", "id": ColorEnum.CYAN},
-                {"name": "White", "id": ColorEnum.WHITE},
-                {"name": "Orange", "id": ColorEnum.ORANGE},
-                {"name": "Purple", "id": ColorEnum.PURPLE}
+                {"name": "Red", "id": "red"},
+                {"name": "Green", "id": "green"},
+                {"name": "Blue", "id": "blue"},
+                {"name": "Yellow", "id": "yellow"},
+                {"name": "Magenta", "id": "magenta"},
+                {"name": "Cyan", "id": "cyan"},
+                {"name": "White", "id": "white"},
+                {"name": "Orange", "id": "orange"},
+                {"name": "Purple", "id": "purple"}
             ]
-            
-            # Register each animation as an action
-            async def register_actions():
-                for anim in animations:
-                    for color in colors:
-                        action_id = f"led_{anim['id']}_{color['id']}"
-                        action_name = f"{anim['name']} - {color['name']}"
-                        
-                        await handler.register_dashboard_action(
-                            self.name,
-                            action_id,
-                            action_name,
-                            f"{anim['description']} in {color['name']}",
-                            "system"
-                        )
-            
-            # Run the async registration
-            loop = asyncio.get_event_loop()
-            if loop.is_running():
-                asyncio.create_task(register_actions())
-            else:
-                loop.run_until_complete(register_actions())
-                
-            add_plugin_log(self.db_path, self.name, "Registered dashboard LED control actions")
-            
+
+            # Register each animation and color combination as an action
+            for anim in animations:
+                for color in colors:
+                    action_id = f"led_{anim['id']}_{color['id']}"
+                    action_name = f"{anim['name']} - {color['name']}"
+                    description = f"{anim['description']} in {color['name']}"
+
+                    # Register the action using the base plugin's method
+                    self.register_action(
+                        action_id=action_id,
+                        action_name=action_name,
+                        description=description,
+                        target_type="system"
+                    )
+
+            self.logger.info("Registered dashboard LED control actions")
+
         except Exception as e:
             self.logger.error(f"Error registering dashboard actions: {str(e)}")
             add_plugin_log(self.db_path, self.name, f"Error registering dashboard actions: {str(e)}")
-            
+

@@ -674,7 +674,7 @@ def get_plugin_logs(
     :param db_path: Path to the database file.
     :param plugin_name: If provided, only logs from this plugin are returned.
     :param limit: Maximum number of logs to retrieve (if None, no limit).
-    :return: A list of dictionaries representing the plugin logs.
+    :return: A list of dictionaries representing the plugin logs - sorted by timestamp (newest first).
     """
     _ensure_db_initialized(db_path)
 

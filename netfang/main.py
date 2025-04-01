@@ -15,7 +15,7 @@ from flask_socketio import SocketIO, emit
 from flask_minify import minify
 from netfang.alert_manager import AlertManager, Alert
 from netfang.api import pi_utils
-from netfang.db.database import init_db, get_dashboard_data
+from netfang.db.database import get_plugin_logs, init_db, get_dashboard_data
 from netfang.network_manager import NetworkManager
 from netfang.plugin_manager import PluginManager
 from netfang.socketio_handler import handler as socketio_handler
@@ -217,6 +217,8 @@ def handle_connect():
                           "context": NetworkManager.instance.state_machine.state_context})
     emit("all_alerts", AlertManager.get_alerts(limit_to_this_session=True))
     
+    emit("register_action",socketio_handler.get_actions())
+    
     # Send cached output of active processes to the newly connected client
     asyncio.run(socketio_handler.send_cached_output_to_client(request.sid))
 
@@ -239,7 +241,9 @@ def handle_sync_dashboard():
     # Create a debug log when dashboard is synced
     from netfang.db.database import add_plugin_log
     global db_path  # Use the global db_path variable
-    add_plugin_log(db_path, "Dashboard", "Dashboard sync requested")
+    last_log = get_plugin_logs(db_path, "Dashboard", 1)
+    if not last_log.event == "Dashboard sync requested":
+        add_plugin_log(db_path, "Dashboard", "Dashboard sync requested")
     
     dashboard_data = get_dashboard_data(db_path)
     emit("dashboard_data", dashboard_data)

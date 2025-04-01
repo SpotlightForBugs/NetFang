@@ -4,9 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="fix: remove dashboard action registration from plugin_waveshare_rgb_led_hat">
+    <list default="true" id="7cfbc2e9-917e-4338-a305-adaaa201b814" name="Changes" comment="fix: remove unused method and improve comments in streaming_subprocess.py">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/netfang/streaming_subprocess.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/streaming_subprocess.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/netfang/plugins/optional/plugin_waveshare_rgb_led_hat.py" beforeDir="false" afterPath="$PROJECT_DIR$/netfang/plugins/optional/plugin_waveshare_rgb_led_hat.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -86,30 +86,30 @@
     <option name="openDirectoriesWithSingleClick" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "Python.NetFang.executor": "Run",
-    "Python.database.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "app.teamhub.selectedTeam": "https://github.com/SpotlightForBugs/NetFang",
-    "git-widget-placeholder": "master",
-    "last_opened_file_path": "E:/Downloads/intellij-micropython-1.4.6-2024.2.zip",
-    "node.js.detected.package.eslint": "true",
-    "node.js.detected.package.tslint": "true",
-    "node.js.selected.package.eslint": "(autodetect)",
-    "node.js.selected.package.tslint": "(autodetect)",
-    "nodejs_package_manager_path": "npm",
-    "run.code.analysis.last.selected.profile": "pProject Default",
-    "settings.editor.selected.configurable": "com.github.copilot.settings.ApplicationConfigurable",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;Python.NetFang.executor&quot;: &quot;Run&quot;,
+    &quot;Python.database.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;app.teamhub.selectedTeam&quot;: &quot;https://github.com/SpotlightForBugs/NetFang&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;master&quot;,
+    &quot;last_opened_file_path&quot;: &quot;E:/Downloads/intellij-micropython-1.4.6-2024.2.zip&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;run.code.analysis.last.selected.profile&quot;: &quot;pProject Default&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;com.github.copilot.settings.ApplicationConfigurable&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   },
-  "keyToStringList": {
-    "DatabaseDriversLRU": [
-      "sqlite"
+  &quot;keyToStringList&quot;: {
+    &quot;DatabaseDriversLRU&quot;: [
+      &quot;sqlite&quot;
     ]
   }
-}]]></component>
+}</component>
   <component name="RunManager" selected="Python.NetFang">
     <configuration name="NetFang" type="PythonConfigurationType" factoryName="Python">
       <module name="NetFang" />
@@ -219,15 +219,7 @@
       <workItem from="1743450195742" duration="75000" />
       <workItem from="1743450325502" duration="2737000" />
       <workItem from="1743455455285" duration="2925000" />
-      <workItem from="1743505587947" duration="2568000" />
-    </task>
-    <task id="LOCAL-00003" summary="feat: Ensure database initialization and verify table structure in database.py">
-      <option name="closed" value="true" />
-      <created>1742576748532</created>
-      <option name="number" value="00003" />
-      <option name="presentableId" value="LOCAL-00003" />
-      <option name="project" value="LOCAL" />
-      <updated>1742576748532</updated>
+      <workItem from="1743505587947" duration="3424000" />
     </task>
     <task id="LOCAL-00004" summary="feat: Improve user handling in install.sh by dynamically determining the non-elevated username">
       <option name="closed" value="true" />
@@ -613,7 +605,15 @@
       <option name="project" value="LOCAL" />
       <updated>1743507919698</updated>
     </task>
-    <option name="localTasksCounter" value="52" />
+    <task id="LOCAL-00052" summary="fix: remove unused method and improve comments in streaming_subprocess.py">
+      <option name="closed" value="true" />
+      <created>1743508200838</created>
+      <option name="number" value="00052" />
+      <option name="presentableId" value="LOCAL-00052" />
+      <option name="project" value="LOCAL" />
+      <updated>1743508200838</updated>
+    </task>
+    <option name="localTasksCounter" value="53" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -631,7 +631,6 @@
     </option>
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="feat: enhance LED color indications for network events and states to reflect the readme" />
     <MESSAGE value="feat: add project configuration files for NetFang setup" />
     <MESSAGE value="feat: improve socket connection error handling and prevent duplicate alerts" />
     <MESSAGE value="feat: merge and refine styles for improved layout and responsiveness" />
@@ -656,7 +655,8 @@
     <MESSAGE value="fix: update install script to check and install usb-modeswitch if missing" />
     <MESSAGE value="fix: improve logging in plugin_waveshare_rgb_led_hat and update workspace.xml" />
     <MESSAGE value="fix: remove dashboard action registration from plugin_waveshare_rgb_led_hat" />
-    <option name="LAST_COMMIT_MESSAGE" value="fix: remove dashboard action registration from plugin_waveshare_rgb_led_hat" />
+    <MESSAGE value="fix: remove unused method and improve comments in streaming_subprocess.py" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix: remove unused method and improve comments in streaming_subprocess.py" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/NetFang$database.coverage" NAME="database Coverage Results" MODIFIED="1743239143834" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/netfang/db" />

@@ -323,8 +323,13 @@ class StateMachine:
                      alert_data: Optional[Dict[str, Any]] = None,
                      perform_action_data: list[Union[str, int]] = None, ) -> None:
         """
-        Updates the current state and schedules a task to notify plugins.
+        Updates the current state of the state machine.
         """
+        # Prevent transitions from SCAN_COMPLETED
+        if self.current_state == State.SCAN_COMPLETED and new_state != State.SCAN_COMPLETED:
+            self.logger.info("State transition blocked: Already in SCAN_COMPLETED state.")
+            return
+
         # Ensure new_state is not None
         if new_state is None:
             self.logger.error("Attempted to update state to None, using WAITING_FOR_NETWORK as fallback")

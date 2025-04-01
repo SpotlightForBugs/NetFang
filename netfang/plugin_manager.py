@@ -37,6 +37,7 @@ class PluginManager:
         self.enabled_plugins: Dict[str, bool] = {}  # Track enabled status of plugins
         self.logger = logging.getLogger(__name__)
         self.scanning_plugins: Dict[str, bool] = {}  # track completion status
+        self.registered_actions: Dict[str, Dict[str, Any]] = {}  # Track registered actions by plugin
         
         # Set the class instance
         PluginManager.instance = self
@@ -461,4 +462,44 @@ class PluginManager:
         """
         self.logger.debug(f"Marking scan complete for plugin: {plugin_name}")
         self.notify_scan_complete(plugin_name)
+
+    def register_action(self, action_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Register an action for a plugin. Ensures no duplicate actions are registered.
+
+        Args:
+            action_data: Dictionary containing action details (plugin_name, action_id, etc.)
+
+        Returns:
+            The registered action data.
+        """
+        plugin_name = action_data["plugin_name"]
+        action_id = action_data["action_id"]
+
+        # Ensure the plugin has a registry
+        if plugin_name not in self.registered_actions:
+            self.registered_actions[plugin_name] = {}
+
+        # Check for duplicate action_id
+        if action_id in self.registered_actions[plugin_name]:
+            self.logger.warning(f"Action '{action_id}' already registered for plugin '{plugin_name}'.")
+            return self.registered_actions[plugin_name][action_id]
+
+        # Register the action
+        self.registered_actions[plugin_name][action_id] = action_data
+
+        # Notify the UI via SocketIO
+        from netfang.socketio_handler import handler
+        if handler and handler.socketio:
+            handler.sync_register_dashboard_action(
+                plugin_name=plugin_name,
+                action_id=action_id,
+                action_name=action_data["action_name"],
+                description=action_data["description"],
+                target_type=action_data["target_type"],
+                target_id=action_data.get("target_id"),
+            )
+
+        self.logger.info(f"Registered action '{action_id}' for plugin '{plugin_name}'.")
+        return action_data
 
