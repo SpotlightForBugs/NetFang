@@ -9,7 +9,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 RUN_SCRIPT="$SCRIPT_DIR/run.sh"
 
 
-#if the flag --without-additional-tools is not passed, do the following:
+#if the flag "--without-additional-tools" is not passed, do the following:
     # Install additional tools
     if [[ "$1" != "--without-additional-tools" ]]; then
         echo "Installing additional tools..."
@@ -32,6 +32,13 @@ if ! dpkg -l | grep python3-venv; then
     echo "python3-venv installed."
 fi
 
+#check if usb_modeswitch is installed, if not, install it
+if ! dpkg -l | grep usb-modeswitch; then
+    echo "usb-modeswitch not found. Installing usb-modeswitch..."
+    sudo apt-get install -y usb-modeswitch usb-modeswitch-data
+    echo "usb-modeswitch installed."
+fi
+
 # Automatically get the non-elevated username
 if [ -n "$SUDO_USER" ]; then
     RUN_USER="$SUDO_USER"
@@ -49,7 +56,7 @@ if [ -z "$RUN_USER" ]; then
     exit 1
 fi
 
-# check who owns the repository, if it's not the $RUN_USER, change the ownership to $RUN_USER
+# check who owns the repository if it's not the $RUN_USER, change the ownership to $RUN_USER
 if [ "$(stat -c '%U' "$SCRIPT_DIR")" != "$RUN_USER" ]; then
     echo "Changing ownership of $SCRIPT_DIR to $RUN_USER"
     sudo chown -R "$RUN_USER":"$RUN_USER" "$SCRIPT_DIR"
