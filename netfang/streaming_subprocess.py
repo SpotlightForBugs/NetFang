@@ -346,9 +346,6 @@ class StreamingSubprocess:
             except Exception as e:
                 self.logger.error(f"Error stopping process: {str(e)}")
 
-    def get_cached_output(self) -> List[str]:
-        """Get all cached output for this process."""
-        return list(self._output_buffer)
 
 
 def run_subprocess_sync(
@@ -370,7 +367,7 @@ def run_subprocess_sync(
     Returns:
         Dict with status, stdout, stderr, and return_code
     """
-    # Create async subprocess runner
+    # Create an async subprocess runner
     subprocess_runner = StreamingSubprocess(
         plugin_name, command, db_path, timeout=timeout
     )
